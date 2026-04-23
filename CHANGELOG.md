@@ -32,6 +32,20 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
+### 2026-04-23 — CS Table: Option rename + reorder
+
+**Files changed:** `src/CostScheduleTable.jsx`, `src/CostScheduleV2.jsx`
+
+An "Options" bar now appears below the search row in `CstTableTopBar` whenever options + rename handler are provided. Each option chip shows `OPT·01 Name` — click the name to edit inline (input auto-selects, Enter/blur commits, Esc cancels). ← / → arrows reorder. × removes (disabled when only one option remains).
+
+`reorderOption(id, dir)` added to `CostScheduleV2` — swaps the option at `idx` with `idx + dir` in `schedule.options`. `renameOption` and `removeOption` already existed; just needed to be passed through to `CostScheduleTable`.
+
+New component: `CstOptionChip` — self-contained, manages its own `editing` + `draft` state. Width of the rename input tracks `draft.length * 7.5px` to avoid layout jumps.
+
+Props added to `CostScheduleTable`: `renameOption`, `reorderOption`, `removeOption`. All three are now passed from `CostScheduleV2`.
+
+---
+
 ### 2026-04-23 — CS Table: Row actions menu (⋯)
 
 **Files changed:** `src/CostScheduleTable.jsx`

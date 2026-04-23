@@ -402,6 +402,7 @@ function CostScheduleTable({
   changeComponentCategory, cellTotal,
   onOpenPicker,
   appendComponentToCategory, moveRowUp, moveRowDown,
+  renameOption, reorderOption, removeOption,
 }) {
   const [rowShape, setRowShape] = React.useState(() => {
     try { return localStorage.getItem('aml-cs-rowshape') || 'flat'; } catch { return 'flat'; }
@@ -535,6 +536,10 @@ function CostScheduleTable({
         query={query} setQuery={setQuery} searchRef={searchRef}
         rowCount={rowShape === 'flat' ? flatRows.length : groupedRows.length}
         grandTotal={grandTotal}
+        options={schedule.options}
+        renameOption={renameOption}
+        reorderOption={reorderOption}
+        removeOption={removeOption}
         onAddComponent={appendComponentToCategory ? () => {
           const cats = Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
           const defaultCat = cats[0] || 'Uncategorised';
@@ -600,44 +605,46 @@ function CostScheduleTable({
 
 // ───────── Top bar ─────────
 
-function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, rowCount, grandTotal, onAddComponent }) {
+function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, rowCount, grandTotal,
+  onAddComponent, options, renameOption, reorderOption, removeOption }) {
+  const hasOptions = options && options.length > 0 && renameOption;
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 14,
-      padding: '10px 14px',
-      borderBottom: '1px solid var(--rule)',
-      background: 'var(--paper-2)',
-      minHeight: 44,
-    }}>
-      <input ref={searchRef}
-        placeholder="/  Search components, materials, suppliers…"
-        value={query} onChange={e => setQuery(e.target.value)}
-        style={{
-          flex: 1, maxWidth: 420,
-          background: 'transparent', border: '1px solid var(--rule)',
-          padding: '6px 10px', outline: 'none',
-          fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
-          color: 'var(--ink)',
-        }} />
+    <div style={{ borderBottom: '1px solid var(--rule)', background: 'var(--paper-2)' }}>
+      {/* Main toolbar row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '10px 14px',
+        minHeight: 44,
+      }}>
+        <input ref={searchRef}
+          placeholder="/  Search components, materials, suppliers…"
+          value={query} onChange={e => setQuery(e.target.value)}
+          style={{
+            flex: 1, maxWidth: 420,
+            background: 'transparent', border: '1px solid var(--rule)',
+            padding: '6px 10px', outline: 'none',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+            color: 'var(--ink)',
+          }} />
 
-      <div style={{ flex: 1 }} />
+        <div style={{ flex: 1 }} />
 
-      <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
-        textTransform: 'uppercase', color: 'var(--ink-4)' }}>
-        {rowCount} rows · grand total ${Math.round(grandTotal).toLocaleString()}
-      </span>
+        <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
+          textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+          {rowCount} rows · grand total ${Math.round(grandTotal).toLocaleString()}
+        </span>
 
-      {onAddComponent && (
-        <button onClick={onAddComponent} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 10, letterSpacing: '0.1em',
-          textTransform: 'uppercase', color: 'var(--ink-3)',
-          padding: '4px 8px',
-        }}>
-          + Add component
-        </button>
-      )}
+        {onAddComponent && (
+          <button onClick={onAddComponent} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 10, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'var(--ink-3)',
+            padding: '4px 8px',
+          }}>
+            + Add component
+          </button>
+        )}
 
       {/* Row-shape toggle */}
       <div style={{
@@ -665,6 +672,110 @@ function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, row
           </button>
         ))}
       </div>
+    </div>
+
+      {/* Options bar — rename and reorder */}
+      {hasOptions && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+          padding: '6px 14px 8px',
+          borderTop: '1px solid var(--rule)',
+        }}>
+          <span style={{
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--ink-4)', marginRight: 4, flexShrink: 0,
+          }}>Options</span>
+          {options.map((opt, i) => (
+            <CstOptionChip
+              key={opt.id}
+              opt={opt}
+              index={i}
+              total={options.length}
+              onRename={renameOption}
+              onMoveUp={reorderOption ? () => reorderOption(opt.id, -1) : null}
+              onMoveDown={reorderOption ? () => reorderOption(opt.id, 1) : null}
+              onRemove={removeOption && options.length > 1 ? () => removeOption(opt.id) : null}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CstOptionChip({ opt, index, total, onRename, onMoveUp, onMoveDown, onRemove }) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(opt.name);
+  const inputRef = React.useRef(null);
+
+  React.useEffect(() => { if (editing && inputRef.current) inputRef.current.select(); }, [editing]);
+
+  function commit() {
+    const name = draft.trim();
+    if (name && name !== opt.name) onRename(opt.id, name);
+    else setDraft(opt.name);
+    setEditing(false);
+  }
+
+  const chipBase = {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    border: '1px solid var(--rule-2)', background: 'var(--paper)',
+    padding: '3px 6px',
+  };
+
+  return (
+    <div style={{ ...chipBase, gap: 0 }}>
+      <span style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: 'var(--ink-4)', marginRight: 5, flexShrink: 0,
+      }}>OPT·{String(index + 1).padStart(2, '0')}</span>
+
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(opt.name); setEditing(false); } }}
+          style={{
+            width: Math.max(60, draft.length * 7.5),
+            background: 'transparent', border: 'none', outline: '1px solid var(--ink-3)',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+            color: 'var(--ink)', padding: '0 3px',
+          }}
+        />
+      ) : (
+        <span
+          onClick={() => { setDraft(opt.name); setEditing(true); }}
+          title="Click to rename"
+          style={{
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+            color: 'var(--ink-2)', cursor: 'text', padding: '0 2px',
+          }}>
+          {opt.name}
+        </span>
+      )}
+
+      {onMoveUp && index > 0 && (
+        <button onClick={onMoveUp} title="Move left"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: 'var(--ink-4)', fontSize: 10, lineHeight: 1 }}>
+          ←
+        </button>
+      )}
+      {onMoveDown && index < total - 1 && (
+        <button onClick={onMoveDown} title="Move right"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: 'var(--ink-4)', fontSize: 10, lineHeight: 1 }}>
+          →
+        </button>
+      )}
+      {onRemove && (
+        <button onClick={onRemove} title="Remove option"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px 0 4px', color: 'var(--ink-4)', fontSize: 11, lineHeight: 1 }}>
+          ×
+        </button>
+      )}
     </div>
   );
 }

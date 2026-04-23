@@ -346,6 +346,16 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
       cells: Object.fromEntries(Object.entries(s.cells).filter(([k]) => !k.startsWith(id + ':'))),
     }));
   }
+  function reorderOption(id, dir) {
+    update(s => {
+      const idx = s.options.findIndex(o => o.id === id);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= s.options.length) return s;
+      const opts = [...s.options];
+      [opts[idx], opts[newIdx]] = [opts[newIdx], opts[idx]];
+      return { ...s, options: opts };
+    });
+  }
   function duplicateOption(sourceId) {
     const source = schedule.options.find(o => o.id === sourceId);
     const id = 'o-' + Date.now();
@@ -422,6 +432,9 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
           appendComponentToCategory={appendComponentToCategory}
           moveRowUp={moveRowUp}
           moveRowDown={moveRowDown}
+          renameOption={renameOption}
+          reorderOption={reorderOption}
+          removeOption={removeOption}
         />
       ) : (
       <div style={{ overflowX: 'auto' }}>

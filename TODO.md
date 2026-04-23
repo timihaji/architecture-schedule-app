@@ -214,8 +214,8 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 ### Quality-of-life next
 - [x] **Row side panel** — click a row to see full material details / edit component in a side drawer (mirrors Library Table).
 - [x] **Row actions menu (⋯ on hover)** — delete, duplicate, move-to-option, change-category as single-row affordances.
-- [ ] **Option rename** — no UI in Table mode.
-- [ ] **Option reorder** — no UI in Table mode.
+- [x] **Option rename** — no UI in Table mode.
+- [x] **Option reorder** — no UI in Table mode.
 - [ ] **Per-trade subtotals** — group rows under collapsible Trade headers with subtotals.
 - [ ] **Change component category/trade** — category is read-only in Table mode.
 
