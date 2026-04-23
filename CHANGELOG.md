@@ -4,7 +4,59 @@ All notable changes to the Architecture Schedule App, with enough detail for a f
 
 ---
 
+## Known Difficulties & Gotchas
+
+These are recurring problems that have come up before. Read this before debugging.
+
+### 1. DataTable overflow clips cell-level popups
+`DataTable`'s scroll container uses `overflow: auto`. Any element with `position: absolute` inside a cell will be clipped. **Fix: always use `position: fixed` + `getBoundingClientRect()`** to position dropdowns, pickers, or menus that open from within a table cell. Pattern in `CstRowMenu`.
+
+### 2. "+ Add component" button invisible — DataTable fills viewport height
+DataTable renders at `height: calc(100vh - 48px - 48px)`, filling the remaining viewport. Any sibling element placed *below* DataTable in the DOM will be scrolled off-screen. **Fix: place action buttons inside the always-visible `CstTableTopBar`, not after the DataTable.** This was the bug that made "+ Add component" invisible for weeks.
+
+### 3. Column render fns go stale if handlers not in useMemo deps
+Column objects are built in a `useMemo`. If a render fn closes over a handler (e.g. `removeComponent`) that changes identity on re-render, it will hold a stale reference. **Fix: use `actionsRef.current` pattern** — a `useRef` populated on every render that column render fns read at call time, not at memo time. Avoids rebuilding columns on every schedule change.
+
+### 4. Browser cache hides pushed changes
+The app loads `.jsx` files as `<script>` tags. The browser aggressively caches these. After pushing a change, users must hard refresh (`Ctrl+Shift+R` / `Cmd+Shift+R`) to pick it up. This has caused "I don't see the change" reports even after confirmed pushes.
+
+### 5. `handleFlatOpenRow` / `handleGroupedOpenRow` were nulling `openId`
+Originally both row-open handlers called `onOpenPicker` and set `openId = null`, which prevented the side panel from ever rendering. The fix (2026-04-23) changed both to simply `setOpenId(rowId)`. If side panel stops appearing, check these handlers first.
+
+### 6. Components are shared across options (schedule data model)
+`schedule.components` is a flat array shared across all options. `schedule.cells` is a map keyed `"optionId:componentId"` → `{ materialId }`. Count/size/unit live on the component, not the cell — editing them changes the value for all options simultaneously. This is intentional but surprises people who expect per-option quantities.
+
+---
+
 ## Shipped
+
+---
+
+### 2026-04-23 — CS Table: Row actions menu (⋯)
+
+**Files changed:** `src/CostScheduleTable.jsx`
+
+Each row in CS Table mode now has a `···` button (far-right `rowActions` column) that opens a dropdown with single-row actions.
+
+**Flat mode items:**
+- Change material… (calls `onOpenPicker` for the specific option×component cell)
+- Copy to [option] — one item per other option; copies material assignment without clearing source
+- *separator*
+- Change category… (prompt; calls `setComp(id, 'category', value)`)
+- Duplicate component
+- Delete component (danger-coloured; confirms before calling `removeComponent`)
+
+**Grouped mode items:**
+- Change category… / Duplicate component / Delete component (no copy-to-option since grouped rows span all options)
+
+**Architecture note — why `actionsRef`:**
+The `rowActions` column render fn needs live access to `removeComponent`, `duplicateComponent`, `setComp`, `setCellMaterial`, and `schedule`. Adding these to the `buildCstFlatColumns` signature would add them to the `useMemo` deps, causing column objects to rebuild on every cell edit (since `schedule` changes on every `setCellMaterial`). Instead, a `React.useRef` "actions bag" (`actionsRef`) is populated on every render and passed to the column builders — the ref is stable (same object identity), so no extra deps, but render fns always read fresh values via `actionsRef.current`.
+
+**Architecture note — dropdown positioning:**
+The DataTable scroll container has `overflow: auto` which clips `position: absolute` dropdowns. The `CstRowMenu` dropdown uses `position: fixed` and measures the trigger button's `getBoundingClientRect()` on open to calculate `top` / `left`. This is reliable and avoids any clipping. The menu closes on `document.mousedown` outside the trigger.
+
+**Known difficulty — overflow clipping in DataTable cells:**
+Any popup/dropdown rendered inside a DataTable cell will be clipped by the table's `overflow: auto` scroll container. Always use `position: fixed` + `getBoundingClientRect()` for cell-level dropdowns. Do NOT use `position: absolute` — it will be invisible past the cell boundary.
 
 ---
 

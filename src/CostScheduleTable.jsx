@@ -9,7 +9,7 @@
 
 // ───────── Column catalogues ─────────
 
-function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker }) {
+function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker, actionsRef }) {
   return [
     { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
 
@@ -174,10 +174,41 @@ function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicke
         {r.material?.leadTime || <span style={{ color: 'var(--ink-4)' }}>—</span>}
       </div>,
     },
+    { id: 'rowActions', label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false,
+      render: (r, ctx) => {
+        const { removeComponent, duplicateComponent, setComp, setCellMaterial, schedule } = actionsRef.current;
+        const otherOpts = (schedule?.options || []).filter(o => o.id !== r.option?.id);
+        const items = [
+          { label: 'Change material…', onClick: () => onOpenPicker(r.option.id, r.component.id) },
+          ...otherOpts.map(opt => ({
+            label: 'Copy to ' + opt.name,
+            onClick: () => {
+              const cell = (schedule?.cells || {})[r.option.id + ':' + r.component.id];
+              if (cell?.materialId) setCellMaterial(opt.id, r.component.id, cell.materialId);
+            },
+          })),
+          { separator: true },
+          { label: 'Change category…', onClick: () => {
+            const cat = window.prompt('Category:', r.component.category || '');
+            if (cat !== null) setComp(r.component.id, 'category', (cat || '').trim());
+          }},
+          { label: 'Duplicate component', onClick: () => duplicateComponent && duplicateComponent(r.component.id) },
+          { label: 'Delete component', danger: true, onClick: () => {
+            if (window.confirm('Delete "' + (r.component.name || 'component') + '" and all its assignments?'))
+              removeComponent(r.component.id);
+          }},
+        ];
+        return (
+          <div data-dt-raw="true" style={{ ...ctx.baseStyle, overflow: 'visible', justifyContent: 'center' }}>
+            <CstRowMenu items={items} />
+          </div>
+        );
+      },
+    },
   ];
 }
 
-function buildCstGroupedColumns({ materials, labelTemplates, libraries, options, onOpenPicker, cellLookup, onMoveUp, onMoveDown }) {
+function buildCstGroupedColumns({ materials, labelTemplates, libraries, options, onOpenPicker, cellLookup, onMoveUp, onMoveDown, actionsRef }) {
   const base = [
     { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
     ...(onMoveUp && onMoveDown ? [{
@@ -303,7 +334,31 @@ function buildCstGroupedColumns({ materials, labelTemplates, libraries, options,
     },
   }));
 
-  return [...base, ...optCols];
+  const actionsCol = {
+    id: 'rowActions', label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false,
+    render: (r, ctx) => {
+      const { removeComponent, duplicateComponent, setComp } = actionsRef.current;
+      const items = [
+        { label: 'Change category…', onClick: () => {
+          const cat = window.prompt('Category:', r.category || '');
+          if (cat !== null) setComp(r.id, 'category', (cat || '').trim());
+        }},
+        { separator: true },
+        { label: 'Duplicate component', onClick: () => duplicateComponent && duplicateComponent(r.id) },
+        { label: 'Delete component', danger: true, onClick: () => {
+          if (window.confirm('Delete "' + (r.name || 'component') + '" and all its assignments?'))
+            removeComponent(r.id);
+        }},
+      ];
+      return (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, overflow: 'visible', justifyContent: 'center' }}>
+          <CstRowMenu items={items} />
+        </div>
+      );
+    },
+  };
+
+  return [...base, ...optCols, actionsCol];
 }
 
 // ───────── Grouped totals footer ─────────
@@ -364,6 +419,10 @@ function CostScheduleTable({
   const [openId, setOpenId] = React.useState(null);
   const [editingCell, setEditingCell] = React.useState(null);
   const searchRef = React.useRef(null);
+
+  // Stable ref so column render fns can read fresh handlers without being in useMemo deps
+  const actionsRef = React.useRef({});
+  actionsRef.current = { removeComponent, duplicateComponent, setComp, setCellMaterial, schedule, onOpenPicker };
 
   // Materials by id for quick lookups
   const matById = React.useMemo(() => {
@@ -428,7 +487,7 @@ function CostScheduleTable({
 
   const columns = React.useMemo(() => {
     if (rowShape === 'flat') {
-      return buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker });
+      return buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker, actionsRef });
     }
     return buildCstGroupedColumns({
       materials, labelTemplates, libraries,
@@ -436,12 +495,13 @@ function CostScheduleTable({
       onOpenPicker, cellLookup,
       onMoveUp: moveRowUp,
       onMoveDown: moveRowDown,
+      actionsRef,
     });
   }, [rowShape, materials, labelTemplates, libraries, schedule.options, onOpenPicker, cellLookup]);
 
   const defaultVisible = React.useMemo(() => {
     if (rowShape === 'flat') {
-      return ['select', 'component', 'option', 'swatch', 'material', 'count', 'size', 'unit', 'unitCost', 'lineTotal'];
+      return ['select', 'component', 'option', 'swatch', 'material', 'count', 'size', 'unit', 'unitCost', 'lineTotal', 'rowActions'];
     }
     // Grouped: show component + size/unit + every option
     return [
@@ -449,6 +509,7 @@ function CostScheduleTable({
       ...(moveRowUp && moveRowDown ? ['reorder'] : []),
       'component', 'category', 'count', 'size', 'unit',
       ...schedule.options.map(o => 'opt:' + o.id),
+      'rowActions',
     ];
   }, [rowShape, schedule.options]);
 
@@ -807,6 +868,82 @@ const cstMenuItemStyle = {
   fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
   color: 'var(--ink)',
 };
+
+// ───────── Row actions menu ─────────
+
+function CstRowMenu({ items }) {
+  const [open, setOpen] = React.useState(false);
+  const [pos, setPos] = React.useState({ top: 0, left: 0 });
+  const btnRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function onDown(e) {
+      if (!btnRef.current?.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  function toggle(e) {
+    e.stopPropagation();
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 2, left: rect.left - 120 });
+    setOpen(v => !v);
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        title="Row actions"
+        style={{
+          background: 'none', border: '1px solid transparent',
+          cursor: 'pointer', borderRadius: 3,
+          padding: '2px 5px', lineHeight: 1,
+          fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 14, color: 'var(--ink-3)',
+          letterSpacing: '0.05em',
+        }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--rule)'}
+        onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
+      >
+        ···
+      </button>
+      {open && (
+        <div style={{
+          position: 'fixed',
+          top: pos.top, left: pos.left,
+          background: 'var(--paper)', border: '1px solid var(--rule)',
+          minWidth: 168, zIndex: 1000,
+          boxShadow: '0 4px 18px rgba(0,0,0,0.12)',
+        }}>
+          {items.map((item, i) =>
+            item.separator ? (
+              <div key={i} style={{ height: 1, background: 'var(--rule)', margin: '3px 0' }} />
+            ) : (
+              <button key={i}
+                onClick={(e) => { e.stopPropagation(); item.onClick(); setOpen(false); }}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: '8px 12px',
+                  fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
+                  color: item.danger ? 'var(--accent, #c0392b)' : 'var(--ink)',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                {item.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
 // ───────── Side panel ─────────
 
