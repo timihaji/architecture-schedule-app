@@ -93,63 +93,79 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
   };
   const bodies = {
     'exact':         'This material is identical to one already in your library.',
-    'code-supplier': `Code "${existing?.code}" is already assigned to "${existing?.name || 'another material'}" from ${existing?.supplier || 'the same supplier'}.`,
+    'code-supplier': `Code "${existing?.code}" is already assigned to "${existing?.name || 'another material'}"${existing?.supplier ? ' from ' + existing.supplier : ''}.`,
     'name-supplier': `"${existing?.name}" from ${existing?.supplier || 'the same supplier'} already exists (${existing?.code || 'no code'}).`,
   };
 
-  const backdrop = {
-    position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.45)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 9000,
-  };
-  const card = {
-    background: 'var(--paper)', width: 420, padding: '28px 28px 22px',
-    boxShadow: '0 24px 56px rgba(20,20,20,0.18)',
-    display: 'flex', flexDirection: 'column', gap: 14,
-  };
-  const btnRow = {
-    display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4,
-  };
-  const btnBase = {
-    padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-    border: '1px solid var(--rule-2)', background: 'transparent',
-    fontFamily: 'var(--font-sans)', letterSpacing: '0.01em',
-  };
-  const btnPrimary = {
-    ...btnBase, background: 'var(--ink)', color: 'var(--paper)',
-    border: '1px solid var(--ink)',
-  };
+  const accentBg = level === 'exact' ? '#8a3020' : '#b85c3a';
 
   return (
-    <div style={backdrop} onClick={onCancel}>
-      <div style={card} onClick={e => e.stopPropagation()}>
-        <div>
-          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 14,
-            marginBottom: 6 }}>
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 9000,
+    }} onClick={onCancel}>
+      <div style={{
+        background: 'var(--paper)', width: 440,
+        boxShadow: '0 28px 64px rgba(20,20,20,0.24)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }} onClick={e => e.stopPropagation()}>
+
+        {/* Coloured header band */}
+        <div style={{
+          background: accentBg, padding: '16px 22px',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{ fontSize: 16, color: '#fff', lineHeight: 1 }}>!</span>
+          <span style={{
+            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
+            color: '#fff', letterSpacing: '0.02em',
+          }}>
             {headings[level] || 'Possible duplicate'}
-          </div>
+          </span>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-            fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
             {bodies[level]}
           </div>
-        </div>
-        {existing && (
-          <div style={{ padding: '10px 12px', background: 'var(--tint)',
-            border: '1px solid var(--rule)', fontSize: 13, lineHeight: 1.4 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
-              color: 'var(--ink-3)', marginRight: 8 }}>{existing.code}</span>
-            <span>{existing.name}</span>
-            {existing.supplier && (
-              <span style={{ color: 'var(--ink-3)', marginLeft: 6 }}>
-                &middot; {existing.supplier}
-              </span>
-            )}
+
+          {existing && (
+            <div style={{
+              padding: '10px 14px', fontSize: 13, lineHeight: 1.4,
+              background: 'rgba(184,92,58,0.08)',
+              borderLeft: '3px solid ' + accentBg,
+            }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
+                color: 'var(--ink-3)', marginRight: 8 }}>{existing.code}</span>
+              <span style={{ fontWeight: 500 }}>{existing.name}</span>
+              {existing.supplier && (
+                <span style={{ color: 'var(--ink-3)', marginLeft: 6 }}>
+                  &middot; {existing.supplier}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button style={{
+              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+              border: '1px solid var(--rule-2)', background: 'transparent',
+              fontFamily: 'var(--font-sans)',
+            }} onClick={onCancel}>Cancel</button>
+            <button style={{
+              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+              border: '1px solid var(--rule-2)', background: 'transparent',
+              fontFamily: 'var(--font-sans)',
+            }} onClick={onUseExisting}>Use existing</button>
+            <button style={{
+              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+              border: '1px solid ' + accentBg, background: accentBg,
+              color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 500,
+            }} onClick={onSaveAnyway}>Save anyway</button>
           </div>
-        )}
-        <div style={btnRow}>
-          <button style={btnBase} onClick={onCancel}>Cancel</button>
-          <button style={btnBase} onClick={onUseExisting}>Use existing</button>
-          <button style={btnPrimary} onClick={onSaveAnyway}>Save anyway</button>
         </div>
       </div>
     </div>
@@ -281,7 +297,14 @@ function App() {
   function saveMaterial(m) {
     if (m._isNew) {
       const policy = settings.dupePolicy || window.DUPE_PRESET_A;
-      if (policy.warnOnMaterialDupe !== 'off' && window.detectDuplicates) {
+      if (policy.warnOnMaterialDupe === 'auto-rename' && window.detectDuplicates && window.generateDuplicateCode) {
+        const { level } = window.detectDuplicates(m, materials, policy);
+        if (level === 'code-supplier' || level === 'exact') {
+          const newCode = window.generateDuplicateCode(m, materials, policy);
+          commitSaveMaterial({ ...m, code: newCode });
+          return;
+        }
+      } else if (policy.warnOnMaterialDupe !== 'off' && window.detectDuplicates) {
         const { level, matches } = window.detectDuplicates(m, materials, policy);
         if (level) {
           setDupeCheckState({ material: m, level, matches,

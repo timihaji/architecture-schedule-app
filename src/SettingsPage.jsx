@@ -694,11 +694,12 @@ function CodesSection({ settings, set }) {
       </SettingRow>
 
       <SettingRow label="Duplicate warning"
-        description="Whether saving a new material checks for existing matches.">
+        description="What happens when you save a new material that looks like an existing one. Auto-rename silently assigns the next code in series instead of prompting.">
         <Segmented
           value={policy.warnOnMaterialDupe || 'warn'}
           onChange={v => setPolicy('warnOnMaterialDupe', v)}
           options={[
+            { key: 'auto-rename', label: 'Auto-rename' },
             { key: 'warn', label: 'Warn' },
             { key: 'block', label: 'Block' },
             { key: 'off', label: 'Off' },
