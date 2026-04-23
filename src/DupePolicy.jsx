@@ -179,10 +179,23 @@ function autoAssignCode(materials, policy) {
 
 // ─────────────── Duplicate detection ───────────────
 
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+
 /**
  * Detect whether a material conflicts with existing materials.
  *
- * Returns { level: 'exact' | 'code-supplier' | 'name-supplier' | null, matches: Material[] }
+ * Returns { level: 'exact' | 'code-supplier' | 'name-supplier' | 'name-fuzzy' | null, matches: Material[] }
  *
  * Only the highest-severity match is returned.
  */
@@ -215,6 +228,17 @@ function detectDuplicates(material, materials, policy) {
       (m.supplier || '') === (material.supplier || '')
     );
     if (nameSupplierMatches.length > 0) return { level: 'name-supplier', matches: nameSupplierMatches };
+  }
+
+  // 4. Fuzzy name + same supplier (opt-in, Levenshtein distance <= 2)
+  if (pol.fuzzyNameMatch && material.name) {
+    const nameLower = material.name.toLowerCase();
+    const fuzzyMatches = others.filter(m =>
+      m.name &&
+      (m.supplier || '') === (material.supplier || '') &&
+      levenshtein(nameLower, m.name.toLowerCase()) <= 2
+    );
+    if (fuzzyMatches.length > 0) return { level: 'name-fuzzy', matches: fuzzyMatches };
   }
 
   return { level: null, matches: [] };

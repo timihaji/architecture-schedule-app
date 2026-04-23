@@ -65,12 +65,20 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onClose 
     dismiss(key);
   }
 
+  function mergeAll(group) {
+    for (const pair of group) {
+      onMerge(pair.idA, pair.idB);
+      dismiss(pair.key);
+    }
+  }
+
   const groupLabels = {
     'exact': 'Exact matches',
     'code-supplier': 'Same code & supplier',
     'name-supplier': 'Same name & supplier',
+    'name-fuzzy': 'Similar names',
   };
-  const groups = ['exact', 'code-supplier', 'name-supplier'];
+  const groups = ['exact', 'code-supplier', 'name-supplier', 'name-fuzzy'];
 
   const byLevel = {};
   for (const p of pairs) {
@@ -129,8 +137,20 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onClose 
                     letterSpacing: '0.14em', textTransform: 'uppercase',
                     color: 'var(--ink-4)', paddingBottom: 8,
                     borderBottom: '1px solid var(--rule)', marginBottom: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   }}>
-                    {groupLabels[level]} &middot; {group.length}
+                    <span>{groupLabels[level]} &middot; {group.length}</span>
+                    {level === 'exact' && group.length > 1 && (
+                      <button type="button" onClick={() => mergeAll(group)}
+                        style={{
+                          padding: '3px 9px', fontSize: 10, cursor: 'pointer',
+                          border: '1px solid var(--ink)', background: 'var(--ink)',
+                          color: 'var(--paper)', fontFamily: 'var(--font-sans)',
+                          letterSpacing: '0.04em', textTransform: 'none',
+                        }}>
+                        Merge all ({group.length})
+                      </button>
+                    )}
                   </div>
                   {group.map(pair => (
                     <DupePair
