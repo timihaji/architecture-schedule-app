@@ -704,6 +704,10 @@ function loadSpec(storageKey, project, materials) {
       }
     }
   } catch {}
+  const seeded = window.SEED_SPECS && window.SEED_SPECS[project.id];
+  if (seeded && seeded.rows && seeded.sections) {
+    return { title: seeded.title || 'Project Specification', ...seeded };
+  }
   if (project.id === 'p-brunswick') return brunswickSpecSeed(materials);
   return blankSpec();
 }

@@ -879,6 +879,14 @@ function loadScheduleV2(storageKey, project) {
       }
     }
   } catch {}
+  const seeded = window.SEED_SCHEDULES && window.SEED_SCHEDULES[project.id];
+  if (seeded && seeded.options && seeded.components && seeded.cells) {
+    return {
+      title: seeded.title || 'Materials Cost Schedule',
+      ...seeded,
+      components: migrateComponents(seeded.components),
+    };
+  }
   if (project.id === 'p-brunswick' && window.brunswickSeed) {
     const seed = window.brunswickSeed();
     return { ...seed, components: migrateComponents(seed.components) };

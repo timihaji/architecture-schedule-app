@@ -857,6 +857,10 @@ function loadSchedule(storageKey, project) {
       }
     }
   } catch {}
+  const seeded = window.SEED_SCHEDULES && window.SEED_SCHEDULES[project.id];
+  if (seeded && seeded.options && seeded.components && seeded.cells) {
+    return { title: seeded.title || 'Materials Cost Schedule', ...seeded };
+  }
   // Seed default for the built-in Brunswick project; blank for user-created ones
   if (project.id === 'p-brunswick') return brunswickSeed();
   return {
