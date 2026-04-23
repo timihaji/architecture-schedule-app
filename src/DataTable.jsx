@@ -200,7 +200,8 @@ function DataTable({
   // ───── keyboard
   React.useEffect(() => {
     function onKey(e) {
-      const inInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+      const inInput = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' ||
+        (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox');
       if (e.key === 'Escape') {
         if (editingCell) { setEditingCell(null); return; }
         if (openId) { setOpenId && setOpenId(null); return; }
