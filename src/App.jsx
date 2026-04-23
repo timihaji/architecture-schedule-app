@@ -449,6 +449,20 @@ function App() {
   function mergeMaterials(survivorId, loserId) {
     const loser = materials.find(m => m.id === loserId);
     if (!loser) return;
+
+    // Rewrite materialId references in every project's schedule + spec
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('aml-schedule-') || key.startsWith('aml-spec-')) {
+          const raw = localStorage.getItem(key);
+          if (!raw || !raw.includes(loserId)) continue;
+          // Replace all occurrences of the loser id in the JSON blob
+          localStorage.setItem(key, raw.split('"' + loserId + '"').join('"' + survivorId + '"'));
+        }
+      }
+    } catch {}
+
     setMaterials(list => list
       .filter(m => m.id !== loserId)
       .map(m => {
