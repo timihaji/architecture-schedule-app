@@ -733,6 +733,24 @@ function App() {
               if (data.libraries) setLibraries(data.libraries);
               if (data.labelTemplates) setLabelTemplates(data.labelTemplates);
               if (data.settings) setSettings({ ...window.SETTINGS_DEFAULTS, ...data.settings });
+              // Restore per-project cost schedules and specs to localStorage.
+              try {
+                Object.keys(localStorage).forEach(k => {
+                  if (k.startsWith('aml-schedule-') || k.startsWith('aml-spec-')) {
+                    localStorage.removeItem(k);
+                  }
+                });
+                if (data.schedules && typeof data.schedules === 'object') {
+                  Object.entries(data.schedules).forEach(([pid, sched]) => {
+                    localStorage.setItem('aml-schedule-' + pid, JSON.stringify(sched));
+                  });
+                }
+                if (data.specs && typeof data.specs === 'object') {
+                  Object.entries(data.specs).forEach(([pid, spec]) => {
+                    localStorage.setItem('aml-spec-' + pid, JSON.stringify(spec));
+                  });
+                }
+              } catch {}
             }}
           />
         )}

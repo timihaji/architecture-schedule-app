@@ -993,11 +993,25 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
   const [importMsg, setImportMsg] = React.useState(null);
 
   function exportAll() {
+    // Pull per-project cost schedules and specs out of localStorage, keyed by
+    // project id so they can be restored on import.
+    const schedules = {};
+    const specs = {};
+    try {
+      (projects || []).forEach(p => {
+        const sRaw = localStorage.getItem('aml-schedule-' + p.id);
+        if (sRaw) { try { schedules[p.id] = JSON.parse(sRaw); } catch {} }
+        const pRaw = localStorage.getItem('aml-spec-' + p.id);
+        if (pRaw) { try { specs[p.id] = JSON.parse(pRaw); } catch {} }
+      });
+    } catch {}
+
     const payload = {
       _type: 'hollis-arne-archive',
-      _version: 1,
+      _version: 2,
       _exportedAt: new Date().toISOString(),
       settings, materials, projects, libraries, labelTemplates,
+      schedules, specs,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)],
       { type: 'application/json' });
