@@ -343,13 +343,14 @@ function buildCstGroupedColumns({ materials, labelTemplates, libraries, options,
           </div>
         );
       }
+      const label = window.formatLabel(material, labelTemplates);
       return (
         <div data-dt-raw="true" style={{ ...ctx.baseStyle, gap: 8 }}
           onClick={(e) => { e.stopPropagation(); onOpenPicker(opt.id, r.id); }}>
           <Swatch swatch={material.swatch} size="xs" seed={parseInt((material.id || '').slice(2)) || 1}
             style={{ width: 14, height: 14, flexShrink: 0 }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 12 }}>
-            {window.formatLabel(material, labelTemplates)}
+          <span title={label} style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 12 }}>
+            {label}
           </span>
         </div>
       );
