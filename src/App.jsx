@@ -823,6 +823,7 @@ function App() {
           libraries={libraries}
           settings={settings}
           onMerge={mergeMaterials}
+          onUpdateDismissed={(pairs) => setSettings(s => ({ ...s, dismissedDuplicatePairs: pairs }))}
           onClose={() => setFindDupesOpen(false)}
         />
       )}
@@ -1382,6 +1383,10 @@ function StandardFields({ draft, set, materials }) {
       )}
       <EditorField label="Supplier">
         <input value={draft.supplier} onChange={e => set('supplier', e.target.value)} style={fieldStyle()} />
+      </EditorField>
+      <EditorField label="Supplier code">
+        <input value={draft.supplier_code || ''} onChange={e => set('supplier_code', e.target.value)}
+          style={fieldStyle('mono')} placeholder="Supplier's SKU / product no." />
       </EditorField>
       <EditorField label="Origin">
         <input value={draft.origin} onChange={e => set('origin', e.target.value)} style={fieldStyle()} />

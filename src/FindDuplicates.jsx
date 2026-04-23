@@ -3,19 +3,22 @@
 //
 // Dismissed pairs are persisted to localStorage so they stay gone across sessions.
 
-const DISMISSED_KEY = 'aml-dismissed-dupes';
+const DISMISSED_LEGACY_KEY = 'aml-dismissed-dupes';
 
-function loadDismissed() {
-  try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch { return new Set(); }
-}
-function saveDismissed(set) {
-  try { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...set])); } catch {}
-}
 function pairKey(idA, idB) {
   return idA < idB ? idA + ':' + idB : idB + ':' + idA;
+}
+
+function migrateLegacyDismissed(settingsPairs) {
+  // One-time migration from old separate localStorage key into settings array
+  try {
+    const raw = localStorage.getItem(DISMISSED_LEGACY_KEY);
+    if (!raw) return settingsPairs;
+    const legacy = JSON.parse(raw);
+    const merged = [...new Set([...(settingsPairs || []), ...legacy])];
+    localStorage.removeItem(DISMISSED_LEGACY_KEY);
+    return merged;
+  } catch { return settingsPairs; }
 }
 
 // Scan all materials for duplicate pairs. Returns array of
@@ -44,9 +47,18 @@ function scanAllDuplicates(materials, policy) {
   return results;
 }
 
-function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onClose }) {
-  const [dismissed, setDismissed] = React.useState(loadDismissed);
+function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onUpdateDismissed, onClose }) {
   const policy = settings?.dupePolicy || window.DUPE_PRESET_A;
+
+  // Migrate legacy localStorage key on first open, then use settings
+  const [dismissed, setDismissed] = React.useState(() => {
+    const migrated = migrateLegacyDismissed(settings?.dismissedDuplicatePairs || []);
+    if (migrated !== (settings?.dismissedDuplicatePairs || [])) {
+      // Persist migration result immediately
+      onUpdateDismissed && onUpdateDismissed(migrated);
+    }
+    return new Set(migrated);
+  });
 
   const allPairs = React.useMemo(() => scanAllDuplicates(materials, policy), [materials]);
   const pairs = allPairs.filter(p => !dismissed.has(p.key));
@@ -55,7 +67,7 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onClose 
     setDismissed(prev => {
       const next = new Set(prev);
       next.add(key);
-      saveDismissed(next);
+      onUpdateDismissed && onUpdateDismissed([...next]);
       return next;
     });
   }

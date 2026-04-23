@@ -201,6 +201,9 @@ const SETTINGS_DEFAULTS = {
   defaultStage: 'Concept',
   defaultCurrency: 'AUD',
 
+  // Dismissed duplicate pairs (persisted here so it travels with JSON export)
+  dismissedDuplicatePairs: [],
+
   // Code & duplicate policy (mirrors DUPE_PRESET_A)
   dupePolicy: {
     preset: 'A',
