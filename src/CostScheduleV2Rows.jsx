@@ -589,13 +589,14 @@ function ComponentRow({
         const total = cellTotal(o.id, c);
         const ScheduleCell = window.ScheduleCell;
         return (
-          <ScheduleCell
-            key={o.id}
-            material={m}
-            labelTemplates={labelTemplates}
-            total={total}
-            onClick={() => onCellClick(o.id)}
-          />
+          <div key={o.id} data-cs-cell={o.id + ':' + c.id}>
+            <ScheduleCell
+              material={m}
+              labelTemplates={labelTemplates}
+              total={total}
+              onClick={() => onCellClick(o.id)}
+            />
+          </div>
         );
       })}
     </div>

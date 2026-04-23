@@ -47,6 +47,10 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
   const [viewMode, setViewMode] = React.useState(() => {
     try { return localStorage.getItem('aml-cs-mode') || 'gallery'; } catch { return 'gallery'; }
   });
+
+  // Cell clipboard — C to copy hovered cell's material, V to paste into hovered cell.
+  const [clipboard, setClipboard] = React.useState(null);  // { materialId, optionId, componentId }
+  const [hoverKey, setHoverKey] = React.useState(null);    // "optId:compId"
   function setViewModePersist(v) {
     setViewMode(v);
     try { localStorage.setItem('aml-cs-mode', v); } catch {}
@@ -61,6 +65,71 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
   React.useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(schedule)); } catch {}
   }, [schedule, storageKey]);
+
+  // Global C / V / Esc handler for cell clipboard.
+  React.useEffect(() => {
+    function onKey(e) {
+      const ae = document.activeElement;
+      const tag = ae?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ae?.isContentEditable) return;
+      if (pickerFor) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const k = e.key.toLowerCase();
+      if (k === 'c') {
+        if (!hoverKey) return;
+        const cell = schedule.cells[hoverKey];
+        if (!cell?.materialId) return;
+        const [optionId, componentId] = hoverKey.split(':');
+        setClipboard({ materialId: cell.materialId, optionId, componentId });
+        e.preventDefault();
+      } else if (k === 'v') {
+        if (!clipboard || !hoverKey) return;
+        const [optionId, componentId] = hoverKey.split(':');
+        update(s => ({
+          ...s,
+          cells: { ...s.cells, [hoverKey]: { materialId: clipboard.materialId } },
+        }));
+        const el = document.querySelector(
+          '[data-cs-cell="' + hoverKey + '"], [data-row-id="' + hoverKey + '"]'
+        );
+        if (el) {
+          const prevOutline = el.style.outline;
+          const prevOffset = el.style.outlineOffset;
+          el.style.outline = '2px solid var(--accent)';
+          el.style.outlineOffset = '-2px';
+          setTimeout(() => {
+            el.style.outline = prevOutline;
+            el.style.outlineOffset = prevOffset;
+          }, 260);
+        }
+        e.preventDefault();
+      } else if (e.key === 'Escape' && clipboard) {
+        setClipboard(null);
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hoverKey, clipboard, pickerFor, schedule.cells]);
+
+  // Reflect the clipboard source cell with a dashed outline.
+  React.useEffect(() => {
+    if (!clipboard) return;
+    const key = clipboard.optionId + ':' + clipboard.componentId;
+    const el = document.querySelector(
+      '[data-cs-cell="' + key + '"], [data-row-id="' + key + '"]'
+    );
+    if (!el) return;
+    const prevOutline = el.style.outline;
+    const prevOffset = el.style.outlineOffset;
+    el.style.outline = '1px dashed var(--accent)';
+    el.style.outlineOffset = '-1px';
+    return () => {
+      el.style.outline = prevOutline;
+      el.style.outlineOffset = prevOffset;
+    };
+  }, [clipboard, viewMode]);
 
   const update = (fn) => setSchedule(s => fn(s));
 
@@ -393,8 +462,23 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
 
   const gridColumns = `72px minmax(220px, 2fr) 64px 96px repeat(${schedule.options.length}, minmax(180px, 1.4fr))`;
 
+  function handleMouseOver(e) {
+    const el = e.target.closest('[data-cs-cell]');
+    if (el) { setHoverKey(el.getAttribute('data-cs-cell')); return; }
+    if (viewMode === 'table') {
+      const rowEl = e.target.closest('[data-row-id]');
+      const id = rowEl?.getAttribute('data-row-id');
+      if (id && id.includes(':')) { setHoverKey(id); return; }
+    }
+  }
+
+  const clipboardMaterial = clipboard
+    ? materials.find(m => m.id === clipboard.materialId)
+    : null;
+
   return (
-    <div>
+    <div onMouseOver={handleMouseOver}
+      onMouseLeave={() => setHoverKey(null)}>
       <Header
         project={project}
         projects={projects}
@@ -489,6 +573,13 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
           }
         }}
       />
+
+      {clipboard && clipboardMaterial && (
+        <ClipboardToast
+          label={window.formatLabel ? window.formatLabel(clipboardMaterial, labelTemplates) : clipboardMaterial.name}
+          onClear={() => setClipboard(null)}
+        />
+      )}
 
       {pickerFor && (
         <MaterialPicker
@@ -636,5 +727,39 @@ const v2SmallIcon = {
   letterSpacing: '0.1em', textTransform: 'uppercase',
   color: 'var(--ink-4)', fontWeight: 500,
 };
+
+function ClipboardToast({ label, onClear }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+      background: 'var(--ink)', color: 'var(--paper)',
+      padding: '10px 14px',
+      display: 'flex', alignItems: 'center', gap: 12,
+      boxShadow: '0 6px 22px rgba(20,20,20,0.22)',
+      zIndex: 60,
+      fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+      letterSpacing: '0.01em',
+      maxWidth: 520,
+    }}>
+      <span style={{
+        fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+        letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.6,
+      }}>Copied</span>
+      <span style={{
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        maxWidth: 260, fontWeight: 500,
+      }}>{label}</span>
+      <span style={{ opacity: 0.55 }}>·</span>
+      <span style={{ opacity: 0.7 }}>press V to paste, Esc to clear</span>
+      <button type="button" onClick={onClear}
+        title="Clear clipboard"
+        style={{
+          background: 'none', border: 'none', color: 'var(--paper)',
+          cursor: 'pointer', opacity: 0.6, padding: '0 0 0 6px',
+          fontSize: 16, lineHeight: 1,
+        }}>×</button>
+    </div>
+  );
+}
 
 Object.assign(window, { CostScheduleV2 });

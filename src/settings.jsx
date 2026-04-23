@@ -159,6 +159,7 @@ const SETTINGS_GALLERY_WIDTHS = [
   { key: 'editorial', label: 'Editorial', w: 1240 },
   { key: 'roomy',     label: 'Roomy',     w: 1360 },
   { key: 'studio',    label: 'Studio',    w: 1480 },
+  { key: 'broad',     label: 'Broad',     w: 1680 },
   { key: 'wide',      label: 'Wide',      w: null },
 ];
 
