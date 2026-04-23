@@ -587,6 +587,28 @@ function CostScheduleTable({
         density="regular"
         onSaveCell={rowShape === 'flat' ? handleFlatSave : handleGroupedSave}
         onOpenRow={rowShape === 'flat' ? handleFlatOpenRow : handleGroupedOpenRow}
+        onEditRow={(rowId) => {
+          if (rowShape === 'flat') {
+            const [optId, compId] = rowId.split(':');
+            onOpenPicker(optId, compId);
+          } else {
+            if (schedule.options[0]) onOpenPicker(schedule.options[0].id, rowId);
+          }
+        }}
+        onAdd={appendComponentToCategory ? () => {
+          const cats = Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
+          const defaultCat = cats[0] || 'Uncategorised';
+          const hint = cats.length > 0 ? ' (' + cats.join(', ') + ')' : '';
+          const cat = window.prompt('Trade / category' + hint + ':', defaultCat);
+          if (cat !== null) appendComponentToCategory((cat || '').trim() || 'Uncategorised');
+        } : null}
+        onDeleteRow={(rowId) => {
+          const compId = rowShape === 'flat' ? rowId.split(':')[1] : rowId;
+          const comp = schedule.components.find(c => c.id === compId);
+          if (window.confirm('Delete "' + (comp?.name || 'component') + '" and all its assignments?')) {
+            removeComponent(compId);
+          }
+        }}
         groupBy={rowShape === 'flat'
           ? (r) => r.component.category || 'Uncategorised'
           : (r) => r.category || 'Uncategorised'}

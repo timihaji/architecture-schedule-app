@@ -32,6 +32,42 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
+### 2026-04-23 14:35 AEST — CS Table: Keyboard shortcuts
+
+**Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`
+
+All keyboard shortcuts now work correctly in CS Table mode.
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move cursor down |
+| `k` / `↑` | Move cursor up |
+| `g` / `G` | Jump to first / last row |
+| `o` / `Enter` | Open side panel for cursor row |
+| `e` | Open material picker for cursor row (flat: specific cell; grouped: first option) |
+| `x` / `Space` | Toggle select cursor row |
+| `Shift+x` | Range-select to cursor |
+| `c` | Add component (same prompt as "+ Add component" button) |
+| `d` / `Delete` | Delete cursor row's component (confirms first) |
+| `⌘A` / `Ctrl+A` | Select all visible rows |
+| `⌘-click` / `Ctrl-click` | Toggle-add single row to selection without clearing others |
+| `/` | Focus search input |
+| `Esc` | Cancel edit → close panel → clear selection |
+
+**Changes in DataTable:**
+- Added `onDeleteRow` prop; `d` and `Delete` keys call it with `cursorId`
+- `⌘-click` / `Ctrl-click` on a row now calls `toggleSelect(id)` without opening the side panel (previously only shift-click had special handling)
+- Added `onDeleteRow`, `onEditRow`, `onOpenRow`, `onAdd` to the keyboard effect's dependency array (prevents stale closure bugs)
+
+**Changes in CostScheduleTable:**
+- `onEditRow` → flat: `onOpenPicker(optId, compId)`; grouped: `onOpenPicker(options[0].id, compId)`
+- `onAdd` → same prompt as the top bar "+ Add component" button
+- `onDeleteRow` → confirms then calls `removeComponent(compId)`
+
+**Known issue:** If a trade section is collapsed, `j`/`k` navigation still moves the cursor into hidden rows (they're in `filtered` but not rendered). The cursor highlight won't be visible. Collapse all but the active section before navigating or use search to scope the list.
+
+---
+
 ### 2026-04-23 14:32 AEST — CS Table: Per-trade subtotals + inline category edit
 
 **Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`

@@ -81,6 +81,7 @@ function DataTable({
   onOpenRow,
   onEditRow,
   onAdd,
+  onDeleteRow,
 
   // Filter matcher (per-row). Defaults to stringly-match.
   matchFilter,
@@ -245,13 +246,16 @@ function DataTable({
       else if (e.key === 'c') {
         if (onAdd) { e.preventDefault(); onAdd(); }
       }
+      else if (e.key === 'd' || e.key === 'Delete') {
+        if (onDeleteRow && cursorId) { e.preventDefault(); onDeleteRow(cursorId); }
+      }
       else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault(); selectAll();
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filtered, cursorId, openId, selected, editingCell]);
+  }, [filtered, cursorId, openId, selected, editingCell, onDeleteRow, onEditRow, onOpenRow, onAdd]);
 
   // ───── visible cols
   const visibleCols = colPref.order
@@ -377,6 +381,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         isOpen={id === openId}
         onRowClick={(e) => {
           if (e.shiftKey) { selectRange(id); return; }
+          if (e.metaKey || e.ctrlKey) { toggleSelect(id); setCursorId && setCursorId(id); return; }
           setCursorId && setCursorId(id);
           setOpenId && setOpenId(id);
         }}

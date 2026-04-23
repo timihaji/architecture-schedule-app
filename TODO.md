@@ -231,7 +231,7 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 - [ ] **Material label truncation** — long names are harsh in Grouped mode; needs tooltip or ellipsis with full name on hover.
 
 ### Keyboard shortcuts (inherit from DataTable — need validation in CS context)
-- [ ] Validate J/K navigation, E (edit), D (delete), ⌘-click row select all work correctly in CS table.
+- [x] Validate J/K navigation, E (edit), D (delete), ⌘-click row select all work correctly in CS table.
 
 ---
 
