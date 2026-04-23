@@ -140,41 +140,44 @@ function generateDuplicateCode(src, materials, policy) {
 
 /**
  * Auto-assign a code for a NEW material (not a duplicate).
- * Returns a suggested code string, or null if auto-assignment is off or ambiguous.
+ * Pass `kind` and optionally `category` to narrow the search pool.
+ * Tries category-scoped first, falls back to kind-scoped.
+ * Returns a suggested code string, or null if ambiguous or policy is off.
  */
-function autoAssignCode(materials, policy) {
+function autoAssignCode(materials, policy, kind, category) {
   const pol = policy || DUPE_PRESET_A;
   if (pol.autoAssign === 'none') return null;
 
-  // Find the dominant prefix series across all materials
-  const prefixCounts = {};
-  for (const m of (materials || [])) {
-    const s = detectSeries(m.code || '');
-    if (s !== null) {
-      prefixCounts[s.prefix] = (prefixCounts[s.prefix] || 0) + 1;
+  function pluralityNext(pool) {
+    const counts = {};
+    for (const m of pool) {
+      const s = detectSeries(m.code || '');
+      if (s !== null) counts[s.prefix] = (counts[s.prefix] || 0) + 1;
     }
-  }
-  const prefixes = Object.keys(prefixCounts);
-  if (prefixes.length === 0) return null;
-
-  // If multiple series with no clear dominant, leave blank
-  const sorted = prefixes.sort((a, b) => prefixCounts[b] - prefixCounts[a]);
-  const dominant = sorted[0];
-  if (prefixes.length > 1 && prefixCounts[dominant] < (materials || []).length * 0.7) {
-    return null;
-  }
-
-  // Next in dominant series
-  let max = 0;
-  let maxWidth = 2;
-  for (const m of (materials || [])) {
-    const s = detectSeries(m.code || '');
-    if (s && s.prefix === dominant && s.number > max) {
-      max = s.number;
-      maxWidth = s.width;
+    const prefixes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (prefixes.length === 0) return null;
+    // Require a clear winner — top must beat second by at least 1
+    if (prefixes.length > 1 && counts[prefixes[0]] === counts[prefixes[1]]) return null;
+    const dominant = prefixes[0];
+    let max = 0, maxWidth = 2;
+    for (const m of pool) {
+      const s = detectSeries(m.code || '');
+      if (s && s.prefix === dominant && s.number > max) { max = s.number; maxWidth = s.width; }
     }
+    return formatSeriesCode(dominant, max + 1, maxWidth);
   }
-  return formatSeriesCode(dominant, max + 1, maxWidth);
+
+  const all = materials || [];
+  const kindPool = kind ? all.filter(m => (m.kind || 'material') === kind) : all;
+
+  // Try category-scoped first (most specific), then kind-scoped
+  if (category) {
+    const catPool = kindPool.filter(m => m.category === category);
+    const result = pluralityNext(catPool);
+    if (result) return result;
+  }
+
+  return pluralityNext(kindPool);
 }
 
 // ─────────────── Duplicate detection ───────────────

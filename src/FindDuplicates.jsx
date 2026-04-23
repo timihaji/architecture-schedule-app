@@ -213,10 +213,10 @@ function DupePair({ pair, matA, matB, onMergeLeft, onMergeRight, onKeepBoth }) {
         alignItems: 'center', background: 'var(--tint)',
       }}>
         <button style={mergeBtnStyle} onClick={onMergeLeft} title="Keep left, remove right">
-          Keep left
+          Merge into left
         </button>
         <button style={mergeBtnStyle} onClick={onMergeRight} title="Keep right, remove left">
-          Keep right
+          Merge into right
         </button>
         <div style={{ flex: 1 }} />
         <button style={btnStyle} onClick={onKeepBoth}>

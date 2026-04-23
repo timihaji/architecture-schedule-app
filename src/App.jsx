@@ -352,7 +352,7 @@ function App() {
       kind: kindRec.id,
       trade: kindRec.defaultTrade,
       tags: [],
-      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A) : null) || '',
+      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, kindRec.id, isMaterial ? 'Timber' : undefined) : null) || '',
       name: '',
       // Category only makes sense for finishes/material kind
       category: isMaterial ? 'Timber' : 'Timber', // placeholder until P3 strips this

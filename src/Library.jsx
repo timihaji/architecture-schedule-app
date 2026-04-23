@@ -54,6 +54,7 @@ function Library({
       onMoveMaterial={onMoveMaterial}
       onDuplicateMaterial={onDuplicateMaterial}
       onDuplicate={onDuplicate}
+      onFindDupes={onFindDupes}
       compareIds={compareIds} toggleCompare={toggleCompare}
       showImagery={showImagery} density={density}
     />
@@ -68,6 +69,7 @@ function LibraryGallery({
   onEdit, onAdd, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
+  onFindDupes,
   compareIds, toggleCompare, showImagery, density,
 }) {
   const [query, setQuery] = React.useState('');
@@ -218,6 +220,9 @@ function LibraryGallery({
                 templates={labelTemplates}
                 setTemplates={setLabelTemplates}
                 onOpenBuilder={() => onOpenLabelBuilder('Global')} />
+              {onFindDupes && (
+                <TextButton onClick={onFindDupes}>Find dupes</TextButton>
+              )}
               <TextButton onClick={onAdd} accent>＋ Add entry</TextButton>
             </div>
           </div>
