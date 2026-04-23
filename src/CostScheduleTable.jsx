@@ -1,0 +1,711 @@
+// Cost Schedule — Table mode. Uses the shared DataTable.
+//
+// Two row shapes, user-togglable:
+//   · flat    — one row per (component × option). Row id = "optId:compId".
+//   · grouped — one row per component; each option becomes a dynamic column.
+//
+// Edits go via the host-provided setComp / setCellMaterial / cellTotal /
+// bulk-action helpers so all the existing schedule ops keep working.
+
+// ───────── Column catalogues ─────────
+
+function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker }) {
+  return [
+    { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
+
+    // Component context
+    { id: 'component', label: 'Component', width: 200, minWidth: 140, serif: true,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 12.5 }}>
+          {r.component.name || <span style={{ color: 'var(--ink-4)' }}>(unnamed)</span>}
+        </div>
+      ),
+      sortValue: (r) => (r.component.name || '').toLowerCase(),
+      searchText: (r) => r.component.name || '',
+    },
+    { id: 'category', label: 'Trade', width: 120, minWidth: 80,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}>
+          {r.component.category || 'Uncategorised'}
+        </div>
+      ),
+      sortValue: (r) => r.component.category || '',
+      searchText: (r) => r.component.category || '',
+    },
+    { id: 'option', label: 'Option', width: 110, minWidth: 80,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}>
+          <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)', marginRight: 6 }}>
+            OPT·{String(r.optionIndex + 1).padStart(2, '0')}
+          </span>
+          {r.option.name}
+        </div>
+      ),
+      sortValue: (r) => r.optionIndex,
+      searchText: (r) => r.option.name || '',
+    },
+
+    // Material assignment
+    { id: 'swatch', label: '', width: 32, minWidth: 32, align: 'center', sortable: false,
+      render: (r, ctx) => {
+        if (!r.material) return <div data-dt-raw="true" style={ctx.baseStyle} />;
+        return window.SwatchCell(r.material, { ...ctx, allMaterials: materials });
+      },
+    },
+    { id: 'material', label: 'Material', width: 260, minWidth: 180, serif: true,
+      render: (r, ctx) => {
+        if (!r.material) {
+          return (
+            <div data-dt-raw="true" style={ctx.baseStyle}
+              onClick={(e) => { e.stopPropagation(); onOpenPicker(r.option.id, r.component.id); }}>
+              <span style={{ color: 'var(--ink-4)', fontStyle: 'italic' }}>assign…</span>
+            </div>
+          );
+        }
+        return window.LabelCell(r.material, { ...ctx, labelTemplates });
+      },
+      sortValue: (r) => r.material ? window.formatLabel(r.material, labelTemplates).toLowerCase() : '',
+      searchText: (r) => r.material ? window.formatLabel(r.material, labelTemplates) : '',
+    },
+    { id: 'code', label: 'Code', width: 82, minWidth: 60, mono: true,
+      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>{r.material?.code || '—'}</div>,
+      sortValue: (r) => r.material?.code || '',
+    },
+    { id: 'supplier', label: 'Supplier', width: 140, minWidth: 90,
+      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>
+        {r.material?.supplier || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+      </div>,
+      sortValue: (r) => r.material?.supplier || '',
+      searchText: (r) => r.material?.supplier || '',
+    },
+
+    // Component numeric fields — editable inline
+    { id: 'count', label: '#', width: 54, minWidth: 44, mono: true, align: 'right', editable: true,
+      inputType: 'number',
+      get: (r) => r.component.count,
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.component.count ?? ''}
+            type="number"
+            onCommit={(v) => onSave(v === '' ? null : Number(v))}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.component.count != null ? r.component.count : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+          </div>
+        );
+      },
+      sortValue: (r) => r.component.count || 0,
+    },
+    { id: 'size', label: 'Size', width: 80, minWidth: 60, mono: true, align: 'right', editable: true,
+      inputType: 'number',
+      get: (r) => r.component.size,
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.component.size ?? ''}
+            type="number"
+            onCommit={(v) => onSave(v === '' ? '' : Number(v))}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.component.size !== '' && r.component.size != null ? r.component.size : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+          </div>
+        );
+      },
+      sortValue: (r) => Number(r.component.size) || 0,
+    },
+    { id: 'unit', label: 'Unit', width: 60, minWidth: 44, mono: true, editable: true,
+      get: (r) => r.component.unit,
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.component.unit || ''}
+            onCommit={(v) => onSave(v || 'm²')}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.component.unit || 'm²'}
+          </div>
+        );
+      },
+    },
+    { id: 'unitCost', label: 'Unit cost', width: 90, minWidth: 70, mono: true, align: 'right',
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={ctx.baseStyle}>
+          {r.material?.unitCost != null
+            ? <>${Number(r.material.unitCost).toFixed(0)}<span style={{ color: 'var(--ink-4)' }}>/{r.material.unit || 'u'}</span></>
+            : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+        </div>
+      ),
+      sortValue: (r) => r.material?.unitCost || 0,
+    },
+    { id: 'lineTotal', label: 'Line total', width: 110, minWidth: 80, mono: true, align: 'right',
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, color: r.total ? 'var(--ink)' : 'var(--ink-4)' }}>
+          {r.total != null
+            ? '$' + Math.round(r.total).toLocaleString()
+            : '—'}
+        </div>
+      ),
+      sortValue: (r) => r.total || 0,
+    },
+    { id: 'finish', label: 'Finish', width: 120, minWidth: 80,
+      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>
+        {r.material?.finish || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+      </div>,
+      searchText: (r) => r.material?.finish || '',
+    },
+    { id: 'leadTime', label: 'Lead', width: 70, minWidth: 50, mono: true, align: 'right',
+      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>
+        {r.material?.leadTime || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+      </div>,
+    },
+  ];
+}
+
+function buildCstGroupedColumns({ materials, labelTemplates, libraries, options, onOpenPicker, cellLookup }) {
+  const base = [
+    { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
+    { id: 'component', label: 'Component', width: 220, minWidth: 140, serif: true,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 12.5 }}>
+          {r.name || <span style={{ color: 'var(--ink-4)' }}>(unnamed)</span>}
+        </div>
+      ),
+      sortValue: (r) => (r.name || '').toLowerCase(),
+      searchText: (r) => r.name || '',
+    },
+    { id: 'category', label: 'Trade', width: 120, minWidth: 80,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}>
+          {r.category || 'Uncategorised'}
+        </div>
+      ),
+      sortValue: (r) => r.category || '',
+      searchText: (r) => r.category || '',
+    },
+    { id: 'count', label: '#', width: 54, minWidth: 44, mono: true, align: 'right', editable: true,
+      inputType: 'number',
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.count ?? ''}
+            type="number"
+            onCommit={(v) => onSave(v === '' ? null : Number(v))}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.count != null ? r.count : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+          </div>
+        );
+      },
+      sortValue: (r) => r.count || 0,
+    },
+    { id: 'size', label: 'Size', width: 80, minWidth: 60, mono: true, align: 'right', editable: true,
+      inputType: 'number',
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.size ?? ''}
+            type="number"
+            onCommit={(v) => onSave(v === '' ? '' : Number(v))}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.size !== '' && r.size != null ? r.size : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+          </div>
+        );
+      },
+    },
+    { id: 'unit', label: 'Unit', width: 60, minWidth: 44, mono: true, editable: true,
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput
+            baseStyle={baseStyle}
+            initial={r.unit || ''}
+            onCommit={(v) => onSave(v || 'm²')}
+            onCancel={() => setEditing(false)}
+          />;
+        }
+        return (
+          <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.unit || 'm²'}
+          </div>
+        );
+      },
+    },
+  ];
+
+  // One column per option
+  const optCols = options.map((opt, optIdx) => ({
+    id: 'opt:' + opt.id,
+    label: opt.name,
+    width: 180, minWidth: 120, serif: true,
+    optionId: opt.id,
+    sortable: false,
+    render: (r, ctx) => {
+      const cell = cellLookup(opt.id, r.id);
+      const material = cell?.materialId ? materials.find(m => m.id === cell.materialId) : null;
+      if (!material) {
+        return (
+          <div data-dt-raw="true" style={ctx.baseStyle}
+            onClick={(e) => { e.stopPropagation(); onOpenPicker(opt.id, r.id); }}>
+            <span style={{ color: 'var(--ink-4)', fontStyle: 'italic' }}>assign…</span>
+          </div>
+        );
+      }
+      return (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, gap: 8 }}
+          onClick={(e) => { e.stopPropagation(); onOpenPicker(opt.id, r.id); }}>
+          <Swatch swatch={material.swatch} size="xs" seed={parseInt((material.id || '').slice(2)) || 1}
+            style={{ width: 14, height: 14, flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 12 }}>
+            {window.formatLabel(material, labelTemplates)}
+          </span>
+        </div>
+      );
+    },
+  }));
+
+  return [...base, ...optCols];
+}
+
+// ───────── Main component ─────────
+
+function CostScheduleTable({
+  schedule, materials, libraries, labelTemplates,
+  setComp, setCellMaterial, removeComponent, duplicateComponent,
+  changeComponentCategory, cellTotal,
+  onOpenPicker,
+}) {
+  const [rowShape, setRowShape] = React.useState(() => {
+    try { return localStorage.getItem('aml-cs-rowshape') || 'flat'; } catch { return 'flat'; }
+  });
+  function setRowShapePersist(v) {
+    setRowShape(v);
+    try { localStorage.setItem('aml-cs-rowshape', v); } catch {}
+  }
+
+  const [query, setQuery] = React.useState('');
+  const [filters, setFilters] = React.useState([]);
+  const [sort, setSort] = React.useState({ id: 'component', dir: 'asc' });
+  const [selected, setSelected] = React.useState(new Set());
+  const [cursorId, setCursorId] = React.useState(null);
+  const [openId, setOpenId] = React.useState(null);
+  const [editingCell, setEditingCell] = React.useState(null);
+  const searchRef = React.useRef(null);
+
+  // Materials by id for quick lookups
+  const matById = React.useMemo(() => {
+    const m = new Map();
+    materials.forEach(x => m.set(x.id, x));
+    return m;
+  }, [materials]);
+
+  // ───── Flat rows: one per (option × component)
+  const flatRows = React.useMemo(() => {
+    if (rowShape !== 'flat') return [];
+    const rows = [];
+    schedule.components.forEach(comp => {
+      schedule.options.forEach((opt, optIdx) => {
+        const cell = schedule.cells[opt.id + ':' + comp.id];
+        const material = cell?.materialId ? matById.get(cell.materialId) : null;
+        const total = cellTotal ? cellTotal(opt.id, comp) : null;
+        rows.push({
+          id: opt.id + ':' + comp.id,
+          component: comp,
+          option: opt,
+          optionIndex: optIdx,
+          material,
+          total,
+        });
+      });
+    });
+    return rows;
+  }, [schedule, rowShape, matById, cellTotal]);
+
+  // ───── Grouped rows: just the components (material cells are column-dynamic)
+  const groupedRows = React.useMemo(() => {
+    if (rowShape !== 'grouped') return [];
+    return schedule.components;
+  }, [schedule.components, rowShape]);
+
+  // Save handler resolves to the correct schedule op based on the edited field
+  function handleFlatSave(rowId, field, value) {
+    const [optionId, componentId] = rowId.split(':');
+    if (field === 'count' || field === 'size' || field === 'unit') {
+      setComp(componentId, field, value);
+    }
+  }
+  function handleGroupedSave(rowId, field, value) {
+    if (field === 'count' || field === 'size' || field === 'unit') {
+      setComp(rowId, field, value);
+    }
+  }
+
+  // Row click → open picker (flat: the specific cell; grouped: first empty or first option)
+  function handleFlatOpenRow(rowId) {
+    const [optionId, componentId] = rowId.split(':');
+    onOpenPicker(optionId, componentId);
+    setOpenId(null); // don't open a side panel; the picker is the action
+  }
+  function handleGroupedOpenRow(rowId) {
+    // Open picker for the first option by default
+    if (schedule.options[0]) onOpenPicker(schedule.options[0].id, rowId);
+    setOpenId(null);
+  }
+
+  // ───── Columns + lookup
+  const cellLookup = React.useCallback(
+    (optId, compId) => schedule.cells[optId + ':' + compId] || null,
+    [schedule.cells]);
+
+  const columns = React.useMemo(() => {
+    if (rowShape === 'flat') {
+      return buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker });
+    }
+    return buildCstGroupedColumns({
+      materials, labelTemplates, libraries,
+      options: schedule.options,
+      onOpenPicker, cellLookup,
+    });
+  }, [rowShape, materials, labelTemplates, libraries, schedule.options, onOpenPicker, cellLookup]);
+
+  const defaultVisible = React.useMemo(() => {
+    if (rowShape === 'flat') {
+      return ['select', 'component', 'option', 'swatch', 'material', 'count', 'size', 'unit', 'unitCost', 'lineTotal'];
+    }
+    // Grouped: show component + size/unit + every option
+    return [
+      'select', 'component', 'category', 'count', 'size', 'unit',
+      ...schedule.options.map(o => 'opt:' + o.id),
+    ];
+  }, [rowShape, schedule.options]);
+
+  const defaultOrder = React.useMemo(() => columns.map(c => c.id), [columns]);
+  const colStorageKey = rowShape === 'flat' ? 'aml-cs-cols-flat' : 'aml-cs-cols-grouped';
+
+  // Totals footer
+  const grandTotal = React.useMemo(() => {
+    if (rowShape === 'flat') {
+      return flatRows.reduce((s, r) => s + (r.total || 0), 0);
+    }
+    // Grouped: sum first option only (a hint; users can toggle columns)
+    return schedule.components.reduce((s, c) => {
+      const t = cellTotal ? cellTotal(schedule.options[0]?.id, c) : null;
+      return s + (t || 0);
+    }, 0);
+  }, [rowShape, flatRows, schedule.components, schedule.options, cellTotal]);
+
+  return (
+    <div style={{ border: '1px solid var(--rule)', background: 'var(--paper)' }}>
+      <CstTableTopBar
+        rowShape={rowShape} setRowShape={setRowShapePersist}
+        query={query} setQuery={setQuery} searchRef={searchRef}
+        rowCount={rowShape === 'flat' ? flatRows.length : groupedRows.length}
+        grandTotal={grandTotal}
+      />
+      <window.DataTable
+        key={rowShape}
+        rows={rowShape === 'flat' ? flatRows : groupedRows}
+        columns={columns}
+        colStorageKey={colStorageKey}
+        defaultVisible={defaultVisible}
+        defaultOrder={defaultOrder}
+        query={query}
+        filters={filters}
+        sort={sort} setSort={setSort}
+        selected={selected} setSelected={setSelected}
+        cursorId={cursorId} setCursorId={setCursorId}
+        openId={openId} setOpenId={setOpenId}
+        editingCell={editingCell} setEditingCell={setEditingCell}
+        density="regular"
+        onSaveCell={rowShape === 'flat' ? handleFlatSave : handleGroupedSave}
+        onOpenRow={rowShape === 'flat' ? handleFlatOpenRow : handleGroupedOpenRow}
+        searchRef={searchRef}
+        cellContext={{ libraries, allMaterials: materials, labelTemplates }}
+        bulkBar={
+          <CstBulkBar
+            rowShape={rowShape}
+            selected={selected}
+            setSelected={setSelected}
+            schedule={schedule}
+            materials={materials}
+            setCellMaterial={setCellMaterial}
+            removeComponent={removeComponent}
+            duplicateComponent={duplicateComponent}
+            setComp={setComp}
+          />
+        }
+      />
+    </div>
+  );
+}
+
+// ───────── Top bar ─────────
+
+function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, rowCount, grandTotal }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 14,
+      padding: '10px 14px',
+      borderBottom: '1px solid var(--rule)',
+      background: 'var(--paper-2)',
+      minHeight: 44,
+    }}>
+      <input ref={searchRef}
+        placeholder="/  Search components, materials, suppliers…"
+        value={query} onChange={e => setQuery(e.target.value)}
+        style={{
+          flex: 1, maxWidth: 420,
+          background: 'transparent', border: '1px solid var(--rule)',
+          padding: '6px 10px', outline: 'none',
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+          color: 'var(--ink)',
+        }} />
+
+      <div style={{ flex: 1 }} />
+
+      <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+        {rowCount} rows · grand total ${Math.round(grandTotal).toLocaleString()}
+      </span>
+
+      {/* Row-shape toggle */}
+      <div style={{
+        display: 'flex', border: '1px solid var(--rule-2)',
+        background: 'var(--paper)',
+      }}>
+        {[
+          { id: 'flat', label: 'Flat' },
+          { id: 'grouped', label: 'Grouped' },
+        ].map(opt => (
+          <button key={opt.id} type="button"
+            onClick={() => setRowShape(opt.id)}
+            title={opt.id === 'flat'
+              ? 'One row per (component × option) — sortable, filterable'
+              : 'One row per component; each option is a column'}
+            style={{
+              background: rowShape === opt.id ? 'var(--ink)' : 'transparent',
+              color: rowShape === opt.id ? 'var(--paper)' : 'var(--ink-3)',
+              border: 'none', cursor: 'pointer',
+              padding: '5px 12px',
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+              letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500,
+            }}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ───────── Bulk bar ─────────
+
+function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
+  setCellMaterial, removeComponent, duplicateComponent, setComp }) {
+  const [moveToOpen, setMoveToOpen] = React.useState(false);
+  const [dupToOpen, setDupToOpen] = React.useState(false);
+  const [qtyPromptOpen, setQtyPromptOpen] = React.useState(false);
+  const count = selected.size;
+  const ids = Array.from(selected);
+
+  function clearAssignments() {
+    if (!window.confirm(`Clear material from ${count} cell${count === 1 ? '' : 's'}?`)) return;
+    if (rowShape === 'flat') {
+      ids.forEach(id => {
+        const [optionId, componentId] = id.split(':');
+        setCellMaterial(optionId, componentId, null);
+      });
+    } else {
+      // Grouped: clear across all options for each selected component
+      ids.forEach(compId => {
+        schedule.options.forEach(o => setCellMaterial(o.id, compId, null));
+      });
+    }
+    setSelected(new Set());
+  }
+
+  function duplicateTo(targetOptId) {
+    if (rowShape !== 'flat') return;
+    ids.forEach(id => {
+      const [sourceOptId, componentId] = id.split(':');
+      const cell = schedule.cells[sourceOptId + ':' + componentId];
+      if (cell?.materialId) setCellMaterial(targetOptId, componentId, cell.materialId);
+    });
+    setSelected(new Set());
+    setDupToOpen(false);
+  }
+
+  function moveTo(targetOptId) {
+    if (rowShape !== 'flat') return;
+    ids.forEach(id => {
+      const [sourceOptId, componentId] = id.split(':');
+      const cell = schedule.cells[sourceOptId + ':' + componentId];
+      if (cell?.materialId) {
+        setCellMaterial(targetOptId, componentId, cell.materialId);
+        setCellMaterial(sourceOptId, componentId, null);
+      }
+    });
+    setSelected(new Set());
+    setMoveToOpen(false);
+  }
+
+  function setCommonQty() {
+    const v = window.prompt('Set size for all selected rows (leave blank to clear count):');
+    if (v === null) return;
+    const size = v === '' ? '' : Number(v);
+    const compIds = new Set();
+    if (rowShape === 'flat') {
+      ids.forEach(id => compIds.add(id.split(':')[1]));
+    } else {
+      ids.forEach(id => compIds.add(id));
+    }
+    compIds.forEach(cid => setComp(cid, 'size', size));
+    setSelected(new Set());
+  }
+
+  function copySupplierList() {
+    const compIds = new Set();
+    if (rowShape === 'flat') {
+      ids.forEach(id => compIds.add(id.split(':')[1]));
+    } else {
+      ids.forEach(id => compIds.add(id));
+    }
+    // Gather every material assigned to any option for these components
+    const bySupplier = new Map();
+    compIds.forEach(cid => {
+      schedule.options.forEach(opt => {
+        const cell = schedule.cells[opt.id + ':' + cid];
+        if (!cell?.materialId) return;
+        const m = materials.find(x => x.id === cell.materialId);
+        if (!m) return;
+        const sup = m.supplier || '(no supplier)';
+        if (!bySupplier.has(sup)) bySupplier.set(sup, []);
+        bySupplier.get(sup).push(m);
+      });
+    });
+    const lines = [];
+    Array.from(bySupplier.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([sup, mats]) => {
+      lines.push(sup.toUpperCase());
+      const seen = new Set();
+      mats.forEach(m => {
+        const key = m.code + '|' + m.name;
+        if (seen.has(key)) return;
+        seen.add(key);
+        lines.push(`  ${m.code} — ${m.name}`);
+      });
+      lines.push('');
+    });
+    const text = lines.join('\n');
+    try {
+      navigator.clipboard.writeText(text);
+      window.alert('Copied supplier list to clipboard (' + bySupplier.size + ' suppliers).');
+    } catch {
+      window.prompt('Copy this:', text);
+    }
+  }
+
+  const btnStyle = {
+    background: 'transparent', border: '1px solid var(--rule-2)',
+    color: 'var(--ink)', cursor: 'pointer',
+    padding: '6px 10px',
+    fontFamily: "'Inter Tight', sans-serif", fontSize: 10.5,
+    letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500,
+  };
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '10px 14px',
+      borderTop: '1px solid var(--rule)',
+      background: 'var(--paper-2)',
+      position: 'sticky', bottom: 0, zIndex: 3,
+    }}>
+      <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: 'var(--ink)' }}>
+        {count} selected
+      </span>
+      <div style={{ flex: 1 }} />
+
+      {rowShape === 'flat' && (
+        <>
+          <div style={{ position: 'relative' }}>
+            <button style={btnStyle} onClick={() => { setDupToOpen(!dupToOpen); setMoveToOpen(false); }}>
+              Duplicate to option ▾
+            </button>
+            {dupToOpen && (
+              <div style={cstMenuStyle}>
+                {schedule.options.map(o => (
+                  <button key={o.id} style={cstMenuItemStyle}
+                    onClick={() => duplicateTo(o.id)}>{o.name}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ position: 'relative' }}>
+            <button style={btnStyle} onClick={() => { setMoveToOpen(!moveToOpen); setDupToOpen(false); }}>
+              Move to option ▾
+            </button>
+            {moveToOpen && (
+              <div style={cstMenuStyle}>
+                {schedule.options.map(o => (
+                  <button key={o.id} style={cstMenuItemStyle}
+                    onClick={() => moveTo(o.id)}>{o.name}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <button style={btnStyle} onClick={setCommonQty}>Set size…</button>
+      <button style={btnStyle} onClick={copySupplierList}>Copy as supplier list</button>
+      <button style={{ ...btnStyle, color: 'var(--accent-ink)' }} onClick={clearAssignments}>
+        Clear assignment
+      </button>
+      <button style={{ ...btnStyle, border: 'none', color: 'var(--ink-3)' }}
+        onClick={() => setSelected(new Set())}>×</button>
+    </div>
+  );
+}
+
+const cstMenuStyle = {
+  position: 'absolute', top: '100%', right: 0, marginTop: 4,
+  background: 'var(--paper)', border: '1px solid var(--rule)',
+  minWidth: 160, zIndex: 20,
+  boxShadow: '0 4px 18px rgba(0,0,0,0.08)',
+};
+const cstMenuItemStyle = {
+  display: 'block', width: '100%', textAlign: 'left',
+  background: 'transparent', border: 'none', cursor: 'pointer',
+  padding: '8px 12px',
+  fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
+  color: 'var(--ink)',
+};
+
+Object.assign(window, { CostScheduleTable });

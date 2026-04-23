@@ -1,0 +1,9 @@
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Node (if you ever add a build step)
+node_modules/

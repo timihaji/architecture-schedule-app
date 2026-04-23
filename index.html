@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Architecture Material Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { margin: 0; min-height: 100%; }
+  body {
+    background: var(--paper, #f3efe7);
+    color: var(--ink, #141414);
+    font-family: var(--font-sans, 'Inter Tight'), system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    transition: background 0.28s ease, color 0.28s ease;
+  }
+  ::selection { background: var(--accent, #b85c3a); color: #fff; }
+  button { font: inherit; color: inherit; }
+  input, select, textarea { font: inherit; color: inherit; }
+  :root {
+    /* Theme vars — overwritten by applySettingsToDOM */
+    --paper: #f3efe7;
+    --paper-2: #eae5d9;
+    --ink: #141414;
+    --ink-2: #3a3630;
+    --ink-3: #6b6559;
+    --ink-4: #9a9385;
+    --rule: #d8d3c6;
+    --rule-2: #c6bfae;
+    --tint: rgba(20,20,20,0.03);
+    --tint-2: rgba(20,20,20,0.06);
+    --stripe: rgba(20,20,20,0.025);
+    --accent: #b85c3a;
+    --accent-ink: #8a4028;
+
+    /* Typography — overwritten by applySettingsToDOM */
+    --font-serif: 'Newsreader', Georgia, serif;
+    --font-sans:  'Inter Tight', system-ui, sans-serif;
+    --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+
+    /* Rule style */
+    --rule-style: solid;
+    --rule-opacity: 1;
+
+    /* Swatch shape */
+    --swatch-radius: 0;
+
+    /* Stripes on/off — multiplier for zebra rows */
+    --stripe-on: 0;
+
+    --shadow: 0 16px 40px rgba(20,20,20,0.08);
+  }
+
+  [data-density="compact"] { --row-pad: 7px; --sec-gap: 32px; }
+  [data-density="regular"] { --row-pad: 11px; --sec-gap: 52px; }
+  [data-density="open"]    { --row-pad: 15px; --sec-gap: 72px; }
+
+  /* When rule-style is 'none', hide all dividers by zeroing alpha */
+  [data-rule-style="none"] { --rule: transparent; --rule-2: transparent; }
+
+  /* Zebra stripe for tables when stripes=on */
+  [data-stripes="on"] .aml-stripe:nth-child(even) {
+    background: var(--stripe);
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="src/data.jsx"></script>
+<script type="text/babel" src="src/kinds.jsx"></script>
+<script type="text/babel" src="src/swatches.jsx"></script>
+<script type="text/babel" src="src/primitives.jsx"></script>
+<script type="text/babel" src="src/settings.jsx"></script>
+<script type="text/babel" src="src/labels.jsx"></script>
+<script type="text/babel" src="src/LabelFormat.jsx"></script>
+<script type="text/babel" src="src/Library.jsx"></script>
+<script type="text/babel" src="src/DataTable.jsx"></script>
+<script type="text/babel" src="src/LibraryColumns.jsx"></script>
+<script type="text/babel" src="src/LibraryTable.jsx"></script>
+<script type="text/babel" src="src/LibraryTableChrome.jsx"></script>
+<script type="text/babel" src="src/LibraryTableRows.jsx"></script>
+<script type="text/babel" src="src/LibraryTableOverlays.jsx"></script>
+<script type="text/babel" src="src/KindPicker.jsx"></script>
+<script type="text/babel" src="src/Projects.jsx"></script>
+<script type="text/babel" src="src/CostSchedule.jsx"></script>
+<script type="text/babel" src="src/CostScheduleDnD.jsx"></script>
+<script type="text/babel" src="src/CostScheduleV2Rows.jsx"></script>
+<script type="text/babel" src="src/CostScheduleV2.jsx"></script>
+<script type="text/babel" src="src/CostScheduleTable.jsx"></script>
+<script type="text/babel" src="src/ProjectSpec.jsx"></script>
+<script type="text/babel" src="src/SettingsPage.jsx"></script>
+<script type="text/babel" src="src/Tweaks.jsx"></script>
+<script type="text/babel" src="src/App.jsx"></script>
+</body>
+</html>
