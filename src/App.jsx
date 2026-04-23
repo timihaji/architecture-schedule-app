@@ -864,7 +864,7 @@ function DesktopViewToggle() {
 
   return (
     <button onClick={toggle} style={{
-      position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+      position: 'fixed', top: 16, right: 16, zIndex: 9999,
       padding: '8px 14px', fontSize: 12,
       background: 'var(--ink)', color: 'var(--paper)',
       border: 'none', cursor: 'pointer',
