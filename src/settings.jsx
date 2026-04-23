@@ -200,6 +200,9 @@ const SETTINGS_DEFAULTS = {
   firmTagline: 'Studio Archive',
   firmFooterLeft: 'Hollis & Arne · Architecture',
   firmFooterRight: 'Rev. 22·04·26 · Internal',
+  firmLogoType: 'default',       // 'default' | 'preset' | 'upload'
+  firmLogoPreset: 'square-nested',
+  firmLogoData: null,            // base64 data URL when type === 'upload'
 
   // Library / Project defaults
   defaultCategory: 'Timber',

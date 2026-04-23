@@ -585,6 +585,30 @@ function LayoutSection({ settings, set }) {
 // ─────────────── Library defaults ───────────────
 
 function FirmSection({ settings, set }) {
+  const logoType = settings.firmLogoType || 'default';
+  const fileRef = React.useRef(null);
+  const [uploadError, setUploadError] = React.useState('');
+
+  function handleFile(file) {
+    setUploadError('');
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please choose an image file.'); return;
+    }
+    if (file.size > 200 * 1024) {
+      setUploadError('Image is over 200 KB — use a smaller file.'); return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      set('firmLogoData', reader.result);
+      set('firmLogoType', 'upload');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const glyphs = window.FIRM_GLYPHS || [];
+  const Glyph = window.GlyphSvg;
+
   return (
     <>
       <SectionHeader kicker="01" title="Firm"
@@ -617,6 +641,80 @@ function FirmSection({ settings, set }) {
           onChange={e => set('firmFooterRight', e.target.value)}
           style={{ ...fieldStyleBase(), minWidth: 320 }} />
       </SettingRow>
+
+      <SettingRow label="Logo mark"
+        description="Shown beside the firm name. Pick the default mark, a preset glyph, or upload your own.">
+        <Segmented value={logoType} onChange={v => set('firmLogoType', v)}
+          options={[
+            { key: 'default', label: 'Default' },
+            { key: 'preset',  label: 'Preset' },
+            { key: 'upload',  label: 'Upload' },
+          ]} />
+      </SettingRow>
+
+      {logoType === 'preset' && Glyph && (
+        <SettingRow label="Preset glyph"
+          description="Pick one of the 25 preset marks.">
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(8, 44px)', gap: 6,
+            maxWidth: 400,
+          }}>
+            {glyphs.map(g => {
+              const active = settings.firmLogoPreset === g.id;
+              return (
+                <button key={g.id} type="button" title={g.label}
+                  onClick={() => set('firmLogoPreset', g.id)}
+                  style={{
+                    width: 44, height: 44,
+                    background: active ? 'var(--tint-2)' : 'transparent',
+                    border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 0,
+                  }}>
+                  <Glyph id={g.id} size={22} />
+                </button>
+              );
+            })}
+          </div>
+        </SettingRow>
+      )}
+
+      {logoType === 'upload' && (
+        <SettingRow label="Upload image"
+          description="PNG or SVG recommended. Max 200 KB — will render at 22×22 pixels in the header.">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            {settings.firmLogoData && (
+              <img src={settings.firmLogoData} alt=""
+                style={{ width: 44, height: 44, objectFit: 'contain',
+                  border: '1px solid var(--rule-2)', padding: 4 }} />
+            )}
+            <input ref={fileRef} type="file" accept="image/*"
+              onChange={e => handleFile(e.target.files?.[0])}
+              style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileRef.current?.click()}
+              style={{
+                ...fieldStyleBase(),
+                width: 'auto', padding: '6px 14px', cursor: 'pointer',
+              }}>
+              {settings.firmLogoData ? 'Replace image' : 'Choose image'}
+            </button>
+            {settings.firmLogoData && (
+              <button type="button" onClick={() => set('firmLogoData', null)}
+                style={{
+                  ...fieldStyleBase(),
+                  width: 'auto', padding: '6px 14px', cursor: 'pointer',
+                  color: 'var(--ink-3)',
+                }}>
+                Remove
+              </button>
+            )}
+            {uploadError && (
+              <span style={{ fontSize: 12, color: 'var(--accent)' }}>{uploadError}</span>
+            )}
+          </div>
+        </SettingRow>
+      )}
     </>
   );
 }

@@ -1022,22 +1022,9 @@ function Nav({ view, setView, settings }) {
       zIndex: 50,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-        <div style={{
-          width: 22, height: 22,
-          background: 'var(--ink)',
-          display: 'inline-block',
-          position: 'relative',
-          top: 3,
-        }}>
-          <div style={{
-            position: 'absolute', top: 5, left: 5, right: 5, bottom: 5,
-            background: 'var(--paper)',
-          }} />
-          <div style={{
-            position: 'absolute', top: 10, left: 5, right: 5, height: 1,
-            background: 'var(--ink)',
-          }} />
-        </div>
+        {window.FirmLogo
+          ? <window.FirmLogo settings={settings} size={22} />
+          : <div style={{ width: 22, height: 22, background: 'var(--ink)' }} />}
         <div>
           <Serif size={18} style={{ fontWeight: 500, letterSpacing: '-0.005em' }}>
             {settings?.firmName || 'Hollis & Arne'}
