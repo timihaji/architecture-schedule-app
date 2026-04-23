@@ -26,10 +26,11 @@ function SettingsPage({
     { key: 'density',    label: 'Density',    num: '03', group: 'Style' },
     { key: 'layout',     label: 'Layout',     num: '04', group: 'Style' },
     { key: 'library',    label: 'Library defaults',  num: '05', group: 'Defaults' },
-    { key: 'projects',   label: 'Project defaults',  num: '06', group: 'Defaults' },
-    { key: 'data',       label: 'Data',       num: '07', group: 'System' },
-    { key: 'keyboard',   label: 'Keyboard',   num: '08', group: 'System' },
-    { key: 'about',      label: 'About',      num: '09', group: 'System' },
+    { key: 'codes',      label: 'Codes & duplicates', num: '06', group: 'Defaults' },
+    { key: 'projects',   label: 'Project defaults',  num: '07', group: 'Defaults' },
+    { key: 'data',       label: 'Data',       num: '08', group: 'System' },
+    { key: 'keyboard',   label: 'Keyboard',   num: '09', group: 'System' },
+    { key: 'about',      label: 'About',      num: '10', group: 'System' },
   ];
   const groups = [...new Set(sections.map(s => s.group))];
 
@@ -108,6 +109,7 @@ function SettingsPage({
         {section === 'density'    && <DensitySection {...sectionProps} />}
         {section === 'layout'     && <LayoutSection {...sectionProps} />}
         {section === 'library'    && <LibraryDefaultsSection {...sectionProps} />}
+        {section === 'codes'      && <CodesSection {...sectionProps} />}
         {section === 'projects'   && <ProjectDefaultsSection {...sectionProps} />}
         {section === 'data'       && <DataSection {...sectionProps} />}
         {section === 'keyboard'   && <KeyboardSection {...sectionProps} />}
@@ -603,6 +605,123 @@ function LibraryDefaultsSection({ settings, set }) {
   );
 }
 
+// ─────────────── Codes & duplicates ───────────────
+
+const PRESET_DESCRIPTIONS = {
+  A: 'Codes are project-scoped and auto-managed. Duplicating a material picks the next code in series. Saving a new material with a matching code or name shows a warning.',
+  B: 'Same as A, but deleting a material offers to close the gap in the series.',
+  C: 'Office catalog mode. Codes are office-wide identifiers. Duplicates are blocked. No auto-assignment — you type the code.',
+  D: 'Free-form. Duplicates are warned but never blocked. Codes default to blank on new materials.',
+};
+
+function CodesSection({ settings, set }) {
+  const policy = settings.dupePolicy || window.DUPE_PRESET_A || {};
+  const preset = policy.preset || 'A';
+  const isCustom = preset === 'custom';
+
+  function setPolicy(key, value) {
+    set('dupePolicy', { ...policy, [key]: value, preset: 'custom' });
+  }
+  function setPreset(p) {
+    const bundle = (window.DUPE_PRESETS || {})[p];
+    if (bundle) set('dupePolicy', { ...bundle });
+  }
+
+  const presets = [
+    { key: 'A', label: 'Project-scoped, auto-managed', meta: 'Default' },
+    { key: 'B', label: 'Project-scoped, gap-closing' },
+    { key: 'C', label: 'Office catalog' },
+    { key: 'D', label: 'Free-form with guardrails' },
+  ];
+
+  return (
+    <>
+      <SectionHeader kicker="06" title="Codes & duplicates"
+        subtitle="Controls how material codes are assigned, how duplicates are detected, and what happens when codes collide." />
+
+      <SettingRow label="Office style"
+        description="Each preset is a bundle of code-management behaviours suited to a particular office workflow.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {presets.map(p => {
+            const active = preset === p.key;
+            return (
+              <button key={p.key} type="button"
+                onClick={() => setPreset(p.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+                  border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
+                  background: active ? 'var(--tint)' : 'transparent',
+                  fontFamily: 'var(--font-sans)',
+                }}>
+                <div style={{
+                  width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                  border: '1.5px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
+                  background: active ? 'var(--ink)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--paper)' }} />}
+                </div>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: active ? 500 : 400 }}>{p.label}</span>
+                  {p.meta && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9,
+                    color: 'var(--ink-4)', marginLeft: 8, letterSpacing: '0.08em',
+                    textTransform: 'uppercase' }}>{p.meta}</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {preset !== 'custom' && (
+          <div style={{ marginTop: 10, fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.45 }}>
+            {PRESET_DESCRIPTIONS[preset]}
+          </div>
+        )}
+      </SettingRow>
+
+      <SettingRow label="On duplicate — code"
+        description="How the code is set when you duplicate a material.">
+        <Segmented
+          value={policy.duplicateCode || 'series'}
+          onChange={v => setPolicy('duplicateCode', v)}
+          options={[
+            { key: 'series', label: 'Next in series' },
+            { key: 'copy-suffix', label: 'Append -copy' },
+            { key: 'blank', label: 'Blank' },
+          ]}
+        />
+      </SettingRow>
+
+      <SettingRow label="Duplicate warning"
+        description="Whether saving a new material checks for existing matches.">
+        <Segmented
+          value={policy.warnOnMaterialDupe || 'warn'}
+          onChange={v => setPolicy('warnOnMaterialDupe', v)}
+          options={[
+            { key: 'warn', label: 'Warn' },
+            { key: 'block', label: 'Block' },
+            { key: 'off', label: 'Off' },
+          ]}
+        />
+      </SettingRow>
+
+      <SettingRow label="Project uniqueness"
+        description="How to treat two materials with the same code in the same project.">
+        <Segmented
+          value={policy.uniquenessProject || 'block'}
+          onChange={v => setPolicy('uniquenessProject', v)}
+          options={[
+            { key: 'block', label: 'Block' },
+            { key: 'warn', label: 'Warn' },
+            { key: 'off', label: 'Off' },
+          ]}
+        />
+      </SettingRow>
+    </>
+  );
+}
+
 // ─────────────── Project defaults ───────────────
 
 function ProjectDefaultsSection({ settings, set }) {
@@ -610,7 +729,7 @@ function ProjectDefaultsSection({ settings, set }) {
     ({ key: k, label: k + ' · ' + v }));
   return (
     <>
-      <SectionHeader kicker="06" title="Project defaults"
+      <SectionHeader kicker="07" title="Project defaults"
         subtitle="New projects start with these values filled in." />
 
       <SettingRow label="Default stage">

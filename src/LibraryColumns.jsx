@@ -71,7 +71,20 @@ function LabelCell(row, ctx) {
 }
 
 function CodeCell(row, ctx) {
-  return <div data-dt-raw="true" style={ctx.baseStyle}>{row.code}</div>;
+  const { baseStyle, allMaterials } = ctx;
+  const code = row.code || '';
+  const hasDupe = code && allMaterials &&
+    allMaterials.some(m => m.id !== row.id && m.code === code);
+  return (
+    <div data-dt-raw="true" style={{ ...baseStyle, gap: 5 }}>
+      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{code}</span>
+      {hasDupe && (
+        <span title="Duplicate code in library" style={{
+          color: 'var(--accent)', fontSize: 11, lineHeight: 1, flexShrink: 0,
+        }}>!</span>
+      )}
+    </div>
+  );
 }
 
 function CategoryCell(row, ctx) {

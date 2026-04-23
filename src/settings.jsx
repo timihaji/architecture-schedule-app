@@ -200,6 +200,21 @@ const SETTINGS_DEFAULTS = {
   defaultUnit: 'm²',
   defaultStage: 'Concept',
   defaultCurrency: 'AUD',
+
+  // Code & duplicate policy (mirrors DUPE_PRESET_A)
+  dupePolicy: {
+    preset: 'A',
+    scope: 'project',
+    uniquenessProject: 'block',
+    uniquenessLibrary: 'warn',
+    autoAssign: 'series',
+    duplicateName: 'keep',
+    duplicateCode: 'series',
+    onDelete: 'leave',
+    warnOnMaterialDupe: 'warn',
+    fuzzyNameMatch: false,
+    requireCodeOnSave: false,
+  },
 };
 
 const SETTINGS_KEY = 'aml-settings';

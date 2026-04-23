@@ -82,6 +82,80 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "galleryWidth": "editorial"
 }/*EDITMODE-END*/;
 
+function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
+  const { level, matches } = state;
+  const existing = matches[0];
+
+  const headings = {
+    'exact':         'Duplicate material',
+    'code-supplier': 'Code already in use',
+    'name-supplier': 'Similar material exists',
+  };
+  const bodies = {
+    'exact':         'This material is identical to one already in your library.',
+    'code-supplier': `Code "${existing?.code}" is already assigned to "${existing?.name || 'another material'}" from ${existing?.supplier || 'the same supplier'}.`,
+    'name-supplier': `"${existing?.name}" from ${existing?.supplier || 'the same supplier'} already exists (${existing?.code || 'no code'}).`,
+  };
+
+  const backdrop = {
+    position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.45)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 9000,
+  };
+  const card = {
+    background: 'var(--paper)', width: 420, padding: '28px 28px 22px',
+    boxShadow: '0 24px 56px rgba(20,20,20,0.18)',
+    display: 'flex', flexDirection: 'column', gap: 14,
+  };
+  const btnRow = {
+    display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4,
+  };
+  const btnBase = {
+    padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+    border: '1px solid var(--rule-2)', background: 'transparent',
+    fontFamily: 'var(--font-sans)', letterSpacing: '0.01em',
+  };
+  const btnPrimary = {
+    ...btnBase, background: 'var(--ink)', color: 'var(--paper)',
+    border: '1px solid var(--ink)',
+  };
+
+  return (
+    <div style={backdrop} onClick={onCancel}>
+      <div style={card} onClick={e => e.stopPropagation()}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 14,
+            marginBottom: 6 }}>
+            {headings[level] || 'Possible duplicate'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+            {bodies[level]}
+          </div>
+        </div>
+        {existing && (
+          <div style={{ padding: '10px 12px', background: 'var(--tint)',
+            border: '1px solid var(--rule)', fontSize: 13, lineHeight: 1.4 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
+              color: 'var(--ink-3)', marginRight: 8 }}>{existing.code}</span>
+            <span>{existing.name}</span>
+            {existing.supplier && (
+              <span style={{ color: 'var(--ink-3)', marginLeft: 6 }}>
+                &middot; {existing.supplier}
+              </span>
+            )}
+          </div>
+        )}
+        <div style={btnRow}>
+          <button style={btnBase} onClick={onCancel}>Cancel</button>
+          <button style={btnBase} onClick={onUseExisting}>Use existing</button>
+          <button style={btnPrimary} onClick={onSaveAnyway}>Save anyway</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // User-facing settings — single source of truth for all style preferences.
   const [settings, _setSettings] = React.useState(() => window.loadSettings());
@@ -119,6 +193,7 @@ function App() {
   const [editingProject, setEditingProject] = React.useState(null);
   const [kindPickerOpen, setKindPickerOpen] = React.useState(false);
   const [compareIds, setCompareIds] = React.useState([]);
+  const [dupeCheckState, setDupeCheckState] = React.useState(null);
   const [libraryMode, setLibraryMode] = React.useState(() => {
     try { return localStorage.getItem('aml-library-mode') || 'gallery'; } catch { return 'gallery'; }
   });
@@ -205,12 +280,35 @@ function App() {
   }
   function saveMaterial(m) {
     if (m._isNew) {
+      const policy = settings.dupePolicy || window.DUPE_PRESET_A;
+      if (policy.warnOnMaterialDupe !== 'off' && window.detectDuplicates) {
+        const { level, matches } = window.detectDuplicates(m, materials, policy);
+        if (level) {
+          setDupeCheckState({ material: m, level, matches,
+            onConfirm: () => commitSaveMaterial(m) });
+          return;
+        }
+      }
+    }
+    commitSaveMaterial(m);
+  }
+  function commitSaveMaterial(m) {
+    if (m._isNew) {
       const { _isNew, ...clean } = m;
-      setMaterials(list => [...list, clean]);
+      setMaterials(list => [...list, { ...clean, codeHistory: [] }]);
     } else {
-      setMaterials(list => list.map(x => x.id === m.id ? m : x));
+      setMaterials(list => list.map(x => {
+        if (x.id !== m.id) return x;
+        const hist = x.codeHistory || [];
+        const codeChanged = x.code && x.code !== m.code;
+        const newHist = codeChanged
+          ? [...hist, { code: x.code, changedAt: Date.now(), reason: 'manual' }]
+          : hist;
+        return { ...m, codeHistory: newHist };
+      }));
     }
     setEditingMaterial(null);
+    setDupeCheckState(null);
   }
   function deleteMaterial(id, skipConfirm = false) {
     if (!skipConfirm && !window.confirm('Delete this material?')) return;
@@ -321,18 +419,29 @@ function App() {
   function duplicateMaterialIntoLibrary(materialId, libraryId) {
     const src = materials.find(m => m.id === materialId);
     if (!src) return;
-    const copy = {
+    const policy = settings.dupePolicy || window.DUPE_PRESET_A;
+    const newCode = window.generateDuplicateCode ? window.generateDuplicateCode(src, materials, policy) : src.code + '-copy';
+    setMaterials(list => [...list, {
       ...src,
       id: 'm-' + Date.now(),
-      code: src.code + '·copy',
+      code: newCode,
       libraryIds: [libraryId],
-    };
-    setMaterials(list => [...list, copy]);
+      codeHistory: [],
+      mergedFrom: undefined,
+    }]);
   }
   function duplicateMaterial(materialId) {
     const src = materials.find(m => m.id === materialId);
     if (!src) return;
-    setMaterials(list => [...list, { ...src, id: 'm-' + Date.now(), code: src.code + '·copy' }]);
+    const policy = settings.dupePolicy || window.DUPE_PRESET_A;
+    const newCode = window.generateDuplicateCode ? window.generateDuplicateCode(src, materials, policy) : src.code + '-copy';
+    setMaterials(list => [...list, {
+      ...src,
+      id: 'm-' + Date.now(),
+      code: newCode,
+      codeHistory: [],
+      mergedFrom: undefined,
+    }]);
   }
 
   return (
@@ -500,6 +609,18 @@ function App() {
         <Tweaks tweaks={tweaks} setTweaks={persistTweaks}
           onOpenLabelBuilder={() => { setLabelBuilderTab('Global'); setLabelBuilderOpen(true); }}
           onClose={() => setTweaksOpen(false)} />
+      )}
+      {dupeCheckState && (
+        <DupeMaterialModal
+          state={dupeCheckState}
+          onUseExisting={() => {
+            setDupeCheckState(null);
+            setEditingMaterial(null);
+            if (dupeCheckState.matches[0]) setEditingMaterial(dupeCheckState.matches[0]);
+          }}
+          onSaveAnyway={() => dupeCheckState.onConfirm()}
+          onCancel={() => setDupeCheckState(null)}
+        />
       )}
       <RevisionBadge />
     </div>
