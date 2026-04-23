@@ -835,7 +835,45 @@ function App() {
         />
       )}
       <RevisionBadge />
+      <DesktopViewToggle />
     </div>
+  );
+}
+
+function DesktopViewToggle() {
+  const [isDesktop, setIsDesktop] = React.useState(
+    () => localStorage.getItem('aml-desktop-view') === '1'
+  );
+  const [narrow, setNarrow] = React.useState(window.innerWidth < 768);
+
+  React.useEffect(() => {
+    function onResize() { setNarrow(window.innerWidth < 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  if (!narrow && !isDesktop) return null;
+
+  function toggle() {
+    const next = !isDesktop;
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (vp) vp.content = next ? 'width=1280' : 'width=device-width, initial-scale=1.0';
+    localStorage.setItem('aml-desktop-view', next ? '1' : '');
+    setIsDesktop(next);
+  }
+
+  return (
+    <button onClick={toggle} style={{
+      position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+      padding: '8px 14px', fontSize: 12,
+      background: 'var(--ink)', color: 'var(--paper)',
+      border: 'none', cursor: 'pointer',
+      fontFamily: 'var(--font-sans)', fontWeight: 500,
+      boxShadow: '0 4px 16px rgba(20,20,20,0.2)',
+      borderRadius: 2,
+    }}>
+      {isDesktop ? 'Mobile view' : 'Desktop view'}
+    </button>
   );
 }
 
