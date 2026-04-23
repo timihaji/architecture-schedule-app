@@ -7,7 +7,7 @@ function Library({
   activeLibraryId, setActiveLibraryId,
   onEdit, onAdd, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
-  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial,
+  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   compareIds, toggleCompare, showImagery, density,
 }) {
   if (mode === 'table') {
@@ -29,6 +29,7 @@ function Library({
         onToggleMaterialInLibrary={onToggleMaterialInLibrary}
         onMoveMaterial={onMoveMaterial}
         onDuplicateMaterial={onDuplicateMaterial}
+        onDuplicate={onDuplicate}
       />
     );
   }
@@ -50,6 +51,7 @@ function Library({
       onToggleMaterialInLibrary={onToggleMaterialInLibrary}
       onMoveMaterial={onMoveMaterial}
       onDuplicateMaterial={onDuplicateMaterial}
+      onDuplicate={onDuplicate}
       compareIds={compareIds} toggleCompare={toggleCompare}
       showImagery={showImagery} density={density}
     />
@@ -63,7 +65,7 @@ function LibraryGallery({
   activeLibraryId, setActiveLibraryId,
   onEdit, onAdd, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
-  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial,
+  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   compareIds, toggleCompare, showImagery, density,
 }) {
   const [query, setQuery] = React.useState('');
@@ -307,6 +309,7 @@ function LibraryGallery({
                 onToggleLib={(libId) => onToggleMaterialInLibrary(m.id, libId)}
                 onMoveLib={(libId) => { onMoveMaterial(m.id, libId); setMenuForId(null); }}
                 onDuplicateLib={(libId) => { onDuplicateMaterial(m.id, libId); setMenuForId(null); }}
+                onDuplicate={() => { onDuplicate && onDuplicate(m.id); setMenuForId(null); }}
               />
             ))}
           </section>
@@ -668,7 +671,7 @@ function GroupChip({ active, onClick, children }) {
 function MaterialRow({ material, materials, libraries, labelTemplates, showImagery, open, menuOpen,
   flash, onNavigateTo,
   onToggle, onOpenMenu, onCloseMenu, onEdit, onDelete, inCompare, toggleCompare,
-  onToggleLib, onMoveLib, onDuplicateLib }) {
+  onToggleLib, onMoveLib, onDuplicateLib, onDuplicate }) {
   const [hov, setHov] = React.useState(false);
   const m = material;
 
@@ -790,6 +793,7 @@ function MaterialRow({ material, materials, libraries, labelTemplates, showImage
               onToggleLib={onToggleLib}
               onMoveLib={onMoveLib}
               onDuplicateLib={onDuplicateLib}
+              onDuplicate={onDuplicate}
             />
           )}
         </div>
@@ -802,7 +806,7 @@ function MaterialRow({ material, materials, libraries, labelTemplates, showImage
   );
 }
 
-function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLib, onDuplicateLib }) {
+function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLib, onDuplicateLib, onDuplicate }) {
   const ref = React.useRef();
   React.useEffect(() => {
     function onDoc(e) {
@@ -830,11 +834,25 @@ function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLi
         boxShadow: '0 8px 24px rgba(20,20,20,0.14)',
         width: 260,
         padding: '12px 0',
+        maxHeight: 'calc(100vh - 160px)',
+        overflowY: 'auto',
       }}>
-      <div style={{ padding: '0 14px 8px', borderBottom: '1px dotted var(--rule-2)' }}>
+      {onDuplicate && (
+        <div style={{ padding: '0 14px 8px', borderBottom: '1px dotted var(--rule-2)' }}>
+          <button type="button" onClick={onDuplicate}
+            style={{
+              width: '100%', background: 'none', border: '1px solid var(--rule-2)',
+              cursor: 'pointer', padding: '6px 10px', textAlign: 'left',
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink)',
+            }}>
+            Duplicate (keep libraries)
+          </button>
+        </div>
+      )}
+      <div style={{ padding: '0 14px 8px', borderBottom: '1px dotted var(--rule-2)', marginTop: onDuplicate ? 8 : 0 }}>
         <Eyebrow>Appears in</Eyebrow>
       </div>
-      <div style={{ maxHeight: 180, overflowY: 'auto', padding: '6px 0' }}>
+      <div style={{ padding: '6px 0' }}>
         {libraries.map(lib => {
           const isIn = material.libraryIds.includes(lib.id);
           return (

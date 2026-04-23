@@ -497,6 +497,7 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
           labelTemplates={labelTemplates}
           component={schedule.components.find(c => c.id === pickerFor.componentId)}
           currentId={schedule.cells[pickerFor.optionId + ':' + pickerFor.componentId]?.materialId}
+          projectId={project.id}
           onClose={() => setPickerFor(null)}
           onSelect={mid => setCellMaterial(pickerFor.optionId, pickerFor.componentId, mid)}
           onClear={() => setCellMaterial(pickerFor.optionId, pickerFor.componentId, null)}

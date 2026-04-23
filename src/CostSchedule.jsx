@@ -498,6 +498,7 @@ function CostSchedule({ materials, projects, libraries, labelTemplates, activePr
           labelTemplates={labelTemplates}
           component={schedule.components.find(c => c.id === pickerFor.componentId)}
           currentId={schedule.cells[pickerFor.optionId + ':' + pickerFor.componentId]?.materialId}
+          projectId={project.id}
           onClose={() => setPickerFor(null)}
           onSelect={mid => setCellMaterial(pickerFor.optionId, pickerFor.componentId, mid)}
           onClear={() => setCellMaterial(pickerFor.optionId, pickerFor.componentId, null)}
@@ -631,21 +632,36 @@ function ScheduleCell({ material, labelTemplates, total, onClick }) {
   );
 }
 
-function MaterialPicker({ materials, libraries, labelTemplates, component, currentId, onClose, onSelect, onClear }) {
+function MaterialPicker({ materials, libraries, labelTemplates, component, currentId, projectId, onClose, onSelect, onClear }) {
   const [query, setQuery] = React.useState('');
   const [cat, setCat] = React.useState('All');
   const cats = ['All', ...window.CATEGORIES];
 
+  const storageKey = projectId ? 'aml-picker-lib-' + projectId : null;
+  const [selectedLib, setSelectedLib] = React.useState(() => {
+    if (!storageKey) return 'All';
+    try { return localStorage.getItem(storageKey) || 'All'; } catch { return 'All'; }
+  });
+
+  React.useEffect(() => {
+    if (!storageKey) return;
+    try { localStorage.setItem(storageKey, selectedLib); } catch {}
+  }, [selectedLib, storageKey]);
+
   const filtered = React.useMemo(() => {
     let list = materials.slice();
+    if (selectedLib !== 'All') list = list.filter(m => (m.libraryIds || ['lib-master']).includes(selectedLib));
     if (cat !== 'All') list = list.filter(m => m.category === cat);
     const q = query.trim().toLowerCase();
     if (q) list = list.filter(m => (window.formatLabel(m, labelTemplates) + ' ' + m.name + ' ' + m.supplier + ' ' + m.code).toLowerCase().includes(q));
     return list;
-  }, [materials, cat, query]);
+  }, [materials, selectedLib, cat, query]);
 
-  // Group by library (materials can appear in multiple libs → show under each)
+  // Group by library — when a specific lib is selected, skip the section headers
   const grouped = React.useMemo(() => {
+    if (selectedLib !== 'All') {
+      return [[libraries.find(l => l.id === selectedLib) || { id: selectedLib, name: selectedLib }, filtered]];
+    }
     const byLib = new Map();
     const seen = new Set();
     filtered.forEach(m => {
@@ -659,7 +675,7 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
     return libraries
       .filter(l => byLib.has(l.id))
       .map(l => [l, byLib.get(l.id)]);
-  }, [filtered, libraries]);
+  }, [filtered, libraries, selectedLib]);
 
   React.useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose(); };
@@ -702,11 +718,32 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
               ))}
             </div>
           </div>
+          {libraries.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+              {['All', ...libraries.map(l => l.id)].map(libId => {
+                const lib = libraries.find(l => l.id === libId);
+                const active = selectedLib === libId;
+                return (
+                  <button key={libId} type="button" onClick={() => setSelectedLib(libId)}
+                    style={{
+                      background: active ? 'var(--ink)' : 'transparent',
+                      color: active ? 'var(--paper)' : 'var(--ink-3)',
+                      border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule)'),
+                      borderRadius: 3, padding: '2px 9px',
+                      fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+                      cursor: 'pointer',
+                    }}>
+                    {libId === 'All' ? 'All libraries' : (lib?.name || libId)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div style={{ overflowY: 'auto', padding: '8px 26px 16px' }}>
           {grouped.map(([lib, items]) => (
             <React.Fragment key={lib.id}>
-              {libraries.length > 1 && (
+              {libraries.length > 1 && selectedLib === 'All' && (
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
                   padding: '14px 0 6px', borderBottom: '1px dotted var(--rule-2)', marginTop: 6,

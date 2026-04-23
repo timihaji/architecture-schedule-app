@@ -17,7 +17,7 @@ function LibraryTable(props) {
     activeLibraryId, setActiveLibraryId,
     onEdit, onAdd, onDelete,
     onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
-    onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial,
+    onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   } = props;
 
   // Keep labelTemplates accessible to column sort fns (they can't take args)
@@ -140,6 +140,7 @@ function LibraryTable(props) {
         onSaveCell={(id, field, value) => window.saveMaterialCell(id, field, value)}
         onOpenRow={(id) => setOpenId(id)}
         onEditRow={(id) => { const m = materials.find(x => x.id === id); if (m) onEdit(m); }}
+        onDuplicateRow={onDuplicate}
         onAdd={onAdd}
         searchRef={searchRef}
         sidebarSlot={

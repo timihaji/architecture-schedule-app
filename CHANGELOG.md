@@ -32,6 +32,39 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
+### 2026-04-23 15:30 AEST — Library: Duplicate material (table Shift+D + gallery context menu)
+
+**Files changed:** `src/App.jsx`, `src/Library.jsx`, `src/LibraryTable.jsx`
+
+**Bug fixed — Shift+D did nothing in Library Table view:** `DataTable` has `onDuplicateRow` prop wired to the `Shift+D` keyboard handler, but `LibraryTable.jsx` never passed it. Fixed by threading a new `onDuplicate` prop from App → Library → LibraryTable → DataTable `onDuplicateRow`.
+
+**New `duplicateMaterial(materialId)` in App.jsx:** Copies the material keeping its current `libraryIds` intact (unlike `duplicateMaterialIntoLibrary` which requires a target library and replaces membership). Code is suffixed with `·copy`.
+
+**Gallery context menu:** `LibraryActionMenu` now accepts `onDuplicate` prop. When provided, a "Duplicate (keep libraries)" button appears at the top of the menu (above the "Appears in" section). Clicking it calls `onDuplicate` and closes the menu.
+
+**"Appears in" scroll fix:** The `maxHeight: 180 / overflowY: auto` was on the inner "Appears in" list, causing that section alone to scroll while the rest of the menu stayed visible. Removed that inner scroll cap. Added `maxHeight: calc(100vh - 160px) / overflowY: auto` to the outer menu container instead — so the whole menu scrolls as one unit if there are too many libraries, rather than just the checkbox list.
+
+---
+
+### 2026-04-23 15:05 AEST — MaterialPicker: Library filter chips with per-project memory
+
+**Files changed:** `src/CostSchedule.jsx`, `src/CostScheduleV2.jsx`
+
+When a project has more than one library, the "Assign to component" picker now shows a row of library filter chips below the search + category controls. Selecting a chip restricts results to materials in that library only; "All libraries" restores the full list.
+
+**Per-project memory:** The selected library is persisted per-project in `localStorage` keyed as `aml-picker-lib-{projectId}`. Opening the picker for a different project restores that project's last selection. Key generated from `project.id` (same id used for the schedule storage key).
+
+**Section headers:** When a specific library is selected, the per-library section headers inside the scroll area are hidden — the active chip already communicates which library is being shown. When "All libraries" is active, section headers behave as before.
+
+**Implementation details:**
+- New prop `projectId` on `MaterialPicker` (optional; chips and memory are skipped when absent)
+- `selectedLib` state initialised from localStorage on mount; written back on every change
+- Library filter applied first in `filtered` useMemo (before category + text filters), checking `m.libraryIds.includes(selectedLib)` with `['lib-master']` fallback
+- `grouped` useMemo: when `selectedLib !== 'All'`, short-circuits to a single `[lib, filtered]` pair (avoids iterating all libs for no reason)
+- Both gallery mode (`CostSchedule.jsx`) and table mode (`CostScheduleV2.jsx`) now pass `projectId={project.id}` to `MaterialPicker`
+
+---
+
 ### 2026-04-23 14:40 AEST — CS Table: Filter chips, cheatsheet, supplier list, duplicate shortcut
 
 **Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`

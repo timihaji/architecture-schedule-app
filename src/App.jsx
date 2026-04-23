@@ -329,6 +329,11 @@ function App() {
     };
     setMaterials(list => [...list, copy]);
   }
+  function duplicateMaterial(materialId) {
+    const src = materials.find(m => m.id === materialId);
+    if (!src) return;
+    setMaterials(list => [...list, { ...src, id: 'm-' + Date.now(), code: src.code + '·copy' }]);
+  }
 
   return (
     <div
@@ -378,6 +383,7 @@ function App() {
             onToggleMaterialInLibrary={toggleMaterialInLibrary}
             onMoveMaterial={moveMaterialToLibrary}
             onDuplicateMaterial={duplicateMaterialIntoLibrary}
+            onDuplicate={duplicateMaterial}
             compareIds={compareIds}
             toggleCompare={toggleCompare}
             showImagery={settings.showImagery}
