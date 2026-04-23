@@ -92,6 +92,10 @@ function DataTable({
   // Receives the live colPref + setter so hosts can wire column pickers
   colPrefRef,
 
+  // Grouping — optional. groupBy(row) → string key; groupSubtotal(rows) → string | null
+  groupBy,
+  groupSubtotal,
+
   // Slots
   topBar,
   kindTabs,
@@ -318,6 +322,8 @@ function DataTable({
           setEditingCell={setEditingCell}
           onSaveCell={onSaveCell}
           cellCtx={cellCtx}
+          groupBy={groupBy}
+          groupSubtotal={groupSubtotal}
         />
         {selected && selected.size > 0 && bulkBar}
       </div>
@@ -332,7 +338,57 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
   colPref, setColPref, sort, setSort,
   selected, toggleSelect, selectRange,
   cursorId, setCursorId, openId, setOpenId,
-  editingCell, setEditingCell, onSaveCell, cellCtx }) {
+  editingCell, setEditingCell, onSaveCell, cellCtx,
+  groupBy, groupSubtotal }) {
+
+  const [collapsed, setCollapsed] = React.useState(new Set());
+
+  function toggleGroup(key) {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  // Build groups if groupBy is provided; otherwise treat as a single ungrouped list
+  const groups = React.useMemo(() => {
+    if (!groupBy) return null;
+    const map = new Map();
+    rows.forEach(r => {
+      const key = groupBy(r) || 'Uncategorised';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+    });
+    return Array.from(map.entries()).map(([key, groupRows]) => ({ key, rows: groupRows }));
+  }, [rows, groupBy]);
+
+  function renderRow(r) {
+    const id = getRowId(r);
+    return (
+      <DtRow
+        key={id}
+        row={r} rowId={id}
+        visibleCols={visibleCols}
+        gridTemplate={gridTemplate}
+        rowH={rowH}
+        isCursor={id === cursorId}
+        isSelected={selected && selected.has(id)}
+        isOpen={id === openId}
+        onRowClick={(e) => {
+          if (e.shiftKey) { selectRange(id); return; }
+          setCursorId && setCursorId(id);
+          setOpenId && setOpenId(id);
+        }}
+        onToggleSelect={(e) => {
+          if (e && e.shiftKey) selectRange(id);
+          else toggleSelect(id);
+        }}
+        cellCtx={cellCtx}
+      />
+    );
+  }
+
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'auto', background: 'var(--paper)' }}>
       <DtHeader
@@ -352,38 +408,77 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
           }
         }}
       />
-      <div>
-        {rows.map(r => {
-          const id = getRowId(r);
+      {groups ? (
+        groups.map(({ key, rows: groupRows }) => {
+          const isCollapsed = collapsed.has(key);
+          const subtotal = groupSubtotal ? groupSubtotal(groupRows) : null;
           return (
-            <DtRow
-              key={id}
-              row={r} rowId={id}
-              visibleCols={visibleCols}
-              gridTemplate={gridTemplate}
-              rowH={rowH}
-              isCursor={id === cursorId}
-              isSelected={selected && selected.has(id)}
-              isOpen={id === openId}
-              onRowClick={(e) => {
-                if (e.shiftKey) { selectRange(id); return; }
-                setCursorId && setCursorId(id);
-                setOpenId && setOpenId(id);
-              }}
-              onToggleSelect={(e) => {
-                if (e && e.shiftKey) selectRange(id);
-                else toggleSelect(id);
-              }}
-              cellCtx={cellCtx}
-            />
+            <div key={key}>
+              <DtGroupHeader
+                label={key}
+                count={groupRows.length}
+                subtotal={subtotal}
+                collapsed={isCollapsed}
+                onToggle={() => toggleGroup(key)}
+              />
+              {!isCollapsed && groupRows.map(renderRow)}
+            </div>
           );
-        })}
-        {rows.length === 0 && (
-          <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-            <Serif size={16} color="var(--ink-3)">No rows match</Serif>
-          </div>
-        )}
-      </div>
+        })
+      ) : (
+        <div>
+          {rows.map(renderRow)}
+          {rows.length === 0 && (
+            <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+              <Serif size={16} color="var(--ink-3)">No rows match</Serif>
+            </div>
+          )}
+        </div>
+      )}
+      {groups && groups.every(g => g.rows.length === 0) && (
+        <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+          <Serif size={16} color="var(--ink-3)">No rows match</Serif>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DtGroupHeader({ label, count, subtotal, collapsed, onToggle }) {
+  return (
+    <div
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '0 14px',
+        height: 30,
+        background: 'var(--paper-2)',
+        borderBottom: '1px solid var(--rule)',
+        borderTop: '1px solid var(--rule)',
+        cursor: 'pointer',
+        userSelect: 'none',
+        position: 'sticky', top: 36, zIndex: 1,
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'var(--paper-2)'}
+    >
+      <span style={{
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 9, color: 'var(--ink-4)',
+        transition: 'transform 0.1s',
+        display: 'inline-block',
+        transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+      }}>▾</span>
+      <span style={{
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
+        color: 'var(--ink-2)', flex: 1,
+      }}>{label}</span>
+      <span style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: 'var(--ink-4)',
+      }}>{count} {count === 1 ? 'row' : 'rows'}{subtotal ? ' · ' + subtotal : ''}</span>
     </div>
   );
 }

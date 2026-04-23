@@ -216,8 +216,8 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 - [x] **Row actions menu (⋯ on hover)** — delete, duplicate, move-to-option, change-category as single-row affordances.
 - [x] **Option rename** — no UI in Table mode.
 - [x] **Option reorder** — no UI in Table mode.
-- [ ] **Per-trade subtotals** — group rows under collapsible Trade headers with subtotals.
-- [ ] **Change component category/trade** — category is read-only in Table mode.
+- [x] **Per-trade subtotals** — group rows under collapsible Trade headers with subtotals.
+- [x] **Change component category/trade** — category is read-only in Table mode.
 
 ### Nice-to-have
 - [ ] **Filter chips** — Library Table has "+ Add filter"; Schedule Table doesn't.

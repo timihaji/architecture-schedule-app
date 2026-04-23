@@ -32,6 +32,22 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
+### 2026-04-23 14:32 AEST — CS Table: Per-trade subtotals + inline category edit
+
+**Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`
+
+Two tasks shipped together.
+
+**Per-trade subtotals:** `DataTable` now accepts `groupBy(row) → string` and `groupSubtotal(rows) → string | null` props. When `groupBy` is set, `DtTable` groups the filtered rows into sections and renders a `DtGroupHeader` between each group. The header shows the trade name, row count, and subtotal. Clicking the header collapses/expands the section (state lives in `DtTable` via a `collapsed` Set).
+
+`DtGroupHeader` is sticky at `top: 36` (just below the column header) so it stays visible while scrolling through a section. The ▾ arrow rotates 90° when collapsed via CSS transform.
+
+In `CostScheduleTable`, `groupBy` groups by `component.category` (flat) or `category` (grouped). `groupSubtotal` in flat mode sums `r.total` across rows → `$12,450`; in grouped mode shows `N components`.
+
+**Inline category edit:** The `category` / Trade column in both flat and grouped modes is now editable inline (click to open `DtInlineInput`). `handleFlatSave` and `handleGroupedSave` now handle `field === 'category'` → calls `setComp(componentId, 'category', value)`. This completes the "Change component category/trade" quality-of-life item.
+
+---
+
 ### 2026-04-23 14:22 AEST — CS Table: Option rename + reorder
 
 **Files changed:** `src/CostScheduleTable.jsx`, `src/CostScheduleV2.jsx`

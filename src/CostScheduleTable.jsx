@@ -23,12 +23,23 @@ function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicke
       sortValue: (r) => (r.component.name || '').toLowerCase(),
       searchText: (r) => r.component.name || '',
     },
-    { id: 'category', label: 'Trade', width: 120, minWidth: 80,
-      render: (r, ctx) => (
-        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}>
-          {r.component.category || 'Uncategorised'}
-        </div>
-      ),
+    { id: 'category', label: 'Trade', width: 120, minWidth: 80, editable: true,
+      get: (r) => r.component.category || '',
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput baseStyle={baseStyle}
+            initial={r.component.category || ''}
+            onCommit={(v) => onSave((v || '').trim() || 'Uncategorised')}
+            onCancel={() => setEditing(false)} />;
+        }
+        return (
+          <div data-dt-raw="true" style={{ ...baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}
+            onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.component.category || 'Uncategorised'}
+          </div>
+        );
+      },
       sortValue: (r) => r.component.category || '',
       searchText: (r) => r.component.category || '',
     },
@@ -233,12 +244,23 @@ function buildCstGroupedColumns({ materials, labelTemplates, libraries, options,
       sortValue: (r) => (r.name || '').toLowerCase(),
       searchText: (r) => r.name || '',
     },
-    { id: 'category', label: 'Trade', width: 120, minWidth: 80,
-      render: (r, ctx) => (
-        <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}>
-          {r.category || 'Uncategorised'}
-        </div>
-      ),
+    { id: 'category', label: 'Trade', width: 120, minWidth: 80, editable: true,
+      get: (r) => r.category || '',
+      render: (r, ctx) => {
+        const { baseStyle, editing, setEditing, onSave } = ctx;
+        if (editing) {
+          return <window.DtInlineInput baseStyle={baseStyle}
+            initial={r.category || ''}
+            onCommit={(v) => onSave((v || '').trim() || 'Uncategorised')}
+            onCancel={() => setEditing(false)} />;
+        }
+        return (
+          <div data-dt-raw="true" style={{ ...baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}
+            onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+            {r.category || 'Uncategorised'}
+          </div>
+        );
+      },
       sortValue: (r) => r.category || '',
       searchText: (r) => r.category || '',
     },
@@ -463,12 +485,12 @@ function CostScheduleTable({
   // Save handler resolves to the correct schedule op based on the edited field
   function handleFlatSave(rowId, field, value) {
     const [optionId, componentId] = rowId.split(':');
-    if (field === 'count' || field === 'size' || field === 'unit') {
+    if (field === 'count' || field === 'size' || field === 'unit' || field === 'category') {
       setComp(componentId, field, value);
     }
   }
   function handleGroupedSave(rowId, field, value) {
-    if (field === 'count' || field === 'size' || field === 'unit') {
+    if (field === 'count' || field === 'size' || field === 'unit' || field === 'category') {
       setComp(rowId, field, value);
     }
   }
@@ -565,6 +587,15 @@ function CostScheduleTable({
         density="regular"
         onSaveCell={rowShape === 'flat' ? handleFlatSave : handleGroupedSave}
         onOpenRow={rowShape === 'flat' ? handleFlatOpenRow : handleGroupedOpenRow}
+        groupBy={rowShape === 'flat'
+          ? (r) => r.component.category || 'Uncategorised'
+          : (r) => r.category || 'Uncategorised'}
+        groupSubtotal={rowShape === 'flat'
+          ? (groupRows) => {
+              const total = groupRows.reduce((s, r) => s + (r.total || 0), 0);
+              return total > 0 ? '$' + Math.round(total).toLocaleString() : null;
+            }
+          : (groupRows) => groupRows.length + ' component' + (groupRows.length === 1 ? '' : 's')}
         searchRef={searchRef}
         cellContext={{ libraries, allMaterials: materials, labelTemplates }}
         sidePanel={
