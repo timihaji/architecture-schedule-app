@@ -441,6 +441,7 @@ function CostScheduleTable({
   const [cursorId, setCursorId] = React.useState(null);
   const [openId, setOpenId] = React.useState(null);
   const [editingCell, setEditingCell] = React.useState(null);
+  const [cheatsheetOpen, setCheatsheetOpen] = React.useState(false);
   const searchRef = React.useRef(null);
 
   // Stable ref so column render fns can read fresh handlers without being in useMemo deps
@@ -609,6 +610,10 @@ function CostScheduleTable({
             removeComponent(compId);
           }
         }}
+        onDuplicateRow={duplicateComponent ? (rowId) => {
+          const compId = rowShape === 'flat' ? rowId.split(':')[1] : rowId;
+          duplicateComponent(compId);
+        } : null}
         groupBy={rowShape === 'flat'
           ? (r) => r.component.category || 'Uncategorised'
           : (r) => r.category || 'Uncategorised'}
@@ -618,8 +623,31 @@ function CostScheduleTable({
               return total > 0 ? '$' + Math.round(total).toLocaleString() : null;
             }
           : (groupRows) => groupRows.length + ' component' + (groupRows.length === 1 ? '' : 's')}
+        onCheatsheet={() => setCheatsheetOpen(true)}
         searchRef={searchRef}
         cellContext={{ libraries, allMaterials: materials, labelTemplates }}
+        matchFilter={(r, f) => {
+          if (f.field === 'category') {
+            const cat = rowShape === 'flat' ? (r.component?.category || '') : (r.category || '');
+            return cat.toLowerCase() === (f.value || '').toLowerCase();
+          }
+          if (f.field === 'option' && rowShape === 'flat') {
+            return (r.option?.name || '').toLowerCase() === (f.value || '').toLowerCase();
+          }
+          if (f.field === 'supplier') {
+            return (r.material?.supplier || '').toLowerCase().includes((f.value || '').toLowerCase());
+          }
+          if (f.field === 'hasMaterial') {
+            return f.value === 'yes' ? !!r.material : !r.material;
+          }
+          return true;
+        }}
+        filtersBar={
+          <CstFiltersBar
+            filters={filters} setFilters={setFilters}
+            schedule={schedule} rowShape={rowShape}
+          />
+        }
         sidePanel={
           openId ? (
             <CstSidePanel
@@ -652,6 +680,7 @@ function CostScheduleTable({
       {rowShape === 'grouped' && cellTotal && (
         <CstGroupedTotalsFooter schedule={schedule} cellTotal={cellTotal} />
       )}
+      {cheatsheetOpen && <CstCheatsheet onClose={() => setCheatsheetOpen(false)} rowShape={rowShape} />}
     </div>
   );
 }
@@ -905,35 +934,44 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
     } else {
       ids.forEach(id => compIds.add(id));
     }
-    // Gather every material assigned to any option for these components
+    // Build: supplier → material key → { material, usages: [{comp, opt, qty, size, unit}] }
     const bySupplier = new Map();
     compIds.forEach(cid => {
+      const comp = schedule.components.find(c => c.id === cid);
+      if (!comp) return;
       schedule.options.forEach(opt => {
         const cell = schedule.cells[opt.id + ':' + cid];
         if (!cell?.materialId) return;
         const m = materials.find(x => x.id === cell.materialId);
         if (!m) return;
         const sup = m.supplier || '(no supplier)';
-        if (!bySupplier.has(sup)) bySupplier.set(sup, []);
-        bySupplier.get(sup).push(m);
+        const matKey = m.code + '|' + (m.name || '');
+        if (!bySupplier.has(sup)) bySupplier.set(sup, new Map());
+        const matMap = bySupplier.get(sup);
+        if (!matMap.has(matKey)) matMap.set(matKey, { m, usages: [] });
+        matMap.get(matKey).usages.push({ comp, opt, qty: comp.count, size: comp.size, unit: comp.unit });
       });
     });
+
     const lines = [];
-    Array.from(bySupplier.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([sup, mats]) => {
+    Array.from(bySupplier.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([sup, matMap]) => {
       lines.push(sup.toUpperCase());
-      const seen = new Set();
-      mats.forEach(m => {
-        const key = m.code + '|' + m.name;
-        if (seen.has(key)) return;
-        seen.add(key);
-        lines.push(`  ${m.code} — ${m.name}`);
+      Array.from(matMap.values()).forEach(({ m, usages }) => {
+        lines.push('  ' + (m.code || '—') + '  ' + (m.name || '(unnamed)'));
+        usages.forEach(({ comp, opt, qty, size, unit }) => {
+          const qtyStr = qty != null ? '×' + qty : '';
+          const sizeStr = size != null ? ' ' + size + (unit || '') : '';
+          const optStr = schedule.options.length > 1 ? '  [' + opt.name + ']' : '';
+          lines.push('    · ' + (comp.name || '(unnamed)') + optStr + (qtyStr ? '  ' + qtyStr : '') + sizeStr);
+        });
       });
       lines.push('');
     });
-    const text = lines.join('\n');
+
+    const text = lines.join('\n').trimEnd();
     try {
       navigator.clipboard.writeText(text);
-      window.alert('Copied supplier list to clipboard (' + bySupplier.size + ' suppliers).');
+      window.alert('Copied supplier list (' + bySupplier.size + ' supplier' + (bySupplier.size === 1 ? '' : 's') + ').');
     } catch {
       window.prompt('Copy this:', text);
     }
@@ -1032,6 +1070,198 @@ const cstMenuItemStyle = {
   fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
   color: 'var(--ink)',
 };
+
+// ───────── Filters bar ─────────
+
+const CST_FILTER_FIELDS = [
+  { id: 'category',   label: 'Trade',        op: 'is',       values: null },
+  { id: 'option',     label: 'Option',       op: 'is',       values: null, flatOnly: true },
+  { id: 'supplier',   label: 'Supplier',     op: 'contains', values: null },
+  { id: 'hasMaterial',label: 'Has material', op: 'is',       values: ['yes', 'no'] },
+];
+
+function CstFiltersBar({ filters, setFilters, schedule, rowShape }) {
+  const [adding, setAdding] = React.useState(false);
+  const [draft, setDraft] = React.useState({ field: 'category', value: '' });
+
+  const fields = CST_FILTER_FIELDS.filter(f => !f.flatOnly || rowShape === 'flat');
+
+  function addChip() {
+    if (!draft.value) { setAdding(false); return; }
+    setFilters(fs => [...fs, { field: draft.field, op: fields.find(f => f.id === draft.field)?.op || 'is', value: draft.value }]);
+    setAdding(false);
+    setDraft({ field: 'category', value: '' });
+  }
+
+  function removeChip(i) { setFilters(fs => fs.filter((_, idx) => idx !== i)); }
+
+  if (filters.length === 0 && !adding) {
+    return (
+      <div style={{ padding: '5px 14px', borderBottom: '1px solid var(--rule)', background: 'var(--paper-2)', display: 'flex' }}>
+        <button onClick={() => setAdding(true)} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)',
+          padding: '3px 0',
+        }}>+ Add filter</button>
+      </div>
+    );
+  }
+
+  const fieldDef = fields.find(f => f.id === draft.field) || fields[0];
+  const valueChoices = fieldDef?.values
+    || (draft.field === 'category' ? Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised'))).sort() : null)
+    || (draft.field === 'option' ? schedule.options.map(o => o.name) : null);
+
+  return (
+    <div style={{
+      padding: '6px 14px', borderBottom: '1px solid var(--rule)',
+      background: 'var(--paper-2)', display: 'flex', alignItems: 'center',
+      gap: 6, flexWrap: 'wrap', minHeight: 36,
+    }}>
+      <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 9, letterSpacing: '0.1em',
+        textTransform: 'uppercase', color: 'var(--ink-4)', marginRight: 2 }}>Filter</span>
+
+      {filters.map((f, i) => {
+        const fd = CST_FILTER_FIELDS.find(x => x.id === f.field);
+        return (
+          <div key={i} style={{
+            display: 'inline-flex', alignItems: 'center',
+            border: '1px solid var(--rule-2)', background: 'var(--paper)',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+          }}>
+            <span style={{ padding: '3px 6px', color: 'var(--ink-3)' }}>{fd?.label || f.field}</span>
+            <span style={{ padding: '3px 3px', color: 'var(--ink-4)', fontSize: 10 }}>
+              {f.op === 'is' ? '=' : '~'}
+            </span>
+            <span style={{ padding: '3px 6px', color: 'var(--ink)' }}>{f.value}</span>
+            <button onClick={() => removeChip(i)} style={{
+              background: 'none', border: 'none', borderLeft: '1px solid var(--rule)',
+              cursor: 'pointer', padding: '3px 6px', color: 'var(--ink-4)', fontSize: 12,
+            }}>×</button>
+          </div>
+        );
+      })}
+
+      {adding ? (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <select value={draft.field} onChange={e => setDraft({ field: e.target.value, value: '' })}
+            style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 4px',
+              border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)' }}>
+            {fields.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
+          {valueChoices ? (
+            <select value={draft.value} onChange={e => setDraft(d => ({ ...d, value: e.target.value }))}
+              style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 4px',
+                border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)' }}>
+              <option value="">— pick —</option>
+              {valueChoices.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          ) : (
+            <input value={draft.value} onChange={e => setDraft(d => ({ ...d, value: e.target.value }))}
+              onKeyDown={e => { if (e.key === 'Enter') addChip(); if (e.key === 'Escape') setAdding(false); }}
+              placeholder="value…" autoFocus
+              style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 6px',
+                border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)',
+                width: 120, outline: 'none' }} />
+          )}
+          <button onClick={addChip} style={{
+            background: 'var(--ink)', color: 'var(--paper)', border: 'none', cursor: 'pointer',
+            padding: '3px 8px', fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+          }}>Add</button>
+          <button onClick={() => setAdding(false)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 11, color: 'var(--ink-4)',
+          }}>×</button>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+          letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)',
+          padding: '3px 0',
+        }}>+ Add filter</button>
+      )}
+    </div>
+  );
+}
+
+// ───────── Cheatsheet ─────────
+
+function CstCheatsheet({ onClose, rowShape }) {
+  const shortcuts = [
+    ['j / ↓',       'Move cursor down'],
+    ['k / ↑',       'Move cursor up'],
+    ['g / G',       'First / last row'],
+    ['o / Enter',   'Open side panel'],
+    ['e',           'Open material picker (assign / change)'],
+    ['x / Space',   'Toggle select cursor row'],
+    ['Shift+x',     'Range-select to cursor'],
+    ['c',           'Add component'],
+    ['d / Delete',  'Delete cursor component'],
+    ['Shift+D',     'Duplicate cursor component'],
+    ['⌘A / Ctrl+A', 'Select all visible rows'],
+    ['⌘-click',     'Toggle-add row to selection'],
+    ['/',           'Focus search'],
+    ['?',           'This cheatsheet'],
+    ['Esc',         'Cancel edit → close panel → clear selection'],
+    ['Click Trade', 'Inline-edit category / trade'],
+    ['Click #',     'Inline-edit count'],
+    ['Click size',  'Inline-edit size'],
+    ['Click unit',  'Inline-edit unit'],
+  ];
+
+  React.useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape' || e.key === '?') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--paper)', border: '1px solid var(--rule)',
+        padding: '24px 28px', maxWidth: 480, width: '90vw',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+          <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: 16 }}>
+            Cost Schedule — Keyboard Shortcuts
+          </span>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 18, color: 'var(--ink-3)',
+          }}>×</button>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {shortcuts.map(([key, label]) => (
+              <tr key={key} style={{ borderBottom: '1px solid var(--rule)' }}>
+                <td style={{
+                  padding: '5px 12px 5px 0', whiteSpace: 'nowrap',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                  color: 'var(--ink-2)',
+                }}>{key}</td>
+                <td style={{
+                  padding: '5px 0', fontFamily: "'Inter Tight', sans-serif",
+                  fontSize: 12, color: 'var(--ink-3)',
+                }}>{label}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{
+          marginTop: 14, fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 10, color: 'var(--ink-4)',
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+        }}>Press ? or Esc to close</div>
+      </div>
+    </div>
+  );
+}
 
 // ───────── Row actions menu ─────────
 

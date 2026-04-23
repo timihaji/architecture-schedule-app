@@ -32,6 +32,28 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
+### 2026-04-23 14:40 AEST — CS Table: Filter chips, cheatsheet, supplier list, duplicate shortcut
+
+**Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`
+
+Four items shipped together.
+
+**Filter chips (`CstFiltersBar`):** "+ Add filter" bar below the options row. Fields: Trade (exact match against schedule categories), Option (flat mode only, exact match), Supplier (contains), Has material (yes/no). Adding a filter prompts with a dropdown of known values (categories/options) or a text input. Active filters show as removable chips. `matchFilter` prop wires the CS-specific matching logic into DataTable's filter pipeline.
+
+**Cheatsheet (`CstCheatsheet`):** Press `?` to open a keyboard shortcut reference modal. Lists all 19 shortcuts including the new `Shift+D` (duplicate) and `d`/`Delete` (delete). Closes on `?`, `Esc`, or clicking the backdrop. `onCheatsheet` prop added to DataTable → `?` key handler calls it. This fixes the reported issue where the cheatsheet was not accessible in CS Table mode.
+
+**Supplier list format:** `copySupplierList` now builds supplier → material → usages structure. Each material entry lists the component name, option (if multiple options), qty (`×N`) and size. Old format was a flat deduped list with no quantities. New format example:
+```
+SUPPLIER NAME
+  CODE  Material Name
+    · Kitchen Splashback [Option A]  ×2  3.5m²
+    · Bathroom Wall [Option B]  ×1  2.0m²
+```
+
+**Duplicate shortcut:** `Shift+D` calls `onDuplicateRow(cursorId)`. New `onDuplicateRow` prop added to DataTable. In CostScheduleTable: extracts compId from rowId and calls `duplicateComponent`. Row actions menu already had "Duplicate component" for mouse users.
+
+---
+
 ### 2026-04-23 14:35 AEST — CS Table: Keyboard shortcuts
 
 **Files changed:** `src/DataTable.jsx`, `src/CostScheduleTable.jsx`

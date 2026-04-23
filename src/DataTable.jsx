@@ -82,6 +82,8 @@ function DataTable({
   onEditRow,
   onAdd,
   onDeleteRow,
+  onDuplicateRow,
+  onCheatsheet,
 
   // Filter matcher (per-row). Defaults to stringly-match.
   matchFilter,
@@ -246,8 +248,14 @@ function DataTable({
       else if (e.key === 'c') {
         if (onAdd) { e.preventDefault(); onAdd(); }
       }
-      else if (e.key === 'd' || e.key === 'Delete') {
+      else if ((e.key === 'd' || e.key === 'Delete') && !e.shiftKey) {
         if (onDeleteRow && cursorId) { e.preventDefault(); onDeleteRow(cursorId); }
+      }
+      else if (e.key === 'D' && e.shiftKey) {
+        if (onDuplicateRow && cursorId) { e.preventDefault(); onDuplicateRow(cursorId); }
+      }
+      else if (e.key === '?') {
+        if (onCheatsheet) { e.preventDefault(); onCheatsheet(); }
       }
       else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault(); selectAll();
@@ -255,7 +263,7 @@ function DataTable({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filtered, cursorId, openId, selected, editingCell, onDeleteRow, onEditRow, onOpenRow, onAdd]);
+  }, [filtered, cursorId, openId, selected, editingCell, onDeleteRow, onDuplicateRow, onEditRow, onOpenRow, onAdd, onCheatsheet]);
 
   // ───── visible cols
   const visibleCols = colPref.order

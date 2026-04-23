@@ -220,11 +220,11 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 - [x] **Change component category/trade** — category is read-only in Table mode.
 
 ### Nice-to-have
-- [ ] **Filter chips** — Library Table has "+ Add filter"; Schedule Table doesn't.
+- [x] **Filter chips** — Library Table has "+ Add filter"; Schedule Table doesn't.
 - [ ] **Saved views as tabs** — Library has them; Schedule Table doesn't.
 - [ ] **Bulk action: Delete rows** — missing from bulk bar.
-- [ ] **Supplier list format audit** — verify "Copy as supplier list" output is grouped by supplier with quantities rolled up, not a flat dump.
-- [ ] **Duplicate a single component** — bulk bar requires selection; no single-row shortcut.
+- [x] **Supplier list format audit** — fixed: now grouped by supplier → material → per-component usages with qty × size.
+- [x] **Duplicate a single component** — Shift+D keyboard shortcut; row actions menu also has it.
 
 ### Grouped mode specifics
 - [ ] **"Assign…" empty cells** — empty option cells should be click-to-open-picker (may already work; needs verification).
