@@ -142,6 +142,15 @@ function SectionHeader({ kicker, title, subtitle }) {
   );
 }
 
+function SubRow({ label, children }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 24, alignItems: 'center' }}>
+      <div style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'var(--font-sans)' }}>{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 function SettingRow({ label, description, children }) {
   return (
     <div style={{
@@ -632,6 +641,7 @@ function CodesSection({ settings, set }) {
     { key: 'B', label: 'Project-scoped, gap-closing' },
     { key: 'C', label: 'Office catalog' },
     { key: 'D', label: 'Free-form with guardrails' },
+    { key: 'custom', label: 'Custom…' },
   ];
 
   return (
@@ -646,7 +656,7 @@ function CodesSection({ settings, set }) {
             const active = preset === p.key;
             return (
               <button key={p.key} type="button"
-                onClick={() => setPreset(p.key)}
+                onClick={() => p.key === 'custom' ? set('dupePolicy', { ...policy, preset: 'custom' }) : setPreset(p.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
@@ -672,7 +682,7 @@ function CodesSection({ settings, set }) {
             );
           })}
         </div>
-        {preset !== 'custom' && (
+        {!isCustom && (
           <div style={{ marginTop: 10, fontFamily: 'var(--font-serif)', fontStyle: 'italic',
             fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.45 }}>
             {PRESET_DESCRIPTIONS[preset]}
@@ -680,45 +690,135 @@ function CodesSection({ settings, set }) {
         )}
       </SettingRow>
 
-      <SettingRow label="On duplicate — code"
-        description="How the code is set when you duplicate a material.">
-        <Segmented
-          value={policy.duplicateCode || 'series'}
-          onChange={v => setPolicy('duplicateCode', v)}
-          options={[
-            { key: 'series', label: 'Next in series' },
-            { key: 'copy-suffix', label: 'Append -copy' },
-            { key: 'blank', label: 'Blank' },
-          ]}
-        />
-      </SettingRow>
+      {isCustom && (
+        <div style={{
+          margin: '0 0 2px', padding: '18px 24px',
+          background: 'var(--tint)', border: '1px solid var(--rule)',
+          display: 'flex', flexDirection: 'column', gap: 20,
+        }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+            Custom settings
+          </div>
 
-      <SettingRow label="Duplicate warning"
-        description="What happens when you save a new material that looks like an existing one. Auto-rename silently assigns the next code in series instead of prompting.">
-        <Segmented
-          value={policy.warnOnMaterialDupe || 'warn'}
-          onChange={v => setPolicy('warnOnMaterialDupe', v)}
-          options={[
-            { key: 'auto-rename', label: 'Auto-rename' },
-            { key: 'warn', label: 'Warn' },
-            { key: 'block', label: 'Block' },
-            { key: 'off', label: 'Off' },
-          ]}
-        />
-      </SettingRow>
+          <SubRow label="Code scope">
+            <Segmented value={policy.scope || 'project'} onChange={v => setPolicy('scope', v)}
+              options={[{ key: 'project', label: 'Per-project' }, { key: 'library', label: 'Office-wide' }]} />
+          </SubRow>
 
-      <SettingRow label="Project uniqueness"
-        description="How to treat two materials with the same code in the same project.">
-        <Segmented
-          value={policy.uniquenessProject || 'block'}
-          onChange={v => setPolicy('uniquenessProject', v)}
-          options={[
-            { key: 'block', label: 'Block' },
-            { key: 'warn', label: 'Warn' },
-            { key: 'off', label: 'Off' },
-          ]}
-        />
-      </SettingRow>
+          <SubRow label="Auto-assign code — new material">
+            <Segmented value={policy.autoAssign || 'series'} onChange={v => setPolicy('autoAssign', v)}
+              options={[
+                { key: 'none', label: 'None' },
+                { key: 'series', label: 'Next in series' },
+                { key: 'project-max', label: 'Project max + 1' },
+                { key: 'library-max', label: 'Library max + 1' },
+              ]} />
+          </SubRow>
+
+          <SubRow label="On duplicate — name">
+            <Segmented value={policy.duplicateName || 'keep'} onChange={v => setPolicy('duplicateName', v)}
+              options={[
+                { key: 'keep', label: 'Keep' },
+                { key: 'copy-suffix', label: 'Append (copy)' },
+                { key: 'number-suffix', label: 'Append number' },
+                { key: 'blank', label: 'Blank' },
+              ]} />
+          </SubRow>
+
+          <SubRow label="On duplicate — code">
+            <Segmented value={policy.duplicateCode || 'series'} onChange={v => setPolicy('duplicateCode', v)}
+              options={[
+                { key: 'series', label: 'Next in series' },
+                { key: 'copy-suffix', label: 'Append -copy' },
+                { key: 'blank', label: 'Blank' },
+              ]} />
+          </SubRow>
+
+          <SubRow label="Project uniqueness">
+            <Segmented value={policy.uniquenessProject || 'block'} onChange={v => setPolicy('uniquenessProject', v)}
+              options={[{ key: 'block', label: 'Block' }, { key: 'warn', label: 'Warn' }, { key: 'off', label: 'Off' }]} />
+          </SubRow>
+
+          <SubRow label="Library uniqueness">
+            <Segmented value={policy.uniquenessLibrary || 'warn'} onChange={v => setPolicy('uniquenessLibrary', v)}
+              options={[{ key: 'block', label: 'Block' }, { key: 'warn', label: 'Warn' }, { key: 'off', label: 'Off' }]} />
+          </SubRow>
+
+          <SubRow label="Duplicate warning">
+            <Segmented value={policy.warnOnMaterialDupe || 'warn'} onChange={v => setPolicy('warnOnMaterialDupe', v)}
+              options={[
+                { key: 'auto-rename', label: 'Auto-rename' },
+                { key: 'warn', label: 'Warn' },
+                { key: 'block', label: 'Block' },
+                { key: 'off', label: 'Off' },
+              ]} />
+          </SubRow>
+
+          <SubRow label="On delete">
+            <Segmented value={policy.onDelete || 'leave'} onChange={v => setPolicy('onDelete', v)}
+              options={[
+                { key: 'leave', label: 'Leave gap' },
+                { key: 'ask', label: 'Ask' },
+                { key: 'close-silent', label: 'Close silently' },
+              ]} />
+          </SubRow>
+
+          <SubRow label="Fuzzy name matching">
+            <Toggle value={!!policy.fuzzyNameMatch} onChange={v => setPolicy('fuzzyNameMatch', v)}
+              onLabel="On" offLabel="Off" />
+          </SubRow>
+
+          <SubRow label="Require code on save">
+            <Toggle value={!!policy.requireCodeOnSave} onChange={v => setPolicy('requireCodeOnSave', v)}
+              onLabel="Required" offLabel="Optional" />
+          </SubRow>
+        </div>
+      )}
+
+      {!isCustom && (
+        <>
+          <SettingRow label="On duplicate — code"
+            description="How the code is set when you duplicate a material.">
+            <Segmented
+              value={policy.duplicateCode || 'series'}
+              onChange={v => setPolicy('duplicateCode', v)}
+              options={[
+                { key: 'series', label: 'Next in series' },
+                { key: 'copy-suffix', label: 'Append -copy' },
+                { key: 'blank', label: 'Blank' },
+              ]}
+            />
+          </SettingRow>
+
+          <SettingRow label="Duplicate warning"
+            description="What happens when you save a new material that looks like an existing one. Auto-rename silently assigns the next code in series instead of prompting.">
+            <Segmented
+              value={policy.warnOnMaterialDupe || 'warn'}
+              onChange={v => setPolicy('warnOnMaterialDupe', v)}
+              options={[
+                { key: 'auto-rename', label: 'Auto-rename' },
+                { key: 'warn', label: 'Warn' },
+                { key: 'block', label: 'Block' },
+                { key: 'off', label: 'Off' },
+              ]}
+            />
+          </SettingRow>
+
+          <SettingRow label="Project uniqueness"
+            description="How to treat two materials with the same code in the same project.">
+            <Segmented
+              value={policy.uniquenessProject || 'block'}
+              onChange={v => setPolicy('uniquenessProject', v)}
+              options={[
+                { key: 'block', label: 'Block' },
+                { key: 'warn', label: 'Warn' },
+                { key: 'off', label: 'Off' },
+              ]}
+            />
+          </SettingRow>
+        </>
+      )}
     </>
   );
 }

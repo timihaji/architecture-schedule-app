@@ -229,6 +229,20 @@ function findCodeConflict(code, materialId, materials) {
   return (materials || []).find(m => m.code === code && m.id !== materialId) || null;
 }
 
+// ─────────────── Policy resolver ───────────────
+
+/**
+ * Resolve the effective policy from settings.
+ * If preset is 'custom', returns the stored knobs directly.
+ * Otherwise merges the preset bundle so callers always get a full object.
+ */
+function getDupePolicy(settings) {
+  const stored = (settings && settings.dupePolicy) || DUPE_PRESET_A;
+  if (stored.preset === 'custom') return { ...DUPE_PRESET_A, ...stored };
+  const bundle = DUPE_PRESETS[stored.preset] || DUPE_PRESET_A;
+  return { ...bundle, ...stored };
+}
+
 // ─────────────── Export ───────────────
 
 const DupePolicy = {
@@ -236,6 +250,7 @@ const DupePolicy = {
   detectSeries, formatSeriesCode, nextInSeries,
   generateDuplicateCode, autoAssignCode,
   detectDuplicates, findCodeConflict,
+  getDupePolicy,
 };
 
 Object.assign(window, {
@@ -246,6 +261,7 @@ Object.assign(window, {
   autoAssignCode,
   detectDuplicates,
   findCodeConflict,
+  getDupePolicy,
   DUPE_PRESETS,
   DUPE_PRESET_A,
 });
