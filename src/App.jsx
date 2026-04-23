@@ -501,6 +501,7 @@ function App() {
           onOpenLabelBuilder={() => { setLabelBuilderTab('Global'); setLabelBuilderOpen(true); }}
           onClose={() => setTweaksOpen(false)} />
       )}
+      <RevisionBadge />
     </div>
   );
 }
@@ -564,6 +565,67 @@ function VersionToggle({ version, setVersion }) {
             }}>{opt.label}</button>
         );
       })}
+    </div>
+  );
+}
+
+function RevisionBadge() {
+  const [info, setInfo] = React.useState(null);
+  const REPO = 'timihaji/architecture-schedule-app';
+
+  React.useEffect(() => {
+    fetch('https://api.github.com/repos/' + REPO + '/commits/master')
+      .then(r => r.json())
+      .then(data => {
+        const sha = data.sha ? data.sha.slice(0, 7) : '?';
+        const msg = (data.commit?.message || '').split('\n')[0];
+        const raw = data.commit?.author?.date;
+        const d = raw ? new Date(raw) : null;
+        const date = d ? d.toLocaleString('en-AU', {
+          timeZone: 'Australia/Brisbane',
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }) + ' AEST' : '';
+        setInfo({ sha, msg, date });
+      })
+      .catch(() => setInfo({ sha: 'offline', msg: '', date: '' }));
+  }, []);
+
+  const mono = { fontFamily: "'JetBrains Mono', monospace" };
+  const dot = <span style={{ color: 'var(--rule-2)', padding: '0 2px' }}>·</span>;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9000,
+      background: 'var(--paper-2, var(--paper))',
+      borderTop: '1px solid var(--rule)',
+      display: 'flex', alignItems: 'center', gap: 0,
+      padding: '3px 16px',
+      ...mono, fontSize: 10, color: 'var(--ink-4)',
+      userSelect: 'none',
+    }}>
+      {info ? (
+        <>
+          <a href={'https://github.com/' + REPO + '/commit/' + info.sha}
+            target="_blank" rel="noreferrer"
+            style={{ color: 'var(--ink-3)', textDecoration: 'none', fontWeight: 500, marginRight: 8 }}>
+            {info.sha}
+          </a>
+          {dot}
+          <span style={{ marginLeft: 8 }}>{info.date}</span>
+          {info.msg && <>{dot}<span style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            maxWidth: 480, marginLeft: 8,
+          }}>{info.msg}</span></>}
+          <span style={{ flex: 1 }} />
+          <a href={'https://github.com/' + REPO} target="_blank" rel="noreferrer"
+            style={{ color: 'var(--ink-4)', textDecoration: 'none', opacity: 0.7 }}>
+            github.com/{REPO}
+          </a>
+        </>
+      ) : (
+        <span style={{ opacity: 0.5 }}>fetching revision…</span>
+      )}
     </div>
   );
 }
