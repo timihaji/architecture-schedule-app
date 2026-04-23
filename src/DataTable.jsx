@@ -249,10 +249,16 @@ function DataTable({
         if (onAdd) { e.preventDefault(); onAdd(); }
       }
       else if ((e.key === 'd' || e.key === 'Delete') && !e.shiftKey) {
-        if (onDeleteRow && cursorId) { e.preventDefault(); onDeleteRow(cursorId); }
+        if (onDeleteRow) {
+          const targets = (selected && selected.size > 0) ? Array.from(selected) : (cursorId ? [cursorId] : []);
+          if (targets.length) { e.preventDefault(); onDeleteRow(targets); }
+        }
       }
       else if (e.key === 'D' && e.shiftKey) {
-        if (onDuplicateRow && cursorId) { e.preventDefault(); onDuplicateRow(cursorId); }
+        if (onDuplicateRow) {
+          const targets = (selected && selected.size > 0) ? Array.from(selected) : (cursorId ? [cursorId] : []);
+          if (targets.length) { e.preventDefault(); onDuplicateRow(targets); }
+        }
       }
       else if (e.key === '?') {
         if (onCheatsheet) { e.preventDefault(); onCheatsheet(); }

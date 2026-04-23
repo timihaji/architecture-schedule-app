@@ -140,7 +140,12 @@ function LibraryTable(props) {
         onSaveCell={(id, field, value) => window.saveMaterialCell(id, field, value)}
         onOpenRow={(id) => setOpenId(id)}
         onEditRow={(id) => { const m = materials.find(x => x.id === id); if (m) onEdit(m); }}
-        onDuplicateRow={onDuplicate}
+        onDeleteRow={(ids) => {
+          if (!window.confirm('Delete ' + ids.length + ' material' + (ids.length !== 1 ? 's' : '') + '?')) return;
+          ids.forEach(id => onDelete(id, true));
+          setSelected(new Set());
+        }}
+        onDuplicateRow={(ids) => { ids.forEach(id => onDuplicate && onDuplicate(id)); }}
         onAdd={onAdd}
         searchRef={searchRef}
         sidebarSlot={

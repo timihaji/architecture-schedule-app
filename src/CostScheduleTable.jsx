@@ -603,16 +603,18 @@ function CostScheduleTable({
           const cat = window.prompt('Trade / category' + hint + ':', defaultCat);
           if (cat !== null) appendComponentToCategory((cat || '').trim() || 'Uncategorised');
         } : null}
-        onDeleteRow={(rowId) => {
-          const compId = rowShape === 'flat' ? rowId.split(':')[1] : rowId;
-          const comp = schedule.components.find(c => c.id === compId);
-          if (window.confirm('Delete "' + (comp?.name || 'component') + '" and all its assignments?')) {
-            removeComponent(compId);
-          }
+        onDeleteRow={(ids) => {
+          const compIds = ids.map(id => rowShape === 'flat' ? id.split(':')[1] : id);
+          const msg = compIds.length === 1
+            ? 'Delete "' + (schedule.components.find(c => c.id === compIds[0])?.name || 'component') + '" and all its assignments?'
+            : 'Delete ' + compIds.length + ' components and all their assignments?';
+          if (window.confirm(msg)) compIds.forEach(id => removeComponent(id));
         }}
-        onDuplicateRow={duplicateComponent ? (rowId) => {
-          const compId = rowShape === 'flat' ? rowId.split(':')[1] : rowId;
-          duplicateComponent(compId);
+        onDuplicateRow={duplicateComponent ? (ids) => {
+          ids.forEach(id => {
+            const compId = rowShape === 'flat' ? id.split(':')[1] : id;
+            duplicateComponent(compId);
+          });
         } : null}
         groupBy={rowShape === 'flat'
           ? (r) => r.component.category || 'Uncategorised'
