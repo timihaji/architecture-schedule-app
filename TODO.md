@@ -212,7 +212,7 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 - [x] **Schedule-wide actions accessible from Table mode** — Header + ToolbarV2 always render in both modes.
 
 ### Quality-of-life next
-- [ ] **Row side panel** — click a row to see full material details / edit component in a side drawer (mirrors Library Table).
+- [x] **Row side panel** — click a row to see full material details / edit component in a side drawer (mirrors Library Table).
 - [ ] **Row actions menu (⋯ on hover)** — delete, duplicate, move-to-option, change-category as single-row affordances.
 - [ ] **Option rename** — no UI in Table mode.
 - [ ] **Option reorder** — no UI in Table mode.

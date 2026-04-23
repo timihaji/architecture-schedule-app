@@ -413,16 +413,12 @@ function CostScheduleTable({
     }
   }
 
-  // Row click → open picker (flat: the specific cell; grouped: first empty or first option)
+  // Row click → open side panel
   function handleFlatOpenRow(rowId) {
-    const [optionId, componentId] = rowId.split(':');
-    onOpenPicker(optionId, componentId);
-    setOpenId(null); // don't open a side panel; the picker is the action
+    setOpenId(rowId);
   }
   function handleGroupedOpenRow(rowId) {
-    // Open picker for the first option by default
-    if (schedule.options[0]) onOpenPicker(schedule.options[0].id, rowId);
-    setOpenId(null);
+    setOpenId(rowId);
   }
 
   // ───── Columns + lookup
@@ -505,6 +501,21 @@ function CostScheduleTable({
         onOpenRow={rowShape === 'flat' ? handleFlatOpenRow : handleGroupedOpenRow}
         searchRef={searchRef}
         cellContext={{ libraries, allMaterials: materials, labelTemplates }}
+        sidePanel={
+          openId ? (
+            <CstSidePanel
+              rowId={openId}
+              rowShape={rowShape}
+              schedule={schedule}
+              matById={matById}
+              labelTemplates={labelTemplates}
+              libraries={libraries}
+              onClose={() => setOpenId(null)}
+              onOpenPicker={onOpenPicker}
+              setComp={setComp}
+            />
+          ) : null
+        }
         bulkBar={
           <CstBulkBar
             rowShape={rowShape}
@@ -796,5 +807,262 @@ const cstMenuItemStyle = {
   fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
   color: 'var(--ink)',
 };
+
+// ───────── Side panel ─────────
+
+function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libraries, onClose, onOpenPicker, setComp }) {
+  const [editingField, setEditingField] = React.useState(null);
+  const [draftVal, setDraftVal] = React.useState('');
+
+  let comp = null, option = null, material = null;
+  if (rowShape === 'flat') {
+    const [optionId, componentId] = rowId.split(':');
+    comp = schedule.components.find(c => c.id === componentId);
+    option = schedule.options.find(o => o.id === optionId);
+    const cell = schedule.cells[rowId];
+    material = cell?.materialId ? matById.get(cell.materialId) : null;
+  } else {
+    comp = schedule.components.find(c => c.id === rowId);
+  }
+
+  if (!comp) return null;
+
+  const label = material
+    ? (window.formatLabel ? window.formatLabel(material, labelTemplates) : material.name)
+    : null;
+
+  function startEdit(field, current) {
+    setEditingField(field);
+    setDraftVal(current != null ? String(current) : '');
+  }
+  function commitEdit(field) {
+    if (setComp) {
+      const val = (field === 'count' || field === 'size')
+        ? (draftVal === '' ? null : Number(draftVal))
+        : draftVal;
+      setComp(comp.id, field, val);
+    }
+    setEditingField(null);
+  }
+
+  const optIdx = option ? schedule.options.indexOf(option) : -1;
+
+  return (
+    <div style={{
+      borderLeft: '1px solid var(--rule)',
+      background: 'var(--paper)',
+      overflowY: 'auto',
+      display: 'flex', flexDirection: 'column',
+      minHeight: 0,
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '12px 14px', borderBottom: '1px solid var(--rule)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 1, gap: 8,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontFamily: "'Source Serif 4', serif",
+            fontSize: 14, lineHeight: 1.2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{comp.name || '(unnamed)'}</div>
+          <div style={{ marginTop: 5, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {comp.category && (
+              <span style={{
+                fontFamily: "'Inter Tight', sans-serif",
+                fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+              }}>{comp.category}</span>
+            )}
+            {option && (
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+                padding: '1px 5px', border: '1px solid var(--rule-2)',
+                color: 'var(--ink-3)', background: 'var(--paper-2)', whiteSpace: 'nowrap',
+              }}>OPT·{String(optIdx + 1).padStart(2, '0')} {option.name}</span>
+            )}
+          </div>
+        </div>
+        <button onClick={onClose} style={{
+          background: 'none', border: '1px solid var(--rule-2)',
+          cursor: 'pointer', padding: '3px 8px', flexShrink: 0,
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink-3)',
+        }}>×</button>
+      </div>
+
+      {/* Material section — flat mode shows the specific cell's material */}
+      {rowShape === 'flat' ? (
+        <div style={{ padding: '14px 14px 0' }}>
+          {material ? (
+            <>
+              {material.swatch?.tone && (
+                <div style={{
+                  width: '100%', aspectRatio: '3/2',
+                  background: material.swatch.tone,
+                  marginBottom: 10,
+                  outline: '1px solid rgba(20,20,20,0.08)',
+                }} />
+              )}
+              <div style={{
+                fontFamily: "'Source Serif 4', serif",
+                fontSize: 17, lineHeight: 1.2, marginBottom: 10,
+              }}>{label}</div>
+              <CstKV label="Code"      value={material.code} />
+              <CstKV label="Supplier"  value={material.supplier} />
+              <CstKV label="Finish"    value={material.finish} />
+              <CstKV label="Lead time" value={material.leadTime} />
+              {material.unitCost != null && (
+                <CstKV label="Unit cost"
+                  value={'$' + Number(material.unitCost).toFixed(0) + ' / ' + (material.unit || 'u')} />
+              )}
+            </>
+          ) : (
+            <div style={{
+              textAlign: 'center', padding: '24px 0',
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic',
+            }}>No material assigned</div>
+          )}
+          <button
+            onClick={() => { if (option) onOpenPicker(option.id, comp.id); }}
+            style={{
+              marginTop: 12, marginBottom: 14, width: '100%',
+              background: 'var(--paper-2)', border: '1px solid var(--rule)',
+              cursor: 'pointer', padding: '8px 10px',
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 10.5,
+              letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-2)',
+            }}>
+            {material ? 'Change material…' : 'Assign material…'}
+          </button>
+        </div>
+      ) : (
+        /* Grouped mode — list all options for this component */
+        <div style={{ padding: '14px' }}>
+          <div style={{
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--ink-4)', marginBottom: 8,
+          }}>Options</div>
+          {schedule.options.map((opt, i) => {
+            const cell = schedule.cells[opt.id + ':' + comp.id];
+            const mat = cell?.materialId ? matById.get(cell.materialId) : null;
+            const lbl = mat ? (window.formatLabel ? window.formatLabel(mat, labelTemplates) : mat.name) : null;
+            return (
+              <div key={opt.id} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 0', borderBottom: '1px solid var(--rule)',
+              }}>
+                <span style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 9, color: 'var(--ink-4)', flexShrink: 0, width: 38,
+                }}>OPT·{String(i + 1).padStart(2, '0')}</span>
+                {mat?.swatch?.tone && (
+                  <span style={{
+                    width: 14, height: 14, flexShrink: 0,
+                    background: mat.swatch.tone,
+                    outline: '1px solid rgba(20,20,20,0.12)',
+                  }} />
+                )}
+                <span style={{
+                  fontFamily: "'Source Serif 4', serif",
+                  fontSize: 12, flex: 1, minWidth: 0,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  color: mat ? 'var(--ink)' : 'var(--ink-4)',
+                  fontStyle: mat ? 'normal' : 'italic',
+                }}>{lbl || 'unassigned'}</span>
+                <button onClick={() => onOpenPicker(opt.id, comp.id)} style={{
+                  background: 'none', border: '1px solid var(--rule-2)',
+                  cursor: 'pointer', padding: '2px 6px',
+                  fontFamily: "'Inter Tight', sans-serif",
+                  fontSize: 9, color: 'var(--ink-4)',
+                }}>{mat ? '↻' : '+'}</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Component-level schedule fields (shared across options) */}
+      <div style={{
+        padding: '12px 14px',
+        borderTop: '1px solid var(--rule)',
+        marginTop: 'auto',
+      }}>
+        <div style={{
+          fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: 'var(--ink-4)', marginBottom: 10,
+        }}>Schedule</div>
+        <CstFieldRow label="Count" field="count" value={comp.count} type="number"
+          editingField={editingField} draftVal={draftVal}
+          setDraftVal={setDraftVal} startEdit={startEdit} commitEdit={commitEdit} />
+        <CstFieldRow label="Size"  field="size"  value={comp.size}  type="number"
+          editingField={editingField} draftVal={draftVal}
+          setDraftVal={setDraftVal} startEdit={startEdit} commitEdit={commitEdit} />
+        <CstFieldRow label="Unit"  field="unit"  value={comp.unit}  type="text"
+          editingField={editingField} draftVal={draftVal}
+          setDraftVal={setDraftVal} startEdit={startEdit} commitEdit={commitEdit} />
+      </div>
+    </div>
+  );
+}
+
+function CstKV({ label, value }) {
+  if (!value) return null;
+  return (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'baseline' }}>
+      <span style={{
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+        color: 'var(--ink-4)', width: 68, flexShrink: 0,
+      }}>{label}</span>
+      <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink-2)' }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function CstFieldRow({ label, field, value, type, editingField, draftVal, setDraftVal, startEdit, commitEdit }) {
+  const isEditing = editingField === field;
+  return (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+      <span style={{
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+        color: 'var(--ink-4)', width: 50, flexShrink: 0,
+      }}>{label}</span>
+      {isEditing ? (
+        <input
+          autoFocus type={type} value={draftVal}
+          onChange={e => setDraftVal(e.target.value)}
+          onBlur={() => commitEdit(field)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commitEdit(field);
+            if (e.key === 'Escape') setDraftVal('');
+          }}
+          style={{
+            flex: 1, background: 'var(--paper-2)', border: '1px solid var(--ink-3)',
+            padding: '3px 6px', fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 12, color: 'var(--ink)', outline: 'none',
+          }}
+        />
+      ) : (
+        <span
+          onClick={() => startEdit(field, value)}
+          style={{
+            flex: 1, cursor: 'text',
+            fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+            color: value != null ? 'var(--ink-2)' : 'var(--ink-4)',
+            fontStyle: value != null ? 'normal' : 'italic',
+          }}>
+          {value != null ? value : '—'}
+        </span>
+      )}
+    </div>
+  );
+}
 
 Object.assign(window, { CostScheduleTable });
