@@ -32,7 +32,7 @@ Originally both row-open handlers called `onOpenPicker` and set `openId = null`,
 
 ---
 
-### 2026-04-23 — CS Table: Option rename + reorder
+### 2026-04-23 14:22 AEST — CS Table: Option rename + reorder
 
 **Files changed:** `src/CostScheduleTable.jsx`, `src/CostScheduleV2.jsx`
 
@@ -46,7 +46,7 @@ Props added to `CostScheduleTable`: `renameOption`, `reorderOption`, `removeOpti
 
 ---
 
-### 2026-04-23 — CS Table: Row actions menu (⋯)
+### 2026-04-23 14:19 AEST — CS Table: Row actions menu (⋯)
 
 **Files changed:** `src/CostScheduleTable.jsx`
 
@@ -74,7 +74,7 @@ Any popup/dropdown rendered inside a DataTable cell will be clipped by the table
 
 ---
 
-### 2026-04-23 — CS Table: Row side panel
+### 2026-04-23 14:13 AEST — CS Table: Row side panel
 
 **Files changed:** `src/CostScheduleTable.jsx`
 
@@ -101,7 +101,7 @@ New components added to `CostScheduleTable.jsx`:
 
 ---
 
-### 2026-04-23 — CS Table Mode — must-have tier complete
+### 2026-04-23 14:04 AEST — CS Table Mode — must-have tier complete
 
 **Files changed:** `src/CostScheduleTable.jsx`, `src/CostScheduleV2.jsx`
 
@@ -116,7 +116,7 @@ All six must-have items for CS Table mode (equal footing with Gallery) are now s
 
 ---
 
-### 2026-04-23 — P5 · Project Spec — first pass
+### 2026-04-23 13:17 AEST — P5 · Project Spec — first pass
 
 **Files changed:** `src/ProjectSpec.jsx` (new), `src/App.jsx`, nav wiring
 
@@ -131,7 +131,7 @@ Remaining work tracked in `TODO.md` under "P5 · Project Spec".
 
 ---
 
-### P3 · Editor blocks
+### pre-2026-04-23 — P3 · Editor blocks
 
 **Files changed:** `src/LibraryTableOverlays.jsx`
 
@@ -139,7 +139,7 @@ Per-kind `PanelKV` blocks in `LibraryTableOverlays` — material / appliance+fit
 
 ---
 
-### Subtype system
+### pre-2026-04-23 — Subtype system
 
 **Files changed:** `src/kinds.js` (or inline in data), `src/LibraryTableRows.jsx`, `src/LibraryTableOverlays.jsx`
 
@@ -148,7 +148,7 @@ Per-kind `PanelKV` blocks in `LibraryTableOverlays` — material / appliance+fit
 
 ---
 
-### P2 · Library kind tabs
+### pre-2026-04-23 — P2 · Library kind tabs
 
 **Files changed:** `src/LibraryTable.jsx`, `src/LTKindTabs.jsx` (or inline)
 
@@ -158,7 +158,7 @@ Per-kind `PanelKV` blocks in `LibraryTableOverlays` — material / appliance+fit
 
 ---
 
-### P1 · Foundation
+### pre-2026-04-23 — P1 · Foundation
 
 **Files changed:** `src/data.jsx`, `src/kinds.js`, `src/Library.jsx`
 
@@ -169,7 +169,7 @@ Per-kind `PanelKV` blocks in `LibraryTableOverlays` — material / appliance+fit
 
 ---
 
-### P4 · Tags (partial)
+### pre-2026-04-23 — P4 · Tags (partial)
 
 **Files changed:** `src/LibraryTableRows.jsx`
 
