@@ -8,6 +8,7 @@ function Library({
   onEdit, onAdd, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
+  onFindDupes,
   compareIds, toggleCompare, showImagery, density,
 }) {
   if (mode === 'table') {
@@ -30,6 +31,7 @@ function Library({
         onMoveMaterial={onMoveMaterial}
         onDuplicateMaterial={onDuplicateMaterial}
         onDuplicate={onDuplicate}
+        onFindDupes={onFindDupes}
       />
     );
   }

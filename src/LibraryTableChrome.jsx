@@ -165,7 +165,7 @@ function LTTopBar({
   mode, setMode,
   labelTemplates, setLabelTemplates, onOpenLabelBuilder,
   onAdd, density, setDensity,
-  onOpenColPicker, onOpenCheatsheet,
+  onOpenColPicker, onOpenCheatsheet, onFindDupes,
   activeLibraryId, libraries, count, total,
 }) {
   const activeLib = libraries.find(l => l.id === activeLibraryId);
@@ -215,6 +215,10 @@ function LTTopBar({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <DensityToggle density={density} setDensity={setDensity} />
         <Divider />
+        {onFindDupes && (
+          <button type="button" onClick={onFindDupes} title="Find duplicates"
+            style={barBtn}>Find dupes</button>
+        )}
         <button type="button" onClick={onOpenColPicker}
           title="Columns"
           style={barBtn}>⊞ Columns</button>

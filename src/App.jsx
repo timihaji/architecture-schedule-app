@@ -82,6 +82,78 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "galleryWidth": "editorial"
 }/*EDITMODE-END*/;
 
+function RenumberModal({ state, onLeaveGap, onCloseGap, onCancel }) {
+  const { toRenumber } = state;
+  const backdrop = { position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 };
+  const card = { background: 'var(--paper)', width: 460,
+    boxShadow: '0 24px 56px rgba(20,20,20,0.2)', display: 'flex', flexDirection: 'column',
+    overflow: 'hidden' };
+  const btnBase = { padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+    border: '1px solid var(--rule-2)', background: 'transparent',
+    fontFamily: 'var(--font-sans)' };
+  const btnPrimary = { ...btnBase, background: 'var(--ink)', color: 'var(--paper)',
+    border: '1px solid var(--ink)' };
+
+  return (
+    <div style={backdrop} onClick={onCancel}>
+      <div style={card} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '16px 22px', background: 'var(--tint)',
+          borderBottom: '1px solid var(--rule)' }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13 }}>
+            Close gap?
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>
+            {toRenumber.length} material{toRenumber.length !== 1 ? 's' : ''} in this series will be renumbered.
+            Previously exported PDFs will not update.
+          </div>
+        </div>
+        <div style={{ padding: '14px 22px', maxHeight: 260, overflowY: 'auto' }}>
+          {toRenumber.map(r => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10,
+              padding: '4px 0', fontSize: 12.5, fontFamily: 'var(--font-mono)',
+              borderBottom: '1px dotted var(--rule-2)' }}>
+              <span style={{ color: 'var(--ink-3)', minWidth: 80 }}>{r.from}</span>
+              <span style={{ color: 'var(--ink-4)' }}>&rarr;</span>
+              <span>{r.to}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end',
+          padding: '14px 22px', borderTop: '1px solid var(--rule)' }}>
+          <button style={btnBase} onClick={onCancel}>Cancel</button>
+          <button style={btnBase} onClick={onLeaveGap}>Leave gap</button>
+          <button style={btnPrimary} onClick={onCloseGap}>Close gap</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportSummaryBanner({ summary, onFindDupes, onDismiss }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)',
+      background: 'var(--ink)', color: 'var(--paper)',
+      padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 14,
+      boxShadow: '0 8px 24px rgba(20,20,20,0.22)', zIndex: 8500,
+      fontFamily: 'var(--font-sans)', fontSize: 13, whiteSpace: 'nowrap',
+    }}>
+      <span>Archive imported &middot; {summary.dupeCount} material{summary.dupeCount !== 1 ? 's' : ''} may be duplicates</span>
+      <button onClick={onFindDupes} style={{
+        background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+        color: 'var(--paper)', padding: '3px 10px', fontSize: 12, cursor: 'pointer',
+        fontFamily: 'var(--font-sans)',
+      }}>Review</button>
+      <button onClick={onDismiss} style={{
+        background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
+        cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1,
+      }}>×</button>
+    </div>
+  );
+}
+
 function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
   const { level, matches } = state;
   const existing = matches[0];
@@ -210,6 +282,9 @@ function App() {
   const [kindPickerOpen, setKindPickerOpen] = React.useState(false);
   const [compareIds, setCompareIds] = React.useState([]);
   const [dupeCheckState, setDupeCheckState] = React.useState(null);
+  const [findDupesOpen, setFindDupesOpen] = React.useState(false);
+  const [renumberState, setRenumberState] = React.useState(null);
+  const [importSummary, setImportSummary] = React.useState(null);
   const [libraryMode, setLibraryMode] = React.useState(() => {
     try { return localStorage.getItem('aml-library-mode') || 'gallery'; } catch { return 'gallery'; }
   });
@@ -335,8 +410,54 @@ function App() {
   }
   function deleteMaterial(id, skipConfirm = false) {
     if (!skipConfirm && !window.confirm('Delete this material?')) return;
+    const policy = settings.dupePolicy || window.DUPE_PRESET_A;
+    if ((policy.onDelete === 'ask' || policy.preset === 'B') && window.detectSeries) {
+      const src = materials.find(m => m.id === id);
+      if (src && src.code) {
+        const series = window.detectSeries(src.code);
+        if (series) {
+          const { prefix, number, width } = series;
+          const toRenumber = materials
+            .filter(m => m.id !== id)
+            .reduce((acc, m) => {
+              const s = window.detectSeries(m.code || '');
+              if (s && s.prefix === prefix && s.number > number) {
+                const newNum = s.number - 1;
+                const str = String(newNum);
+                const newCode = prefix + (str.length >= s.width ? str : str.padStart(s.width, '0'));
+                acc.push({ id: m.id, from: m.code, to: newCode });
+              }
+              return acc;
+            }, []);
+          if (toRenumber.length > 0) {
+            setRenumberState({ deletingId: id, toRenumber });
+            return;
+          }
+        }
+      }
+    }
+    doDeleteMaterial(id);
+  }
+  function doDeleteMaterial(id) {
     setMaterials(list => list.filter(m => m.id !== id));
     setCompareIds(cs => cs.filter(x => x !== id));
+  }
+  function mergeMaterials(survivorId, loserId) {
+    const loser = materials.find(m => m.id === loserId);
+    if (!loser) return;
+    setMaterials(list => list
+      .filter(m => m.id !== loserId)
+      .map(m => {
+        // Update survivor — store mergedFrom history
+        if (m.id === survivorId) {
+          return { ...m, mergedFrom: [...(m.mergedFrom || []),
+            { id: loser.id, fields: loser, mergedAt: Date.now() }] };
+        }
+        // Repoint any paintedWithId references
+        if (m.paintedWithId === loserId) return { ...m, paintedWithId: survivorId };
+        return m;
+      })
+    );
   }
 
   // Inline cell save (used by Library Table). Coerces empty strings to null.
@@ -516,6 +637,7 @@ function App() {
             onMoveMaterial={moveMaterialToLibrary}
             onDuplicateMaterial={duplicateMaterialIntoLibrary}
             onDuplicate={duplicateMaterial}
+            onFindDupes={() => setFindDupesOpen(true)}
             compareIds={compareIds}
             toggleCompare={toggleCompare}
             showImagery={settings.showImagery}
@@ -578,7 +700,15 @@ function App() {
               }); } catch {}
             }}
             onImport={(data) => {
-              if (data.materials) setMaterials(migrateMaterials(data.materials));
+              const imported = data.materials ? migrateMaterials(data.materials) : null;
+              if (imported) {
+                setMaterials(imported);
+                if (window.countDuplicatesInList) {
+                  const policy = settings.dupePolicy || window.DUPE_PRESET_A;
+                  const dupeCount = window.countDuplicatesInList(imported, policy);
+                  if (dupeCount > 0) setImportSummary({ total: imported.length, dupeCount });
+                }
+              }
               if (data.projects) setProjects(migrateProjects(data.projects));
               if (data.libraries) setLibraries(data.libraries);
               if (data.labelTemplates) setLabelTemplates(data.labelTemplates);
@@ -643,6 +773,43 @@ function App() {
           }}
           onSaveAnyway={() => dupeCheckState.onConfirm()}
           onCancel={() => setDupeCheckState(null)}
+        />
+      )}
+      {renumberState && (
+        <RenumberModal
+          state={renumberState}
+          onLeaveGap={() => { doDeleteMaterial(renumberState.deletingId); setRenumberState(null); }}
+          onCloseGap={() => {
+            setMaterials(list => list
+              .filter(m => m.id !== renumberState.deletingId)
+              .map(m => {
+                const change = renumberState.toRenumber.find(r => r.id === m.id);
+                if (!change) return m;
+                return { ...m, code: change.to,
+                  codeHistory: [...(m.codeHistory || []),
+                    { code: change.from, changedAt: Date.now(), reason: 'renumber' }] };
+              })
+            );
+            setCompareIds(cs => cs.filter(x => x !== renumberState.deletingId));
+            setRenumberState(null);
+          }}
+          onCancel={() => setRenumberState(null)}
+        />
+      )}
+      {findDupesOpen && window.FindDuplicatesPanel && (
+        <window.FindDuplicatesPanel
+          materials={materials}
+          libraries={libraries}
+          settings={settings}
+          onMerge={mergeMaterials}
+          onClose={() => setFindDupesOpen(false)}
+        />
+      )}
+      {importSummary && (
+        <ImportSummaryBanner
+          summary={importSummary}
+          onFindDupes={() => { setImportSummary(null); setFindDupesOpen(true); }}
+          onDismiss={() => setImportSummary(null)}
         />
       )}
       <RevisionBadge />

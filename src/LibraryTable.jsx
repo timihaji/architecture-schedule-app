@@ -18,6 +18,7 @@ function LibraryTable(props) {
     onEdit, onAdd, onDelete,
     onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
     onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
+    onFindDupes,
   } = props;
 
   // Keep labelTemplates accessible to column sort fns (they can't take args)
@@ -170,6 +171,7 @@ function LibraryTable(props) {
             density={density} setDensity={setDensity}
             onOpenColPicker={() => setColPickerOpen(true)}
             onOpenCheatsheet={() => setCheatsheetOpen(true)}
+            onFindDupes={onFindDupes}
             activeLibraryId={activeLibraryId}
             libraries={libraries}
             count={kindScoped.length}
