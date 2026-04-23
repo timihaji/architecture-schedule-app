@@ -192,6 +192,7 @@ function LibraryTable(props) {
             libraries={libraries}
             onMoveMaterial={onMoveMaterial}
             onDuplicateMaterial={onDuplicateMaterial}
+            onDuplicate={onDuplicate}
             onDelete={(ids) => { ids.forEach(id => onDelete(id, true)); setSelected(new Set()); }}
           />
         }

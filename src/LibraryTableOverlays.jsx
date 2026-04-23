@@ -321,7 +321,7 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
 }
 
 // ───────── Bulk action bar ─────────
-function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMaterial, onDelete }) {
+function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMaterial, onDuplicate, onDelete }) {
   const [moveOpen, setMoveOpen] = React.useState(false);
   const ids = Array.from(selected);
   return (
@@ -370,7 +370,7 @@ function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMate
         )}
       </div>
       <button type="button" onClick={() => {
-        ids.forEach(id => onDuplicateMaterial(id));
+        ids.forEach(id => (onDuplicate || onDuplicateMaterial)(id));
         clear();
       }} style={bulkBtn}>Duplicate</button>
       <button type="button" onClick={() => {
