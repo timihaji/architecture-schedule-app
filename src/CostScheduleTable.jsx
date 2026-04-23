@@ -478,6 +478,13 @@ function CostScheduleTable({
         query={query} setQuery={setQuery} searchRef={searchRef}
         rowCount={rowShape === 'flat' ? flatRows.length : groupedRows.length}
         grandTotal={grandTotal}
+        onAddComponent={appendComponentToCategory ? () => {
+          const cats = Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
+          const defaultCat = cats[0] || 'Uncategorised';
+          const hint = cats.length > 0 ? ' (' + cats.join(', ') + ')' : '';
+          const cat = window.prompt('Trade / category' + hint + ':', defaultCat);
+          if (cat !== null) appendComponentToCategory((cat || '').trim() || 'Uncategorised');
+        } : null}
       />
       <window.DataTable
         key={rowShape}
@@ -515,33 +522,13 @@ function CostScheduleTable({
       {rowShape === 'grouped' && cellTotal && (
         <CstGroupedTotalsFooter schedule={schedule} cellTotal={cellTotal} />
       )}
-      <div style={{ borderTop: '1px solid var(--rule)', padding: '8px 14px' }}>
-        <button
-          onClick={() => {
-            const cats = Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
-            const defaultCat = cats[0] || 'Uncategorised';
-            const hint = cats.length > 0 ? ' (' + cats.join(', ') + ')' : '';
-            const cat = window.prompt('Trade / category' + hint + ':', defaultCat);
-            if (cat !== null && appendComponentToCategory)
-              appendComponentToCategory((cat || '').trim() || 'Uncategorised');
-          }}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 10, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: 'var(--ink-3)',
-            padding: '4px 0',
-          }}>
-          + Add component
-        </button>
-      </div>
     </div>
   );
 }
 
 // ───────── Top bar ─────────
 
-function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, rowCount, grandTotal }) {
+function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, rowCount, grandTotal, onAddComponent }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 14,
@@ -567,6 +554,18 @@ function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, row
         textTransform: 'uppercase', color: 'var(--ink-4)' }}>
         {rowCount} rows · grand total ${Math.round(grandTotal).toLocaleString()}
       </span>
+
+      {onAddComponent && (
+        <button onClick={onAddComponent} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 10, letterSpacing: '0.1em',
+          textTransform: 'uppercase', color: 'var(--ink-3)',
+          padding: '4px 8px',
+        }}>
+          + Add component
+        </button>
+      )}
 
       {/* Row-shape toggle */}
       <div style={{
