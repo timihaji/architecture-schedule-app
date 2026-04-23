@@ -146,7 +146,14 @@ function LibraryTable(props) {
           ids.forEach(id => onDelete(id, true));
           setSelected(new Set());
         }}
-        onDuplicateRow={(ids) => { ids.forEach(id => onDuplicate && onDuplicate(id)); }}
+        onDuplicateRow={(ids) => {
+          if (ids.length === 1) {
+            const newId = onDuplicate && onDuplicate(ids[0]);
+            if (newId) { setCursorId(newId); setEditingCell({ id: newId, field: 'code' }); }
+          } else {
+            ids.forEach(id => onDuplicate && onDuplicate(id));
+          }
+        }}
         onAdd={onAdd}
         searchRef={searchRef}
         sidebarSlot={

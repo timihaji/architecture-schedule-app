@@ -155,7 +155,7 @@ function ImportSummaryBanner({ summary, onFindDupes, onDismiss }) {
 }
 
 function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
-  const { level, matches } = state;
+  const { level, matches, isBlock } = state;
   const existing = matches[0];
 
   const headings = {
@@ -232,11 +232,13 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
               border: '1px solid var(--rule-2)', background: 'transparent',
               fontFamily: 'var(--font-sans)',
             }} onClick={onUseExisting}>Use existing</button>
-            <button style={{
-              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-              border: '1px solid ' + accentBg, background: accentBg,
-              color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 500,
-            }} onClick={onSaveAnyway}>Save anyway</button>
+            {!isBlock && (
+              <button style={{
+                padding: '7px 14px', fontSize: 13, cursor: 'pointer',
+                border: '1px solid ' + accentBg, background: accentBg,
+                color: '#fff', fontFamily: 'var(--font-sans)', fontWeight: 500,
+              }} onClick={onSaveAnyway}>Save anyway</button>
+            )}
           </div>
         </div>
       </div>
@@ -350,7 +352,7 @@ function App() {
       kind: kindRec.id,
       trade: kindRec.defaultTrade,
       tags: [],
-      code: 'NEW·00',
+      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A) : null) || '',
       name: '',
       // Category only makes sense for finishes/material kind
       category: isMaterial ? 'Timber' : 'Timber', // placeholder until P3 strips this
@@ -382,7 +384,9 @@ function App() {
       } else if (policy.warnOnMaterialDupe !== 'off' && window.detectDuplicates) {
         const { level, matches } = window.detectDuplicates(m, materials, policy);
         if (level) {
-          setDupeCheckState({ material: m, level, matches,
+          const isBlock = policy.warnOnMaterialDupe === 'block' ||
+            (level === 'code-supplier' && policy.uniquenessProject === 'block');
+          setDupeCheckState({ material: m, level, matches, isBlock,
             onConfirm: () => commitSaveMaterial(m) });
           return;
         }
@@ -576,16 +580,18 @@ function App() {
   }
   function duplicateMaterial(materialId) {
     const src = materials.find(m => m.id === materialId);
-    if (!src) return;
+    if (!src) return null;
     const policy = settings.dupePolicy || window.DUPE_PRESET_A;
     const newCode = window.generateDuplicateCode ? window.generateDuplicateCode(src, materials, policy) : src.code + '-copy';
+    const newId = 'm-' + Date.now();
     setMaterials(list => [...list, {
       ...src,
-      id: 'm-' + Date.now(),
+      id: newId,
       code: newCode,
       codeHistory: [],
       mergedFrom: undefined,
     }]);
+    return newId;
   }
 
   return (
@@ -737,6 +743,7 @@ function App() {
           onOpenLabelBuilder={(tab) => { setLabelBuilderTab(tab || 'Global'); setLabelBuilderOpen(true); }}
           onClose={() => setEditingMaterial(null)}
           onSave={saveMaterial}
+          requireCodeOnSave={!!(settings.dupePolicy || window.DUPE_PRESET_A).requireCodeOnSave}
         />
       )}
 
@@ -1093,10 +1100,15 @@ function Footer() {
 
 // ───────────────────── Material editor ─────────────────────
 
-function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave }) {
+function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, requireCodeOnSave }) {
   const [draft, setDraft] = React.useState(material);
-  function set(k, v) { setDraft(d => ({ ...d, [k]: v })); }
+  const [codeError, setCodeError] = React.useState(false);
+  function set(k, v) { setDraft(d => ({ ...d, [k]: v })); if (k === 'code') setCodeError(false); }
   function setSwatch(k, v) { setDraft(d => ({ ...d, swatch: { ...d.swatch, [k]: v } })); }
+  function handleSave() {
+    if (requireCodeOnSave && !draft.code?.trim()) { setCodeError(true); return; }
+    onSave(draft);
+  }
 
   // Flip swatch kind when category changes in/out of Paint
   React.useEffect(() => {
@@ -1180,9 +1192,14 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
         </div>
 
         <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'flex-end', gap: 20 }}>
+          display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
+          {codeError && (
+            <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-sans)', marginRight: 'auto' }}>
+              A code is required before saving.
+            </span>
+          )}
           <TextButton onClick={onClose}>Cancel</TextButton>
-          <TextButton onClick={() => onSave(draft)} accent>
+          <TextButton onClick={handleSave} accent>
             {material._isNew ? 'Add to library' : 'Save changes'}
           </TextButton>
         </div>
