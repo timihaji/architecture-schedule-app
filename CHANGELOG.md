@@ -6,6 +6,13 @@ All notable changes to the Architecture Schedule App.
 
 ## Shipped
 
+### CS Table Mode — must-have tier complete
+- Add component: "+ Add component" button in table top bar (prompts for trade/category)
+- Delete rows: bulk bar now removes components and all their cell assignments (with confirmation)
+- Grouped mode totals: per-option subtotals footer, lowest option highlighted, deltas shown
+- Reorder components: ↑↓ buttons in grouped mode reorder column
+- Add option + schedule-wide actions confirmed working in both modes (no changes needed)
+
 ### P5 · Project Spec — first pass
 - Nav item, header + project switcher
 - Trade sections (collapsible) with row renderer

@@ -204,12 +204,12 @@ The skeleton shipped (nav item, header + project switcher, trade sections, row r
 - Bulk bar: Duplicate to option, Move to option, Set size, Copy as supplier list, Clear assignment
 
 ### Must-have to ship Table mode as equal footing with Gallery
-- [ ] **Add a component** — Gallery has "+ add row" inline; Table mode has no way to add one.
-- [ ] **Delete a component** — no per-row delete in Table mode (bulk "Clear assignment" clears material, not the row).
-- [ ] **Totals in Grouped mode** — Grouped mode has no per-option subtotal. Architects live by totals; this is the main justification for a table view.
-- [ ] **Add an option** — no UI in Table mode for adding e.g. "Option 3".
-- [ ] **Reorder components** — Gallery has full drag-and-drop; Table mode has none.
-- [ ] **Schedule-wide actions accessible from Table mode** — title, add option, etc. currently only in Gallery header. Decide: lift into shared toolbar above toggle, or "Schedule info" side panel.
+- [x] **Add a component** — "+ Add component" button in table top bar, prompts for trade/category.
+- [x] **Delete a component** — "Delete rows" in bulk bar removes components and all their assignments.
+- [x] **Totals in Grouped mode** — per-option subtotals footer with lowest highlighted and deltas.
+- [x] **Add an option** — already worked via ToolbarV2 (always rendered above table).
+- [x] **Reorder components** — ↑↓ buttons in reorder column (grouped mode).
+- [x] **Schedule-wide actions accessible from Table mode** — Header + ToolbarV2 always render in both modes.
 
 ### Quality-of-life next
 - [ ] **Row side panel** — click a row to see full material details / edit component in a side drawer (mirrors Library Table).
