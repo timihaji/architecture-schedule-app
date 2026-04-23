@@ -177,9 +177,22 @@ function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicke
   ];
 }
 
-function buildCstGroupedColumns({ materials, labelTemplates, libraries, options, onOpenPicker, cellLookup }) {
+function buildCstGroupedColumns({ materials, labelTemplates, libraries, options, onOpenPicker, cellLookup, onMoveUp, onMoveDown }) {
   const base = [
     { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
+    ...(onMoveUp && onMoveDown ? [{
+      id: 'reorder', label: '', width: 46, minWidth: 46, fixed: true, align: 'center', sortable: false,
+      render: (r, ctx) => (
+        <div data-dt-raw="true" style={{ ...ctx.baseStyle, flexDirection: 'column', gap: 0, padding: '2px 0' }}>
+          <button onClick={(e) => { e.stopPropagation(); onMoveUp(r.id); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: '2px 8px', lineHeight: 1, fontSize: 12 }}
+            title="Move up">&#8593;</button>
+          <button onClick={(e) => { e.stopPropagation(); onMoveDown(r.id); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: '2px 8px', lineHeight: 1, fontSize: 12 }}
+            title="Move down">&#8595;</button>
+        </div>
+      ),
+    }] : []),
     { id: 'component', label: 'Component', width: 220, minWidth: 140, serif: true,
       render: (r, ctx) => (
         <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 12.5 }}>
@@ -293,6 +306,39 @@ function buildCstGroupedColumns({ materials, labelTemplates, libraries, options,
   return [...base, ...optCols];
 }
 
+// ───────── Grouped totals footer ─────────
+
+function CstGroupedTotalsFooter({ schedule, cellTotal }) {
+  const optionTotals = schedule.options.map(opt => ({
+    opt,
+    total: schedule.components.reduce((s, c) => s + (cellTotal ? (cellTotal(opt.id, c) || 0) : 0), 0),
+  }));
+  const min = optionTotals.length ? Math.min(...optionTotals.map(o => o.total)) : 0;
+  return (
+    <div style={{
+      borderTop: '2px solid var(--rule)', background: 'var(--paper-2)',
+      padding: '12px 14px', display: 'flex', alignItems: 'baseline', gap: 24, flexWrap: 'wrap',
+    }}>
+      <span style={{ ...ui.mono, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+        Totals
+      </span>
+      {optionTotals.map(({ opt, total }) => (
+        <span key={opt.id} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-3)' }}>{opt.name}</span>
+          <span style={{ ...ui.mono, fontSize: 13, fontWeight: 500, color: total === min ? 'var(--ink)' : 'var(--ink-2)' }}>
+            ${Math.round(total).toLocaleString()}
+          </span>
+          {total !== min && (
+            <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)' }}>
+              +${Math.round(total - min).toLocaleString()}
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ───────── Main component ─────────
 
 function CostScheduleTable({
@@ -300,6 +346,7 @@ function CostScheduleTable({
   setComp, setCellMaterial, removeComponent, duplicateComponent,
   changeComponentCategory, cellTotal,
   onOpenPicker,
+  appendComponentToCategory, moveRowUp, moveRowDown,
 }) {
   const [rowShape, setRowShape] = React.useState(() => {
     try { return localStorage.getItem('aml-cs-rowshape') || 'flat'; } catch { return 'flat'; }
@@ -391,6 +438,8 @@ function CostScheduleTable({
       materials, labelTemplates, libraries,
       options: schedule.options,
       onOpenPicker, cellLookup,
+      onMoveUp: moveRowUp,
+      onMoveDown: moveRowDown,
     });
   }, [rowShape, materials, labelTemplates, libraries, schedule.options, onOpenPicker, cellLookup]);
 
@@ -400,7 +449,9 @@ function CostScheduleTable({
     }
     // Grouped: show component + size/unit + every option
     return [
-      'select', 'component', 'category', 'count', 'size', 'unit',
+      'select',
+      ...(moveRowUp && moveRowDown ? ['reorder'] : []),
+      'component', 'category', 'count', 'size', 'unit',
       ...schedule.options.map(o => 'opt:' + o.id),
     ];
   }, [rowShape, schedule.options]);
@@ -461,6 +512,29 @@ function CostScheduleTable({
           />
         }
       />
+      {rowShape === 'grouped' && cellTotal && (
+        <CstGroupedTotalsFooter schedule={schedule} cellTotal={cellTotal} />
+      )}
+      <div style={{ borderTop: '1px solid var(--rule)', padding: '8px 14px' }}>
+        <button
+          onClick={() => {
+            const cats = Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
+            const defaultCat = cats[0] || 'Uncategorised';
+            const hint = cats.length > 0 ? ' (' + cats.join(', ') + ')' : '';
+            const cat = window.prompt('Trade / category' + hint + ':', defaultCat);
+            if (cat !== null && appendComponentToCategory)
+              appendComponentToCategory((cat || '').trim() || 'Uncategorised');
+          }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 10, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'var(--ink-3)',
+            padding: '4px 0',
+          }}>
+          + Add component
+        </button>
+      </div>
     </div>
   );
 }
@@ -630,6 +704,19 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
     }
   }
 
+  function deleteRows() {
+    const compIds = new Set();
+    if (rowShape === 'flat') {
+      ids.forEach(id => compIds.add(id.split(':')[1]));
+    } else {
+      ids.forEach(id => compIds.add(id));
+    }
+    const n = compIds.size;
+    if (!window.confirm(`Delete ${n} component${n === 1 ? '' : 's'} and all their assignments?`)) return;
+    compIds.forEach(id => removeComponent(id));
+    setSelected(new Set());
+  }
+
   const btnStyle = {
     background: 'transparent', border: '1px solid var(--rule-2)',
     color: 'var(--ink)', cursor: 'pointer',
@@ -685,6 +772,9 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
 
       <button style={btnStyle} onClick={setCommonQty}>Set size…</button>
       <button style={btnStyle} onClick={copySupplierList}>Copy as supplier list</button>
+      <button style={{ ...btnStyle, color: 'var(--accent-ink)' }} onClick={deleteRows}>
+        Delete rows
+      </button>
       <button style={{ ...btnStyle, color: 'var(--accent-ink)' }} onClick={clearAssignments}>
         Clear assignment
       </button>

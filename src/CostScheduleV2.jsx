@@ -419,6 +419,9 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
           changeComponentCategory={changeComponentCategory}
           cellTotal={cellTotal}
           onOpenPicker={(optionId, componentId) => setPickerFor({ optionId, componentId })}
+          appendComponentToCategory={appendComponentToCategory}
+          moveRowUp={moveRowUp}
+          moveRowDown={moveRowDown}
         />
       ) : (
       <div style={{ overflowX: 'auto' }}>
