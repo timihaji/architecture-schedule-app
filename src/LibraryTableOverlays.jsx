@@ -523,6 +523,8 @@ function LTCheatsheet({ onClose }) {
     ['Shift+x',    'Range select to cursor'],
     ['⌘A',         'Select all in view'],
     ['c',          'Create new entry'],
+    ['d / Delete', 'Delete cursor row'],
+    ['Shift+D',    'Duplicate cursor row'],
     ['/',          'Focus search'],
     ['⌘K',         'Command palette'],
     ['?',          'This cheatsheet'],
