@@ -195,6 +195,12 @@ const SETTINGS_DEFAULTS = {
   stripes: false,
   showImagery: true,
 
+  // Firm identity (header & footer)
+  firmName: 'Hollis & Arne',
+  firmTagline: 'Studio Archive',
+  firmFooterLeft: 'Hollis & Arne · Architecture',
+  firmFooterRight: 'Rev. 22·04·26 · Internal',
+
   // Library / Project defaults
   defaultCategory: 'Timber',
   defaultUnit: 'm²',

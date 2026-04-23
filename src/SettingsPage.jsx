@@ -21,16 +21,17 @@ function SettingsPage({
   }
 
   const sections = [
-    { key: 'appearance', label: 'Appearance', num: '01', group: 'Style' },
-    { key: 'typography', label: 'Typography', num: '02', group: 'Style' },
-    { key: 'density',    label: 'Density',    num: '03', group: 'Style' },
-    { key: 'layout',     label: 'Layout',     num: '04', group: 'Style' },
-    { key: 'library',    label: 'Library defaults',  num: '05', group: 'Defaults' },
-    { key: 'codes',      label: 'Codes & duplicates', num: '06', group: 'Defaults' },
-    { key: 'projects',   label: 'Project defaults',  num: '07', group: 'Defaults' },
-    { key: 'data',       label: 'Data',       num: '08', group: 'System' },
-    { key: 'keyboard',   label: 'Keyboard',   num: '09', group: 'System' },
-    { key: 'about',      label: 'About',      num: '10', group: 'System' },
+    { key: 'firm',       label: 'Firm',       num: '01', group: 'Style' },
+    { key: 'appearance', label: 'Appearance', num: '02', group: 'Style' },
+    { key: 'typography', label: 'Typography', num: '03', group: 'Style' },
+    { key: 'density',    label: 'Density',    num: '04', group: 'Style' },
+    { key: 'layout',     label: 'Layout',     num: '05', group: 'Style' },
+    { key: 'library',    label: 'Library defaults',  num: '06', group: 'Defaults' },
+    { key: 'codes',      label: 'Codes & duplicates', num: '07', group: 'Defaults' },
+    { key: 'projects',   label: 'Project defaults',  num: '08', group: 'Defaults' },
+    { key: 'data',       label: 'Data',       num: '09', group: 'System' },
+    { key: 'keyboard',   label: 'Keyboard',   num: '10', group: 'System' },
+    { key: 'about',      label: 'About',      num: '11', group: 'System' },
   ];
   const groups = [...new Set(sections.map(s => s.group))];
 
@@ -104,6 +105,7 @@ function SettingsPage({
 
       {/* ───────── Right pane ───────── */}
       <div style={{ paddingRight: 8, paddingBottom: 60 }}>
+        {section === 'firm'       && <FirmSection {...sectionProps} />}
         {section === 'appearance' && <AppearanceSection {...sectionProps} />}
         {section === 'typography' && <TypographySection {...sectionProps} />}
         {section === 'density'    && <DensitySection {...sectionProps} />}
@@ -228,7 +230,7 @@ function AppearanceSection({ settings, set }) {
 
   return (
     <>
-      <SectionHeader kicker="01" title="Appearance"
+      <SectionHeader kicker="02" title="Appearance"
         subtitle="Theme, accent colour, and the supporting details — rule style, swatch shape, row stripes." />
 
       <SettingRow label="Theme"
@@ -432,7 +434,7 @@ function AppearanceSection({ settings, set }) {
 function TypographySection({ settings, set }) {
   return (
     <>
-      <SectionHeader kicker="02" title="Typography"
+      <SectionHeader kicker="03" title="Typography"
         subtitle="Choose a typeface preset. Each preset sets the serif, sans, and monospace faces used across the interface." />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -515,7 +517,7 @@ function TypographySection({ settings, set }) {
 function DensitySection({ settings, set }) {
   return (
     <>
-      <SectionHeader kicker="03" title="Density"
+      <SectionHeader kicker="04" title="Density"
         subtitle="How much air there is between rows. Compact shows more at once; Open breathes." />
 
       <SettingRow label="Row density"
@@ -566,7 +568,7 @@ function DensityPreview({ density }) {
 function LayoutSection({ settings, set }) {
   return (
     <>
-      <SectionHeader kicker="04" title="Layout"
+      <SectionHeader kicker="05" title="Layout"
         subtitle="The width of the Library Gallery. Table mode is always full-bleed; Cost Schedule sets its own measure." />
 
       <SettingRow label="Gallery width"
@@ -582,10 +584,47 @@ function LayoutSection({ settings, set }) {
 
 // ─────────────── Library defaults ───────────────
 
+function FirmSection({ settings, set }) {
+  return (
+    <>
+      <SectionHeader kicker="01" title="Firm"
+        subtitle="Your firm's name and tagline appear in the header; the footer shows the copyright and revision lines." />
+
+      <SettingRow label="Firm name"
+        description="Shown at the top-left of every page, before the tagline.">
+        <input type="text" value={settings.firmName || ''}
+          onChange={e => set('firmName', e.target.value)}
+          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+      </SettingRow>
+
+      <SettingRow label="Tagline"
+        description="Shown after the firm name, separated by an em dash. Leave blank to hide.">
+        <input type="text" value={settings.firmTagline || ''}
+          onChange={e => set('firmTagline', e.target.value)}
+          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+      </SettingRow>
+
+      <SettingRow label="Footer (left)"
+        description="Shown at the bottom-left of every page.">
+        <input type="text" value={settings.firmFooterLeft || ''}
+          onChange={e => set('firmFooterLeft', e.target.value)}
+          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+      </SettingRow>
+
+      <SettingRow label="Footer (right)"
+        description="Shown at the bottom-right — often the revision or document status.">
+        <input type="text" value={settings.firmFooterRight || ''}
+          onChange={e => set('firmFooterRight', e.target.value)}
+          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+      </SettingRow>
+    </>
+  );
+}
+
 function LibraryDefaultsSection({ settings, set }) {
   return (
     <>
-      <SectionHeader kicker="05" title="Library defaults"
+      <SectionHeader kicker="06" title="Library defaults"
         subtitle="New material entries start with these values filled in." />
 
       <SettingRow label="Default category"
@@ -646,7 +685,7 @@ function CodesSection({ settings, set }) {
 
   return (
     <>
-      <SectionHeader kicker="06" title="Codes & duplicates"
+      <SectionHeader kicker="07" title="Codes & duplicates"
         subtitle="Controls how material codes are assigned, how duplicates are detected, and what happens when codes collide." />
 
       <SettingRow label="Office style"
@@ -830,7 +869,7 @@ function ProjectDefaultsSection({ settings, set }) {
     ({ key: k, label: k + ' · ' + v }));
   return (
     <>
-      <SectionHeader kicker="07" title="Project defaults"
+      <SectionHeader kicker="08" title="Project defaults"
         subtitle="New projects start with these values filled in." />
 
       <SettingRow label="Default stage">
@@ -905,7 +944,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
 
   return (
     <>
-      <SectionHeader kicker="07" title="Data"
+      <SectionHeader kicker="09" title="Data"
         subtitle="Back up, restore, or reset the archive. Everything lives in your browser — export regularly." />
 
       <SettingRow label="Export archive"
@@ -1013,7 +1052,7 @@ function KeyboardSection() {
   ];
   return (
     <>
-      <SectionHeader kicker="08" title="Keyboard"
+      <SectionHeader kicker="10" title="Keyboard"
         subtitle="Shortcuts throughout the archive. Press ? from anywhere to open a quick overlay." />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
@@ -1073,7 +1112,7 @@ function AboutSection() {
   ];
   return (
     <>
-      <SectionHeader kicker="09" title="About"
+      <SectionHeader kicker="11" title="About"
         subtitle="Hollis & Arne — Studio Archive. Built in-house." />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, paddingTop: 8 }}>

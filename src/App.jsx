@@ -614,7 +614,7 @@ function App() {
       data-density={settings.density}
       style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
     >
-      <Nav view={view} setView={setView} />
+      <Nav view={view} setView={setView} settings={settings} />
       {(() => {
         const isTable = view === 'library' && libraryMode === 'table';
         const isSettings = view === 'settings';
@@ -740,7 +740,7 @@ function App() {
         );
       })()}
 
-      <Footer />
+      <Footer settings={settings} />
 
       {kindPickerOpen && window.KindPicker && (
         <window.KindPicker
@@ -1001,7 +1001,7 @@ function RevisionBadge() {
   );
 }
 
-function Nav({ view, setView }) {
+function Nav({ view, setView, settings }) {
   const items = [
     { key: 'library',  label: 'Library',  num: 'I' },
     { key: 'projects', label: 'Projects', num: 'II' },
@@ -1040,7 +1040,8 @@ function Nav({ view, setView }) {
         </div>
         <div>
           <Serif size={18} style={{ fontWeight: 500, letterSpacing: '-0.005em' }}>
-            Hollis & Arne — Studio Archive
+            {settings?.firmName || 'Hollis & Arne'}
+            {settings?.firmTagline ? ' — ' + settings.firmTagline : ''}
           </Serif>
         </div>
       </div>
@@ -1132,7 +1133,7 @@ function GearIcon({ size = 14 }) {
   );
 }
 
-function Footer() {
+function Footer({ settings }) {
   return (
     <footer style={{
       borderTop: '1px solid var(--rule)',
@@ -1142,10 +1143,10 @@ function Footer() {
       color: 'var(--ink-4)',
     }}>
       <Mono size={10} style={{ letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        Hollis & Arne · Architecture
+        {settings?.firmFooterLeft || 'Hollis & Arne · Architecture'}
       </Mono>
       <Mono size={10} style={{ letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        Rev. 22·04·26 · Internal
+        {settings?.firmFooterRight || 'Rev. 22·04·26 · Internal'}
       </Mono>
     </footer>
   );
