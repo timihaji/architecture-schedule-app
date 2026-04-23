@@ -401,6 +401,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
           setOpenId && setOpenId(id);
         }}
         onToggleSelect={(e) => {
+          setCursorId && setCursorId(id);
           if (e && e.shiftKey) selectRange(id);
           else toggleSelect(id);
         }}
@@ -595,7 +596,7 @@ function DtCheckbox({ checked, indeterminate, onChange }) {
   React.useEffect(() => { if (ref.current) ref.current.indeterminate = !!indeterminate; }, [indeterminate]);
   return (
     <input ref={ref} type="checkbox" checked={!!checked}
-      onChange={e => { e.stopPropagation(); onChange(e); }}
+      onChange={e => { e.stopPropagation(); onChange(e); e.target.blur(); }}
       onClick={e => e.stopPropagation()}
       style={{
         width: 12, height: 12, margin: 0, cursor: 'pointer',
