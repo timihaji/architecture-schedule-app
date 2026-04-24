@@ -9,6 +9,36 @@
 
 // ───────── Column catalogues ─────────
 
+function componentTypeLabel(id) {
+  if (!id) return '';
+  const rule = window.componentTypeById ? window.componentTypeById(id) : null;
+  return rule ? rule.label : id;
+}
+
+function CstTypeCell({ r, ctx, rowId, actionsRef }) {
+  const [open, setOpen] = React.useState(false);
+  const typeId = r.component ? r.component.componentType : r.componentType;
+  const label = componentTypeLabel(typeId);
+  return (
+    <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10.5, color: 'var(--ink-2)' }}
+      onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+      {label ? label : <span style={{ color: 'var(--ink-4)', fontStyle: 'italic' }}>—</span>}
+      {open && window.ComponentTypePicker && (
+        <window.ComponentTypePicker
+          value={typeId}
+          onChange={(newId) => {
+            const actions = actionsRef.current;
+            const compId = r.component ? r.component.id : r.id;
+            if (actions.setComponentType) actions.setComponentType(compId, newId);
+            else if (actions.setComp) actions.setComp(compId, 'componentType', newId);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicker, actionsRef }) {
   return [
     { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
@@ -42,6 +72,11 @@ function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicke
       },
       sortValue: (r) => r.component.category || '',
       searchText: (r) => r.component.category || '',
+    },
+    { id: 'componentType', label: 'Type', width: 140, minWidth: 90,
+      render: (r, ctx) => <CstTypeCell r={r} ctx={ctx} actionsRef={actionsRef} />,
+      sortValue: (r) => componentTypeLabel(r.component?.componentType).toLowerCase(),
+      searchText: (r) => componentTypeLabel(r.component?.componentType),
     },
     { id: 'option', label: 'Option', width: 110, minWidth: 80,
       render: (r, ctx) => (
@@ -264,6 +299,11 @@ function buildCstGroupedColumns({ materials, labelTemplates, libraries, options,
       sortValue: (r) => r.category || '',
       searchText: (r) => r.category || '',
     },
+    { id: 'componentType', label: 'Type', width: 140, minWidth: 90,
+      render: (r, ctx) => <CstTypeCell r={r} ctx={ctx} actionsRef={actionsRef} />,
+      sortValue: (r) => componentTypeLabel(r.componentType).toLowerCase(),
+      searchText: (r) => componentTypeLabel(r.componentType),
+    },
     { id: 'count', label: '#', width: 54, minWidth: 44, mono: true, align: 'right', editable: true,
       inputType: 'number',
       render: (r, ctx) => {
@@ -421,7 +461,7 @@ function CstGroupedTotalsFooter({ schedule, cellTotal }) {
 
 function CostScheduleTable({
   schedule, materials, libraries, labelTemplates,
-  setComp, setCellMaterial, removeComponent, duplicateComponent,
+  setComp, setComponentType, setCellMaterial, removeComponent, duplicateComponent,
   changeComponentCategory, cellTotal,
   onOpenPicker,
   appendComponentToCategory, moveRowUp, moveRowDown,
@@ -447,7 +487,7 @@ function CostScheduleTable({
 
   // Stable ref so column render fns can read fresh handlers without being in useMemo deps
   const actionsRef = React.useRef({});
-  actionsRef.current = { removeComponent, duplicateComponent, setComp, setCellMaterial, schedule, onOpenPicker };
+  actionsRef.current = { removeComponent, duplicateComponent, setComp, setComponentType, setCellMaterial, schedule, onOpenPicker };
 
   // Materials by id for quick lookups
   const matById = React.useMemo(() => {

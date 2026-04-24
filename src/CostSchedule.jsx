@@ -635,7 +635,15 @@ function ScheduleCell({ material, labelTemplates, total, onClick }) {
 function MaterialPicker({ materials, libraries, labelTemplates, component, currentId, projectId, onClose, onSelect, onClear }) {
   const [query, setQuery] = React.useState('');
   const [cat, setCat] = React.useState('All');
+  const [kindGroupFilter, setKindGroupFilter] = React.useState('All'); // 'All' or a KIND_GROUPS entry
+  const [showHidden, setShowHidden] = React.useState(false);
   const cats = ['All', ...window.CATEGORIES];
+  const KIND_GROUPS = window.KIND_GROUPS || [];
+
+  const componentTypeId = component?.componentType || null;
+  const contextualFilterActive = !!componentTypeId && kindGroupFilter === 'All';
+  const typeRule = componentTypeId && window.componentTypeById
+    ? window.componentTypeById(componentTypeId) : null;
 
   const storageKey = projectId ? 'aml-picker-lib-' + projectId : null;
   const [selectedLib, setSelectedLib] = React.useState(() => {
@@ -652,10 +660,41 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
     let list = materials.slice();
     if (selectedLib !== 'All') list = list.filter(m => (m.libraryIds || ['lib-master']).includes(selectedLib));
     if (cat !== 'All') list = list.filter(m => m.category === cat);
+    // Kind group tab (overrides contextual filter)
+    if (kindGroupFilter !== 'All') {
+      const KINDS = window.KINDS || [];
+      const kindIds = new Set(KINDS.filter(k => k.group === kindGroupFilter).map(k => k.id));
+      list = list.filter(m => kindIds.has(m.kind || 'material'));
+    }
     const q = query.trim().toLowerCase();
     if (q) list = list.filter(m => (window.formatLabel(m, labelTemplates) + ' ' + m.name + ' ' + m.supplier + ' ' + m.code).toLowerCase().includes(q));
     return list;
-  }, [materials, selectedLib, cat, query]);
+  }, [materials, selectedLib, cat, query, kindGroupFilter]);
+
+  // Partition by component-type match (only when contextual filter is active).
+  const partitioned = React.useMemo(() => {
+    const match = window.materialMatchForComponentType;
+    if (!contextualFilterActive || !match) {
+      return { preferred: filtered, allowed: [], hidden: [] };
+    }
+    const preferred = [], allowed = [], hidden = [];
+    filtered.forEach(m => {
+      const r = match(m, componentTypeId);
+      if (r === 'hidden') hidden.push(m);
+      else if (r === 'preferred') preferred.push(m);
+      else allowed.push(m);
+    });
+    return { preferred, allowed, hidden };
+  }, [filtered, contextualFilterActive, componentTypeId]);
+
+  // The set of materials actually rendered (after partition + showHidden).
+  const renderedIds = React.useMemo(() => {
+    const ids = new Set();
+    partitioned.preferred.forEach(m => ids.add(m.id));
+    partitioned.allowed.forEach(m => ids.add(m.id));
+    if (showHidden) partitioned.hidden.forEach(m => ids.add(m.id));
+    return ids;
+  }, [partitioned, showHidden]);
 
   // Group by library — when a specific lib is selected, skip the section headers
   const grouped = React.useMemo(() => {
@@ -739,55 +778,147 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
               })}
             </div>
           )}
-        </div>
-        <div style={{ overflowY: 'auto', padding: '8px 26px 16px' }}>
-          {grouped.map(([lib, items]) => (
-            <React.Fragment key={lib.id}>
-              {libraries.length > 1 && selectedLib === 'All' && (
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  padding: '14px 0 6px', borderBottom: '1px dotted var(--rule-2)', marginTop: 6,
-                }}>
-                  <Serif size={15} style={{ fontStyle: 'italic' }}>{lib.name}</Serif>
-                  <Mono size={10} color="var(--ink-4)">{items.length}</Mono>
-                </div>
-              )}
-              {items.map(m => (
-                <div key={lib.id + ':' + m.id} onClick={() => onSelect(m.id)}
-                  style={{
-                    display: 'grid', gridTemplateColumns: '52px 64px 1fr 1.2fr 120px',
-                    gap: 14, alignItems: 'center', padding: '10px 0',
-                    borderBottom: '1px solid var(--rule)', cursor: 'pointer',
-                    background: m.id === currentId ? 'var(--tint)' : 'transparent',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
-                  onMouseLeave={e => e.currentTarget.style.background = m.id === currentId ? 'var(--tint)' : 'transparent'}
-                >
-                  <Swatch swatch={m.swatch} size="sm" seed={parseInt(m.id.slice(2)) || 1} />
-                  <Mono size={11} color="var(--ink-4)">{m.code}</Mono>
-                  <div>
-                    <Serif size={14} style={{ display: 'block', lineHeight: 1.15 }}>
-                      {window.formatLabel(m, labelTemplates)}
-                    </Serif>
-                    <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{m.finish}</span>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{m.supplier}</span>
-                  <Mono size={13} color="var(--ink)" style={{ textAlign: 'right' }}>
-                    {fmtCurrency(m.unitCost)}<span style={{ color: 'var(--ink-4)' }}> / {m.unit}</span>
-                  </Mono>
-                </div>
-              ))}
-            </React.Fragment>
-          ))}
-          {filtered.length === 0 && (
-            <div style={{ padding: '40px 0', textAlign: 'center' }}>
-              <Mono size={12} color="var(--ink-4)">No materials match</Mono>
+          {KIND_GROUPS.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, alignItems: 'baseline', marginTop: 10, flexWrap: 'wrap' }}>
+              {['All', ...KIND_GROUPS].map(g => {
+                const active = kindGroupFilter === g;
+                return (
+                  <button key={g} type="button" onClick={() => setKindGroupFilter(g)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: '3px 7px',
+                      fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+                      fontWeight: active ? 500 : 400,
+                      color: active ? 'var(--ink)' : 'var(--ink-4)',
+                      borderBottom: '1px solid ' + (active ? 'var(--ink)' : 'transparent'),
+                    }}>{g === 'All' ? 'All kinds' : g}</button>
+                );
+              })}
+            </div>
+          )}
+          {contextualFilterActive && typeRule && partitioned.hidden.length > 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
+              padding: '6px 10px', background: 'var(--paper-2)',
+              border: '1px dashed var(--rule-2)',
+            }}>
+              <Mono size={10.5} color="var(--ink-3)">
+                Showing materials for {typeRule.label} · {partitioned.hidden.length} hidden
+              </Mono>
+              <button type="button" onClick={() => setShowHidden(v => !v)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px',
+                  fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+                  color: 'var(--ink)', textDecoration: 'underline',
+                }}>{showHidden ? 'Hide' : 'Show all'}</button>
             </div>
           )}
         </div>
+        <div style={{ overflowY: 'auto', padding: '8px 26px 16px' }}>
+          {(() => {
+            const renderRow = (m) => (
+              <div key={m.id} onClick={() => onSelect(m.id)}
+                style={{
+                  display: 'grid', gridTemplateColumns: '52px 64px 1fr 1.2fr 120px',
+                  gap: 14, alignItems: 'center', padding: '10px 0',
+                  borderBottom: '1px solid var(--rule)', cursor: 'pointer',
+                  background: m.id === currentId ? 'var(--tint)' : 'transparent',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+                onMouseLeave={e => e.currentTarget.style.background = m.id === currentId ? 'var(--tint)' : 'transparent'}
+              >
+                <Swatch swatch={m.swatch} size="sm" seed={parseInt(m.id.slice(2)) || 1} />
+                <Mono size={11} color="var(--ink-4)">{m.code}</Mono>
+                <div>
+                  <Serif size={14} style={{ display: 'block', lineHeight: 1.15 }}>
+                    {window.formatLabel(m, labelTemplates)}
+                  </Serif>
+                  <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{m.finish}</span>
+                </div>
+                <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{m.supplier}</span>
+                <Mono size={13} color="var(--ink)" style={{ textAlign: 'right' }}>
+                  {fmtCurrency(m.unitCost)}<span style={{ color: 'var(--ink-4)' }}> / {m.unit}</span>
+                </Mono>
+              </div>
+            );
+            const sectionHeader = (label, count) => (
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                padding: '14px 0 6px', borderBottom: '1px dotted var(--rule-2)', marginTop: 6,
+              }}>
+                <Serif size={13} style={{ fontStyle: 'italic', color: 'var(--ink-3)' }}>{label}</Serif>
+                <Mono size={10} color="var(--ink-4)">{count}</Mono>
+              </div>
+            );
+
+            if (contextualFilterActive && typeRule) {
+              const pre = partitioned.preferred;
+              const allow = partitioned.allowed;
+              const hid = partitioned.hidden;
+              const totalVisible = pre.length + allow.length + (showHidden ? hid.length : 0);
+              if (totalVisible === 0 && hid.length === 0) {
+                return (
+                  <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                    <Mono size={12} color="var(--ink-4)">
+                      No {typeRule.label.toLowerCase()} materials in this library
+                    </Mono>
+                    <div style={{ marginTop: 10 }}>
+                      <button type="button" onClick={() => setKindGroupFilter('All')}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+                          color: 'var(--ink)', textDecoration: 'underline', padding: '0 6px',
+                        }}>Show all kinds</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <>
+                  {pre.length > 0 && (
+                    <>
+                      {sectionHeader('Suggested for ' + typeRule.label, pre.length)}
+                      {pre.map(renderRow)}
+                    </>
+                  )}
+                  {allow.length > 0 && (
+                    <>
+                      {sectionHeader(pre.length > 0 ? 'More materials' : 'Materials', allow.length)}
+                      {allow.map(renderRow)}
+                    </>
+                  )}
+                  {showHidden && hid.length > 0 && (
+                    <>
+                      {sectionHeader('Hidden by component type', hid.length)}
+                      {hid.map(renderRow)}
+                    </>
+                  )}
+                </>
+              );
+            }
+
+            // Non-contextual: render by library groups as before
+            return (
+              <>
+                {grouped.map(([lib, items]) => (
+                  <React.Fragment key={lib.id}>
+                    {libraries.length > 1 && selectedLib === 'All' && sectionHeader(lib.name, items.length)}
+                    {items.map(m => (
+                      <React.Fragment key={lib.id + ':' + m.id}>{renderRow(m)}</React.Fragment>
+                    ))}
+                  </React.Fragment>
+                ))}
+                {filtered.length === 0 && (
+                  <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                    <Mono size={12} color="var(--ink-4)">No materials match</Mono>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
         <div style={{ padding: '12px 26px', borderTop: '1px solid var(--rule)', display: 'flex', justifyContent: 'space-between' }}>
           <TextButton onClick={onClear} accent>Clear selection</TextButton>
-          <Mono size={11} color="var(--ink-4)">{filtered.length} materials · Esc to close</Mono>
+          <Mono size={11} color="var(--ink-4)">{renderedIds.size} materials · Esc to close</Mono>
         </div>
       </div>
     </div>
@@ -848,21 +979,27 @@ function scopeChip(active) {
 // ───────── Schedule persistence ─────────
 
 function loadSchedule(storageKey, project) {
+  const migrate = (sched) => ({
+    ...sched,
+    components: Array.isArray(sched.components) && window.migrateComponent
+      ? sched.components.map(window.migrateComponent)
+      : sched.components,
+  });
   try {
     const v = localStorage.getItem(storageKey);
     if (v) {
       const parsed = JSON.parse(v);
       if (parsed?.options && parsed?.components && parsed?.cells) {
-        return { title: parsed.title || 'Materials Cost Schedule', ...parsed };
+        return migrate({ title: parsed.title || 'Materials Cost Schedule', ...parsed });
       }
     }
   } catch {}
   const seeded = window.SEED_SCHEDULES && window.SEED_SCHEDULES[project.id];
   if (seeded && seeded.options && seeded.components && seeded.cells) {
-    return { title: seeded.title || 'Materials Cost Schedule', ...seeded };
+    return migrate({ title: seeded.title || 'Materials Cost Schedule', ...seeded });
   }
   // Seed default for the built-in Brunswick project; blank for user-created ones
-  if (project.id === 'p-brunswick') return brunswickSeed();
+  if (project.id === 'p-brunswick') return migrate(brunswickSeed());
   return {
     title: 'Materials Cost Schedule',
     options: [{ id: 'o-1', name: 'Option 1' }],

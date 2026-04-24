@@ -11,6 +11,7 @@
 const KINDS = [
   // Finishes (legacy "material")
   { id: 'material',         label: 'Material',          group: 'Finishes',        defaultTrade: 'Paints & Finishes' },
+  { id: 'paint',            label: 'Paint',             group: 'Finishes',        defaultTrade: 'Paints & Finishes' },
 
   // Fittings
   { id: 'fitting',          label: 'Fitting',           group: 'Fittings',        defaultTrade: 'Plumbing' },
@@ -271,6 +272,156 @@ function subtypeById(kindId, subtypeId) {
   return list.find(s => s.id === subtypeId) || null;
 }
 
+// ─────────── Component Types (schedule/spec row taxonomy) ───────────
+// A componentType describes what a row physically IS (floor, wall, tap, etc.).
+// Drives: picker filtering (preferred/allowed/hidden), default unit, presets.
+// Additive: row with componentType=null = untyped = show everything.
+const COMPONENT_TYPES = [
+  // Architectural surfaces
+  { id: 'floor',        label: 'Floor',           group: 'Surfaces',   defaultUnit: 'm²',
+    preferredKinds: ['material'], preferredCategories: ['Timber', 'Stone', 'Tile', 'Composite'], hideCategories: ['Paint'], hideKinds: ['paint'] },
+  { id: 'wall',         label: 'Wall',            group: 'Surfaces',   defaultUnit: 'm²',
+    preferredKinds: ['material', 'paint'], preferredCategories: ['Composite', 'Tile', 'Stone', 'Paint', 'Timber'] },
+  { id: 'ceiling',      label: 'Ceiling',         group: 'Surfaces',   defaultUnit: 'm²',
+    preferredKinds: ['material', 'paint'], preferredCategories: ['Paint', 'Composite'], hideCategories: ['Stone'] },
+  { id: 'skirting',     label: 'Skirting / trim', group: 'Surfaces',   defaultUnit: 'lm',
+    preferredKinds: ['material', 'paint'], preferredCategories: ['Timber', 'Paint'] },
+  { id: 'architrave',   label: 'Architrave',      group: 'Surfaces',   defaultUnit: 'lm',
+    preferredKinds: ['material', 'paint'], preferredCategories: ['Timber', 'Paint'] },
+
+  // Openings
+  { id: 'door',         label: 'Door',            group: 'Openings',   defaultUnit: 'ea',
+    preferredKinds: ['door'] },
+  { id: 'window',       label: 'Window',          group: 'Openings',   defaultUnit: 'ea',
+    preferredKinds: ['window'] },
+
+  // Wet areas / bench
+  { id: 'countertop',   label: 'Countertop',      group: 'Benches',    defaultUnit: 'm²',
+    preferredKinds: ['material'], preferredCategories: ['Stone', 'Composite', 'Timber'], hideCategories: ['Paint'], hideKinds: ['paint'] },
+  { id: 'splashback',   label: 'Splashback',      group: 'Benches',    defaultUnit: 'm²',
+    preferredKinds: ['material'], preferredCategories: ['Tile', 'Stone', 'Composite'] },
+
+  // Joinery
+  { id: 'joinery-body',  label: 'Joinery carcass',     group: 'Joinery', defaultUnit: 'm²',
+    preferredKinds: ['material'], preferredCategories: ['Composite', 'Timber'] },
+  { id: 'joinery-door',  label: 'Joinery door/drawer', group: 'Joinery', defaultUnit: 'm²',
+    preferredKinds: ['material', 'paint'], preferredCategories: ['Composite', 'Timber', 'Paint'] },
+  { id: 'joinery-bench', label: 'Joinery benchtop',    group: 'Joinery', defaultUnit: 'm²',
+    preferredKinds: ['material'], preferredCategories: ['Stone', 'Composite', 'Timber'] },
+  { id: 'hardware',      label: 'Handle / hardware',   group: 'Joinery', defaultUnit: 'ea',
+    preferredKinds: ['joinery'] },
+
+  // Fittings / fixtures
+  { id: 'tap',          label: 'Tap / mixer',     group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['mixer'] },
+  { id: 'basin',        label: 'Basin',           group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['basin'] },
+  { id: 'sink',         label: 'Sink',            group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['sink'] },
+  { id: 'toilet',       label: 'Toilet',          group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['toilet'] },
+  { id: 'bath',         label: 'Bath',            group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['bath'] },
+  { id: 'shower',       label: 'Shower',          group: 'Fittings',   defaultUnit: 'ea',
+    preferredKinds: ['fitting'], preferredSubtypes: ['shower'] },
+
+  // Electrical / services
+  { id: 'appliance',    label: 'Appliance',       group: 'Services',   defaultUnit: 'ea',
+    preferredKinds: ['appliance'] },
+  { id: 'light',        label: 'Light fitting',   group: 'Services',   defaultUnit: 'ea',
+    preferredKinds: ['light'] },
+
+  // FF&E
+  { id: 'furniture',    label: 'Furniture',       group: 'FF&E',       defaultUnit: 'ea',
+    preferredKinds: ['ffe-seating', 'ffe-tables', 'ffe-storage', 'ffe-beds'] },
+  { id: 'soft',         label: 'Soft furnishings', group: 'FF&E',      defaultUnit: 'ea',
+    preferredKinds: ['ffe-soft'] },
+  { id: 'art',          label: 'Art / accessory', group: 'FF&E',       defaultUnit: 'ea',
+    preferredKinds: ['ffe-art'] },
+
+  // Escape hatch
+  { id: 'other',        label: 'Other',           group: 'Other',      defaultUnit: 'ea' },
+];
+
+const COMPONENT_TYPE_GROUPS = ['Surfaces', 'Openings', 'Benches', 'Joinery', 'Fittings', 'Services', 'FF&E', 'Other'];
+
+function componentTypeById(id) {
+  if (!id) return null;
+  return COMPONENT_TYPES.find(t => t.id === id) || null;
+}
+
+function componentTypesInGroup(groupLabel) {
+  return COMPONENT_TYPES.filter(t => t.group === groupLabel);
+}
+
+// Map a material to whether it's allowed / preferred for a given component type.
+// Returns: 'preferred' | 'allowed' | 'hidden'
+function materialMatchForComponentType(material, componentTypeId) {
+  if (!componentTypeId || !material) return 'allowed';
+  const rule = componentTypeById(componentTypeId);
+  if (!rule) return 'allowed';
+
+  const mKind = material.kind || 'material';
+  const mCat = material.category;
+  const mSub = material.subtype;
+
+  if (rule.hideKinds?.includes(mKind))          return 'hidden';
+  if (rule.hideCategories?.includes(mCat))      return 'hidden';
+  if (rule.preferredCategories?.includes(mCat)) return 'preferred';
+  if (rule.preferredSubtypes?.includes(mSub))   return 'preferred';
+  if (rule.preferredKinds?.includes(mKind)) {
+    if (rule.preferredCategories?.length) return 'allowed';
+    return 'preferred';
+  }
+  return 'allowed';
+}
+
+// Infer a componentType from a component's name + category (freeform string).
+// Conservative: returns null on ambiguous cases.
+function inferComponentType(comp) {
+  if (!comp) return null;
+  if (comp.componentType) return comp.componentType;
+  const name = (comp.name || '').toLowerCase();
+  const cat = (comp.category || '').toLowerCase();
+  const hay = name + ' ' + cat;
+  const patterns = [
+    [/\bfloor(ing|board)?s?\b/,               'floor'],
+    [/\bskirt(ing)?\b/,                       'skirting'],
+    [/\barchitrave/,                          'architrave'],
+    [/\bceiling\b/,                           'ceiling'],
+    [/\bwall\b/,                              'wall'],
+    [/\bdoor\b/,                              'door'],
+    [/\bwindow\b/,                            'window'],
+    [/\bbench(top)?\b|\bcounter(top)?\b/,     'countertop'],
+    [/\bsplash/,                              'splashback'],
+    [/\bcarcass\b|joinery body/,              'joinery-body'],
+    [/joinery door|drawer front/,             'joinery-door'],
+    [/\bhandle\b|\bpull\b|\bknob\b/,          'hardware'],
+    [/\btap\b|\bmixer\b/,                     'tap'],
+    [/\bbasin\b/,                             'basin'],
+    [/\bsink\b/,                              'sink'],
+    [/\btoilet\b|\bwc\b/,                     'toilet'],
+    [/\bbath\b/,                              'bath'],
+    [/\bshower\b/,                            'shower'],
+    [/\boven\b|\bcooktop\b|\bfridge\b|\bdishwasher\b|\bmicrowave\b|\brangehood\b/, 'appliance'],
+    [/\bpendant\b|\bdownlight\b|\bsconce\b|\blamp\b|\blight\b/, 'light'],
+    [/\bchair\b|\bsofa\b|\btable\b|\bstool\b|\bbed\b/, 'furniture'],
+    [/\brug\b|\bcushion\b|\bthrow\b|\bcurtain\b|\bblind\b/, 'soft'],
+    [/\bart(work)?\b|\bmirror\b|\bsculpture\b|\bplanter\b/, 'art'],
+  ];
+  for (const [rx, id] of patterns) {
+    if (rx.test(hay)) return id;
+  }
+  return null;
+}
+
+// Idempotent migration: tag a component with componentType if it doesn't have one.
+function migrateComponent(comp) {
+  if (!comp) return comp;
+  if (typeof comp.componentType !== 'undefined') return comp;
+  return { ...comp, componentType: inferComponentType(comp) };
+}
+
 // Given a hex colour, return a readable ink colour for text/glyph on that bg.
 // Uses perceptual luminance (sRGB → relative luminance) with a pragmatic
 // threshold. Returns a var() ref so hovers/themes still cascade.
@@ -293,4 +444,7 @@ Object.assign(window, {
   KINDS, KIND_GROUPS, TRADES, STARTER_TAGS, SUBTYPES,
   inferKind, inferTrade, migrateItem, kindById, kindsInGroup,
   subtypeGlyph, subtypesForKind, subtypeById, readableInk,
+  COMPONENT_TYPES, COMPONENT_TYPE_GROUPS,
+  componentTypeById, componentTypesInGroup,
+  materialMatchForComponentType, inferComponentType, migrateComponent,
 });

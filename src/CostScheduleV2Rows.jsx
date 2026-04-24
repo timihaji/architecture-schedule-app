@@ -55,6 +55,130 @@ function componentQty(c) {
   return count * size;
 }
 
+// ───────── Component type chip + preset menu ─────────
+// Chip: small label in the row gutter showing the row's componentType.
+// Ghost "+ type" state when untyped. Click opens ComponentTypePicker.
+
+function ComponentTypeChip({ value, onClick }) {
+  const rule = value && window.componentTypeById ? window.componentTypeById(value) : null;
+  const label = rule ? rule.label : '+ type';
+  const hasType = !!rule;
+  return (
+    <button type="button"
+      onClick={(e) => { e.stopPropagation(); onClick && onClick(); }}
+      title={hasType ? `Component type: ${rule.label}` : 'Set component type'}
+      style={{
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 10, letterSpacing: '0.04em', textTransform: 'uppercase',
+        padding: '2px 7px',
+        lineHeight: 1.5,
+        background: hasType ? 'var(--tint)' : 'transparent',
+        color: hasType ? 'var(--ink-2)' : 'var(--ink-4)',
+        border: hasType
+          ? '1px solid var(--rule-2)'
+          : '1px dashed var(--rule-2)',
+        cursor: 'pointer',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}>{label}</button>
+  );
+}
+
+// Preset menu: collapsed shows "+ Add component" button. Expanded shows 8 preset
+// type chips plus a "More…" escape hatch opening the full picker inline.
+const COMPONENT_PRESETS = [
+  { id: 'floor',        label: 'Floor' },
+  { id: 'wall',         label: 'Wall' },
+  { id: 'ceiling',      label: 'Ceiling' },
+  { id: 'door',         label: 'Door' },
+  { id: 'window',       label: 'Window' },
+  { id: 'countertop',   label: 'Countertop' },
+  { id: 'joinery-door', label: 'Joinery door' },
+  { id: 'appliance',    label: 'Appliance' },
+];
+
+function ComponentPresetMenu({ groupName, appendComponentToCategory }) {
+  const [open, setOpen] = React.useState(false);
+  const [morePickerOpen, setMorePickerOpen] = React.useState(false);
+  const rootRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    function onDown(e) { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  function pick(typeId) {
+    appendComponentToCategory(groupName, typeId);
+    setOpen(false);
+  }
+
+  return (
+    <span ref={rootRef} style={{ position: 'relative' }}>
+      <TextButton onClick={() => appendComponentToCategory(groupName)}>
+        ＋ Add component
+      </TextButton>
+      <button type="button"
+        onClick={() => setOpen(v => !v)}
+        title="Add with preset type"
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0 4px 0 2px',
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+          color: 'var(--ink-3)',
+          marginLeft: 2,
+        }}>▾</button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+          background: 'var(--paper)',
+          border: '1px solid var(--ink)',
+          padding: 10,
+          zIndex: 50,
+          boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
+          width: 220,
+        }}>
+          <div style={{
+            ...ui.mono, fontSize: 9, letterSpacing: '0.08em',
+            color: 'var(--ink-4)', textTransform: 'uppercase',
+            marginBottom: 6,
+          }}>Quick presets</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {COMPONENT_PRESETS.map(p => (
+              <button key={p.id} type="button"
+                onClick={() => pick(p.id)}
+                style={{
+                  fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+                  padding: '4px 8px',
+                  border: '1px solid var(--rule-2)',
+                  background: 'var(--paper)',
+                  color: 'var(--ink-2)',
+                  cursor: 'pointer',
+                }}>{p.label}</button>
+            ))}
+          </div>
+          <div style={{ marginTop: 8, borderTop: '1px dotted var(--rule-2)', paddingTop: 6 }}>
+            <button type="button"
+              onClick={() => { setOpen(false); setMorePickerOpen(true); }}
+              style={{
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+                color: 'var(--ink-3)', letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}>More…</button>
+          </div>
+        </div>
+      )}
+      {morePickerOpen && window.ComponentTypePicker && (
+        <window.ComponentTypePicker
+          value={null}
+          onChange={(typeId) => appendComponentToCategory(groupName, typeId)}
+          onClose={() => setMorePickerOpen(false)}
+        />
+      )}
+    </span>
+  );
+}
+
 // ───────── ScheduleGrid ─────────
 // Thin wrapper that holds the grid, runs FLIP animation on component reorders,
 // and dispatches to CategoryGroup rendering.
@@ -65,7 +189,7 @@ function ScheduleGrid({
   editingOptionId, setEditingOptionId,
   optionTotals, lowest,
   renameOption, duplicateOption, removeOption,
-  setComp, removeComponent, duplicateComponent, changeComponentCategory,
+  setComp, setComponentType, removeComponent, duplicateComponent, changeComponentCategory,
   moveComponent, moveRowUp, moveRowDown, moveRowToCategoryEdge,
   setPickerFor, cellTotal,
   insertComponentAt, appendComponentToCategory, renameCategory, removeCategory, duplicateCategory, onBlurInsert,
@@ -130,6 +254,7 @@ function ScheduleGrid({
             menuForCompId={menuForCompId}
             setMenuForCompId={setMenuForCompId}
             onCompFieldChange={setComp}
+            onCompSetType={setComponentType}
             onCompRemove={removeComponent}
             onCompDuplicate={duplicateComponent}
             onCompChangeCategory={changeComponentCategory}
@@ -219,7 +344,7 @@ function CategoryGroup({
   groupName, rows, allComponents, options, cells, materials, labelTemplates,
   gridColumns, categoryNames,
   justInsertedId, menuForCompId, setMenuForCompId,
-  onCompFieldChange, onCompRemove, onCompDuplicate, onCompChangeCategory,
+  onCompFieldChange, onCompSetType, onCompRemove, onCompDuplicate, onCompChangeCategory,
   onCompMoveUp, onCompMoveDown, onCompMoveToEdge,
   onCellClick, cellTotal,
   insertComponentAt, appendComponentToCategory, renameCategory, removeCategory, duplicateCategory, onBlurInsert,
@@ -288,9 +413,10 @@ function CategoryGroup({
           <Mono size={10} color="var(--ink-4)">{rows.length} {rows.length === 1 ? 'row' : 'rows'}</Mono>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, position: 'relative' }}>
-          <TextButton onClick={() => appendComponentToCategory(groupName)}>
-            ＋ Add component
-          </TextButton>
+          <ComponentPresetMenu
+            groupName={groupName}
+            appendComponentToCategory={appendComponentToCategory}
+          />
           <button type="button"
             onClick={(e) => { e.stopPropagation(); setCatMenuOpen(v => !v); }}
             title="Category actions"
@@ -340,6 +466,7 @@ function CategoryGroup({
             openMenu={() => setMenuForCompId(menuForCompId === component.id ? null : component.id)}
             closeMenu={() => setMenuForCompId(null)}
             onFieldChange={(field, v) => onCompFieldChange(component.id, field, v)}
+            onSetType={(typeId) => onCompSetType && onCompSetType(component.id, typeId)}
             onRemove={() => onCompRemove(component.id)}
             onDuplicate={() => onCompDuplicate(component.id)}
             onChangeCategory={(cat) => onCompChangeCategory(component.id, cat)}
@@ -436,12 +563,13 @@ function ComponentRow({
   gridColumns, categoryNames,
   autoFocus, onBlurFirstField,
   menuOpen, openMenu, closeMenu,
-  onFieldChange, onRemove, onDuplicate, onChangeCategory,
+  onFieldChange, onSetType, onRemove, onDuplicate, onChangeCategory,
   onMoveUp, onMoveDown, onMoveToEdge,
   onCellClick, cellTotal,
 }) {
   const c = component;
   const [hov, setHov] = React.useState(false);
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
   const dnd = useDnD();
   const rowDragging = dnd?.drag?.kind === 'row' && dnd.drag.id === c.id;
 
@@ -548,8 +676,105 @@ function ComponentRow({
         )}
       </div>
 
-      {/* Component name */}
-      <div>
+      {/* Component name + type chip */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <ComponentTypeChip
+          value={c.componentType}
+          onClick={() => setTypePickerOpen(true)}
+        />
+        {(() => {
+          // Soft warning: any assigned material is 'hidden' for this row's componentType.
+          if (!c.componentType || c.dismissedTypeWarning) return null;
+          const match = window.materialMatchForComponentType;
+          if (!match) return null;
+          const badIds = new Set();
+          options.forEach(o => {
+            const cell = cells[o.id + ':' + c.id];
+            if (!cell?.materialId) return;
+            const m = materials.find(x => x.id === cell.materialId);
+            if (m && match(m, c.componentType) === 'hidden') badIds.add(m.id);
+          });
+          if (badIds.size === 0) return null;
+          return (
+            <span title={`${badIds.size} assigned material(s) don't match this component type`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '1px 6px', borderRadius: 3,
+                background: 'var(--warn-bg, #fff5e6)',
+                border: '1px solid var(--warn, #c68a2e)',
+                color: 'var(--warn, #8a5a12)',
+                fontFamily: "'Inter Tight', sans-serif", fontSize: 10, lineHeight: 1.2,
+              }}>
+              ⚠ mismatch
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); onFieldChange('dismissedTypeWarning', true); }}
+                title="Dismiss"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'inherit', fontSize: 11, lineHeight: 1, marginLeft: 2,
+                }}>×</button>
+            </span>
+          );
+        })()}
+        {(() => {
+          // Conservative auto-suggest: untyped row, at least one assigned material whose
+          // rule points unambiguously at one component type (preferred match only).
+          if (c.componentType || c.dismissedTypeSuggestion) return null;
+          const match = window.materialMatchForComponentType;
+          const TYPES = window.COMPONENT_TYPES;
+          if (!match || !TYPES) return null;
+          const assigned = [];
+          options.forEach(o => {
+            const cell = cells[o.id + ':' + c.id];
+            if (!cell?.materialId) return;
+            const m = materials.find(x => x.id === cell.materialId);
+            if (m) assigned.push(m);
+          });
+          if (assigned.length === 0) return null;
+          // Find the set of types preferred by EVERY assigned material.
+          let preferredTypeIds = null;
+          for (const m of assigned) {
+            const here = new Set(
+              TYPES.filter(t => match(m, t.id) === 'preferred').map(t => t.id)
+            );
+            preferredTypeIds = preferredTypeIds
+              ? new Set([...preferredTypeIds].filter(x => here.has(x)))
+              : here;
+          }
+          if (!preferredTypeIds || preferredTypeIds.size !== 1) return null;
+          const typeId = [...preferredTypeIds][0];
+          const rule = window.componentTypeById(typeId);
+          if (!rule) return null;
+          return (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '1px 6px', borderRadius: 3,
+              background: 'var(--paper-2)',
+              border: '1px dashed var(--rule-2)',
+              color: 'var(--ink-3)',
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 10, lineHeight: 1.2,
+            }}>
+              Looks like a {rule.label}
+              <button type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onSetType) onSetType(typeId);
+                  else onFieldChange('componentType', typeId);
+                }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'var(--ink)', fontSize: 10, textDecoration: 'underline',
+                }}>Set type</button>
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); onFieldChange('dismissedTypeSuggestion', true); }}
+                title="Dismiss"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'inherit', fontSize: 11, lineHeight: 1,
+                }}>×</button>
+            </span>
+          );
+        })()}
         <input ref={nameRef}
           value={c.name}
           onChange={e => onFieldChange('name', e.target.value)}
@@ -558,13 +783,20 @@ function ComponentRow({
           style={{
             background: 'transparent', border: 'none',
             fontFamily: "'Newsreader', serif", fontSize: 15,
-            padding: '2px 0', outline: 'none', width: '100%',
+            padding: '2px 0', outline: 'none', flex: 1, minWidth: 0,
             borderBottom: '1px dotted transparent',
             color: 'var(--ink)',
           }}
           onFocus={e => e.target.style.borderBottomColor = 'var(--ink)'}
           onBlurCapture={e => e.target.style.borderBottomColor = 'transparent'}
         />
+        {typePickerOpen && window.ComponentTypePicker && (
+          <window.ComponentTypePicker
+            value={c.componentType}
+            onChange={(typeId) => { if (onSetType) onSetType(typeId); else onFieldChange('componentType', typeId); }}
+            onClose={() => setTypePickerOpen(false)}
+          />
+        )}
       </div>
 
       {/* Count (optional) */}
@@ -855,6 +1087,8 @@ function RowMenuItem({ children, onClick, active, danger, accent }) {
 // ───────── Schedule persistence ─────────
 
 function migrateComponents(components) {
+  if (!Array.isArray(components)) return components;
+  components = components.map(c => window.migrateComponent ? window.migrateComponent(c) : c);
   return (components || []).map(c => {
     // Already migrated?
     if (c && ('size' in c || 'count' in c)) return c;

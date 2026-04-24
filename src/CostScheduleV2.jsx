@@ -142,15 +142,19 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
   const setProjectLibraries = (ids) => onUpdateProject({ ...project, libraryIds: ids });
 
   // ───── Component ops
-  function newComponent(category) {
+  function newComponent(category, componentTypeId) {
+    const rule = componentTypeId && window.componentTypeById
+      ? window.componentTypeById(componentTypeId) : null;
     return {
       id: 'c-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3),
-      name: '', count: null, size: '', unit: 'm²',
+      name: '', count: null, size: '',
+      unit: (rule && rule.defaultUnit) || 'm²',
       category: category || 'Uncategorised',
+      componentType: componentTypeId || null,
     };
   }
-  function insertComponentAt(index, category) {
-    const c = newComponent(category);
+  function insertComponentAt(index, category, componentTypeId) {
+    const c = newComponent(category, componentTypeId);
     update(s => {
       const next = s.components.slice();
       next.splice(index, 0, c);
@@ -159,12 +163,28 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
     setJustInsertedId(c.id);
     return c.id;
   }
-  function appendComponentToCategory(category) {
+  function appendComponentToCategory(category, componentTypeId) {
     // Find the last row in that category; insert right after it.
     const last = [...schedule.components].map((c, i) => ({ c, i }))
       .filter(x => (x.c.category || 'Uncategorised') === category).pop();
     const index = last ? last.i + 1 : schedule.components.length;
-    return insertComponentAt(index, category);
+    return insertComponentAt(index, category, componentTypeId);
+  }
+  // Set componentType on a row. Non-destructive unit auto-fill: only overwrite
+  // when current unit is 'm²' (the default) or empty.
+  function setComponentType(compId, typeId) {
+    update(s => ({
+      ...s,
+      components: s.components.map(c => {
+        if (c.id !== compId) return c;
+        const next = { ...c, componentType: typeId || null };
+        const rule = typeId && window.componentTypeById ? window.componentTypeById(typeId) : null;
+        if (rule && rule.defaultUnit && (!c.unit || c.unit === 'm²')) {
+          next.unit = rule.defaultUnit;
+        }
+        return next;
+      }),
+    }));
   }
   function setComp(id, field, value) {
     update(s => ({
@@ -507,6 +527,7 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
           libraries={libraries}
           labelTemplates={labelTemplates}
           setComp={setComp}
+          setComponentType={setComponentType}
           setCellMaterial={setCellMaterial}
           removeComponent={removeComponent}
           duplicateComponent={duplicateComponent}
@@ -541,6 +562,7 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
             duplicateOption={duplicateOption}
             removeOption={removeOption}
             setComp={setComp}
+            setComponentType={setComponentType}
             removeComponent={removeComponent}
             duplicateComponent={duplicateComponent}
             changeComponentCategory={changeComponentCategory}

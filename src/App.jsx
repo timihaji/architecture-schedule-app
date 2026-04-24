@@ -11,14 +11,28 @@ function loadLS(key, fallback) {
 // Seed version. Bump whenever new seed items are added to window.MATERIALS.
 // On mismatch, we merge in any seed items the user doesn't already have
 // (matched by id) without touching their edits/additions.
-const SEED_VERSION = 7;
+const SEED_VERSION = 9;
+
+// Upgrade a legacy paint material (category==='Paint') to a first-class paint kind.
+// Idempotent. Non-destructive: unit + all existing fields preserved.
+function migrateMaterialToPaint(m) {
+  if (!m) return m;
+  if (m.kind === 'paint') return m;
+  if (m.category !== 'Paint') return m;
+  const out = { ...m, kind: 'paint' };
+  if (!out.tone && out.swatch?.tone) out.tone = out.swatch.tone;
+  if (!out.brand) out.brand = m.supplier || '';
+  // DO NOT overwrite unit — existing paints use 'm²' by design (cost rolled by area).
+  return out;
+}
 
 function migrateMaterials(list) {
   const K2L = window.KIND_TO_LIBRARY || {};
   const libForKind = (kind) => K2L[kind || 'material'] || 'lib-finishes';
 
   const stored = list.map(m => {
-    const withKind = window.migrateItem ? window.migrateItem(m) : m;
+    const paintMig = migrateMaterialToPaint(m);
+    const withKind = window.migrateItem ? window.migrateItem(paintMig) : paintMig;
     // Library remap:
     //  - legacy 'lib-master' → map by kind
     //  - empty/missing → assign by kind
@@ -43,13 +57,24 @@ function migrateMaterials(list) {
     const newSeeds = window.MATERIALS
       .filter(m => !haveIds.has(m.id))
       .map(m => {
-        const withKind = window.migrateItem ? window.migrateItem(m) : m;
+        const paintMig = migrateMaterialToPaint(m);
+        const withKind = window.migrateItem ? window.migrateItem(paintMig) : paintMig;
         let libs = withKind.libraryIds || [];
         if (libs.length === 0) libs = [libForKind(withKind.kind)];
         return { ...withKind, libraryIds: libs };
       });
     try { localStorage.setItem('aml-seed-version', String(SEED_VERSION)); } catch {}
-    return [...stored, ...newSeeds];
+    const merged = [...stored, ...newSeeds];
+    // Orphan check: any paintedWithId references that no longer resolve.
+    try {
+      const ids = new Set(merged.map(x => x.id));
+      merged.forEach(x => {
+        if (x.paintable && x.paintedWithId && !ids.has(x.paintedWithId)) {
+          console.warn('[migrateMaterials] orphan paintedWithId:', x.id, '→', x.paintedWithId);
+        }
+      });
+    } catch {}
+    return merged;
   }
   return stored;
 }
@@ -1243,7 +1268,7 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
             inheritPaintTone={!!draft.inheritPaintTone}
             setInheritPaintTone={v => set('inheritPaintTone', v)} />
 
-          {draft.category === 'Paint' ? (
+          {(draft.kind === 'paint' || draft.category === 'Paint') ? (
             <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
           ) : (
             <StandardFields draft={draft} set={set} materials={materials} />
@@ -1367,7 +1392,7 @@ function StandardFields({ draft, set, materials }) {
   const isFFE = draft.kind && draft.kind.startsWith('ffe-');
 
   // Paint-able: only show when the substrate could be painted
-  const paintChoices = materials.filter(m => m.category === 'Paint');
+  const paintChoices = materials.filter(m => m.kind === 'paint' || m.category === 'Paint');
   const linkedPaint = draft.paintable && draft.paintedWithId
     ? paintChoices.find(p => p.id === draft.paintedWithId)
     : null;
@@ -1658,6 +1683,38 @@ function PaintFields({ draft, set, setSwatch }) {
       <EditorField label="System">
         <input value={draft.system || ''} onChange={e => set('system', e.target.value)}
           style={fieldStyle()} placeholder="e.g. Wash & Wear Interior" />
+      </EditorField>
+      <EditorField label="Base type">
+        <select value={draft.baseType || ''} onChange={e => set('baseType', e.target.value)} style={fieldStyle()}>
+          <option value="">—</option>
+          <option value="Water-based">Water-based</option>
+          <option value="Enamel">Enamel</option>
+          <option value="Oil">Oil</option>
+        </select>
+      </EditorField>
+      <EditorField label="Finishes (use)" full>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {['Interior Walls', 'Ceilings', 'Doors', 'Trim', 'Exterior'].map(f => {
+            const arr = Array.isArray(draft.finishes) ? draft.finishes : [];
+            const on = arr.includes(f);
+            return (
+              <button key={f} type="button"
+                onClick={() => {
+                  const next = on ? arr.filter(x => x !== f) : [...arr, f];
+                  set('finishes', next);
+                }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontFamily: "'Inter Tight', sans-serif",
+                  border: '1px solid ' + (on ? 'var(--ink)' : 'var(--rule-2)'),
+                  background: on ? 'var(--tint)' : 'var(--paper)',
+                  color: on ? 'var(--ink)' : 'var(--ink-3)',
+                  cursor: 'pointer',
+                }}>{f}</button>
+            );
+          })}
+        </div>
       </EditorField>
       <EditorField label="Coats">
         <input type="number" min="1" max="5" value={draft.coats || 2}

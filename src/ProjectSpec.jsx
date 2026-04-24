@@ -60,6 +60,7 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
         unit: m.unit || 'ea',
         tags: [],
         note: '',
+        componentType: null,
       };
       const sections = s.sections.slice();
       let idx = sections.findIndex(sec => sec.trade === trade);
@@ -350,6 +351,8 @@ function TradeSection({ trade, rowIds, rows, materials, labelTemplates,
 
 function SpecRow({ row, material, labelTemplates, onUpdate, onRemove }) {
   const [hov, setHov] = React.useState(false);
+  const [typePickerOpen, setTypePickerOpen] = React.useState(false);
+  const typeRule = row.componentType && window.componentTypeById ? window.componentTypeById(row.componentType) : null;
   if (!material) {
     return (
       <div style={{
@@ -392,6 +395,32 @@ function SpecRow({ row, material, labelTemplates, onUpdate, onRemove }) {
           <Mono size={10} color="var(--ink-4)">{material.code}</Mono>
           {material.supplier && (
             <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{material.supplier}</span>
+          )}
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); setTypePickerOpen(true); }}
+            title={typeRule ? `Component type: ${typeRule.label}` : 'Set component type'}
+            style={{
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 9.5, letterSpacing: '0.04em', textTransform: 'uppercase',
+              padding: '1px 6px',
+              background: typeRule ? 'var(--tint)' : 'transparent',
+              color: typeRule ? 'var(--ink-2)' : 'var(--ink-4)',
+              border: typeRule ? '1px solid var(--rule-2)' : '1px dashed var(--rule-2)',
+              cursor: 'pointer',
+            }}>{typeRule ? typeRule.label : '+ type'}</button>
+          {typePickerOpen && window.ComponentTypePicker && (
+            <window.ComponentTypePicker
+              value={row.componentType}
+              onChange={(typeId) => {
+                const patch = { componentType: typeId || null };
+                const rule = typeId && window.componentTypeById ? window.componentTypeById(typeId) : null;
+                if (rule && rule.defaultUnit && (!row.unit || row.unit === 'ea' || row.unit === 'm²')) {
+                  patch.unit = rule.defaultUnit;
+                }
+                onUpdate(patch);
+              }}
+              onClose={() => setTypePickerOpen(false)}
+            />
           )}
         </div>
       </div>
