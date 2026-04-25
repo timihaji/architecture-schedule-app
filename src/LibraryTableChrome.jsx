@@ -316,18 +316,17 @@ function LTKindTabs({ materials, kindFilter, setKindFilter }) {
       .reduce((sum, k) => sum + (kindCounts[k.id] || 0), 0);
   }
 
-  // The kind filter stored in state is actually a kind id OR 'all'. We group-switch
-  // by picking the group's primary kind (first in list).
+  // kindFilter is 'all', 'group:<name>' (whole group), or a single kind id.
   function setGroup(group) {
     if (group === 'all') { setKindFilter('all'); return; }
-    const first = KINDS.find(k => k.group === group);
-    if (first) setKindFilter(first.id);
+    setKindFilter('group:' + group);
   }
 
   function groupIsActive(group) {
     if (kindFilter === 'all') return group === 'all';
+    if (kindFilter === 'group:' + group) return true;
     const k = KINDS.find(x => x.id === kindFilter);
-    return k && k.group === group;
+    return !!(k && k.group === group);
   }
 
   const totalCount = materials.length;

@@ -62,6 +62,12 @@ function LibraryTable(props) {
 
   const kindScoped = React.useMemo(() => {
     if (kindFilter === 'all') return libraryScoped;
+    if (kindFilter.startsWith('group:')) {
+      const group = kindFilter.slice('group:'.length);
+      const KINDS = window.KINDS || [];
+      const ids = new Set(KINDS.filter(k => k.group === group).map(k => k.id));
+      return libraryScoped.filter(m => ids.has(m.kind || 'material'));
+    }
     return libraryScoped.filter(m => (m.kind || 'material') === kindFilter);
   }, [libraryScoped, kindFilter]);
 

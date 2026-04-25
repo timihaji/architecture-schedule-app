@@ -566,13 +566,13 @@ function CostScheduleTable({
 
   const defaultVisible = React.useMemo(() => {
     if (rowShape === 'flat') {
-      return ['select', 'component', 'option', 'swatch', 'material', 'count', 'size', 'unit', 'unitCost', 'lineTotal', 'rowActions'];
+      return ['select', 'component', 'componentType', 'option', 'swatch', 'material', 'count', 'size', 'unit', 'unitCost', 'lineTotal', 'rowActions'];
     }
     // Grouped: show component + size/unit + every option
     return [
       'select',
       ...(moveRowUp && moveRowDown ? ['reorder'] : []),
-      'component', 'category', 'count', 'size', 'unit',
+      'component', 'category', 'componentType', 'count', 'size', 'unit',
       ...schedule.options.map(o => 'opt:' + o.id),
       'rowActions',
     ];
