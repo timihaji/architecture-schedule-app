@@ -272,10 +272,29 @@
     debouncedSave(`${table}:${projectId}`, () => savePerProjectNow(table, projectId, payload));
   }
 
-  const loadSchedule = projectId        => loadPerProject('schedules', projectId);
-  const saveSchedule = (projectId, data) => savePerProject('schedules', projectId, data);
-  const loadSpec     = projectId        => loadPerProject('specs',     projectId);
-  const saveSpec     = (projectId, data) => savePerProject('specs',     projectId, data);
+  const loadSchedule    = projectId        => loadPerProject('schedules', projectId);
+  const saveSchedule    = (projectId, data) => savePerProject('schedules', projectId, data);
+  const saveScheduleNow = (projectId, data) => savePerProjectNow('schedules', projectId, data);
+  const loadSpec        = projectId        => loadPerProject('specs',     projectId);
+  const saveSpec        = (projectId, data) => savePerProject('specs',     projectId, data);
+  const saveSpecNow     = (projectId, data) => savePerProjectNow('specs',     projectId, data);
+
+  async function deleteSchedule(projectId) {
+    const key = `schedules:${projectId}`;
+    const pending = pendingSaves.get(key);
+    if (pending) { clearTimeout(pending.timer); pendingSaves.delete(key); }
+    const { error } = await sb.from('schedules').delete().eq('project_id', projectId);
+    if (error) throw error;
+    versionCache.delete(vkey('schedules', projectId));
+  }
+  async function deleteSpec(projectId) {
+    const key = `specs:${projectId}`;
+    const pending = pendingSaves.get(key);
+    if (pending) { clearTimeout(pending.timer); pendingSaves.delete(key); }
+    const { error } = await sb.from('specs').delete().eq('project_id', projectId);
+    if (error) throw error;
+    versionCache.delete(vkey('specs', projectId));
+  }
 
   // ───── Manual flush (used by sign-out) ─────
   async function flushPending() {
@@ -304,8 +323,8 @@
     isAllowedUser,
     loadAppState, saveAppState, saveAppStateNow,
     loadCollection, upsertItem, upsertItemNow, deleteItem,
-    loadSchedule, saveSchedule,
-    loadSpec, saveSpec,
+    loadSchedule, saveSchedule, saveScheduleNow, deleteSchedule,
+    loadSpec,     saveSpec,     saveSpecNow,     deleteSpec,
     onSaveStatus,
     flushPending,
     ConflictError,

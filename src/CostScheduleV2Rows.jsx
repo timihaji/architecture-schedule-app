@@ -1099,31 +1099,30 @@ function migrateComponents(components) {
   });
 }
 
-function loadScheduleV2(storageKey, project) {
-  try {
-    const v = localStorage.getItem(storageKey);
-    if (v) {
-      const parsed = JSON.parse(v);
-      if (parsed?.options && parsed?.components && parsed?.cells) {
-        return {
-          title: parsed.title || 'Materials Cost Schedule',
-          ...parsed,
-          components: migrateComponents(parsed.components),
-        };
-      }
-    }
-  } catch {}
+// Phase 4: per-component migration extracted as a pure transform. Used by
+// useProjectSchedule on whatever data loads (cloud row, localStorage-migrated
+// row, seed fallback). Keeps cloud + display in sync — first save after load
+// rewrites the row in the migrated shape.
+function transformScheduleV2(sched) {
+  if (!sched) return null;
+  return {
+    title: sched.title || 'Materials Cost Schedule',
+    ...sched,
+    components: migrateComponents(sched.components || []),
+  };
+}
+
+// Returns the seed-or-blank schedule for a project when neither cloud nor
+// localStorage has data. Phase 5 ships an explicit "seed workspace" button —
+// until then we keep the legacy auto-seed from SEED_SCHEDULES.
+function buildScheduleFallbackV2(project) {
+  if (!project) return null;
   const seeded = window.SEED_SCHEDULES && window.SEED_SCHEDULES[project.id];
   if (seeded && seeded.options && seeded.components && seeded.cells) {
-    return {
-      title: seeded.title || 'Materials Cost Schedule',
-      ...seeded,
-      components: migrateComponents(seeded.components),
-    };
+    return { title: seeded.title || 'Materials Cost Schedule', ...seeded };
   }
   if (project.id === 'p-brunswick' && window.brunswickSeed) {
-    const seed = window.brunswickSeed();
-    return { ...seed, components: migrateComponents(seed.components) };
+    return window.brunswickSeed();
   }
   return {
     title: 'Materials Cost Schedule',
@@ -1136,5 +1135,5 @@ Object.assign(window, {
   componentQty, parseQtyLegacy, evalFormula,
   CategoryGroup, ScheduleGrid, InsertLane, CombinedInsertZone, CategoryDropZone,
   ComponentRow, CountSizeField, RowMenu, RowMenuItem, CategoryMenu,
-  loadScheduleV2,
+  transformScheduleV2, buildScheduleFallbackV2,
 });

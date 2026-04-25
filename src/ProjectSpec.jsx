@@ -32,18 +32,23 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
     );
   }
 
-  const storageKey = 'aml-spec-' + project.id;
-  const [spec, setSpec] = React.useState(() => loadSpec(storageKey, project, materials));
+  // Phase 4: spec loaded asynchronously from cloud (Supabase row in `specs`
+  // table, project_id = this project's id). The hook handles race-guarding
+  // (project switch mid-load) and one-time migration from localStorage.
+  // `materials` is used by the brunswick spec seed; we capture it via a ref
+  // so the fallback closure stays stable across material updates.
+  const materialsRef = React.useRef(materials);
+  React.useEffect(() => { materialsRef.current = materials; }, [materials]);
+  const fallback = React.useCallback(
+    () => buildSpecFallback(project, materialsRef.current),
+    [project.id]
+  );
+  const transform = React.useCallback(transformSpec, []);
+  const { data: spec, set: setSpec, status: specStatus } =
+    window.useProjectSpec(project.id, fallback, transform);
+
   const [drawer, setDrawer] = React.useState(null);  // { trade } | null
   const [tagFilter, setTagFilter] = React.useState(null);
-
-  React.useEffect(() => {
-    setSpec(loadSpec(storageKey, project, materials));
-  }, [project.id]);
-
-  React.useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(spec)); } catch {}
-  }, [spec, storageKey]);
 
   const update = (fn) => setSpec(s => fn(s));
 
@@ -97,7 +102,10 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
   }, [materials, projectLibIds.join('|')]);
 
   // ───── Totals
+  // Guards null spec so the hook count stays stable across loading→ready
+  // transitions (the loading gate sits below all hooks per Rules of Hooks).
   const totals = React.useMemo(() => {
+    if (!spec) return { bySection: {}, grand: 0 };
     const bySection = {};
     let grand = 0;
     spec.sections.forEach(sec => {
@@ -118,10 +126,19 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
 
   // ───── All tags used in this spec (for filter pills)
   const allTags = React.useMemo(() => {
+    if (!spec) return [];
     const set = new Set();
     Object.values(spec.rows).forEach(r => (r.tags || []).forEach(t => set.add(t)));
     return [...set].sort();
   }, [spec]);
+
+  // Loading / error gates — must come AFTER all hooks (rules of hooks).
+  if (specStatus === 'loading' || !spec) {
+    return <SpecSkeleton />;
+  }
+  if (specStatus === 'error') {
+    return <SpecErrorState />;
+  }
 
   const itemCount = Object.keys(spec.rows).length;
 
@@ -721,24 +738,55 @@ const smallIconBtn = {
   color: 'var(--ink-4)', fontWeight: 500,
 };
 
-// ───────── Persistence + seed ─────────
+// ───────── Persistence helpers (Phase 4: cloud-backed) ─────────
+// transformSpec is a pure shape normalizer applied to whatever data loads
+// (cloud row, localStorage-migrated row, seed fallback). Run via useProjectSpec.
+function transformSpec(raw) {
+  if (!raw) return null;
+  if (!raw.rows || !raw.sections) return null;  // malformed → null → fallback
+  return { title: raw.title || 'Project Specification', ...raw };
+}
 
-function loadSpec(storageKey, project, materials) {
-  try {
-    const v = localStorage.getItem(storageKey);
-    if (v) {
-      const parsed = JSON.parse(v);
-      if (parsed && parsed.rows && parsed.sections) {
-        return { title: parsed.title || 'Project Specification', ...parsed };
-      }
-    }
-  } catch {}
+// Returns the seed-or-blank spec for a project when neither cloud nor
+// localStorage has data. Phase 5 ships an explicit "seed workspace" button —
+// until then we keep the legacy auto-seed from SEED_SPECS so existing
+// projects don't get blank specs.
+function buildSpecFallback(project, materials) {
+  if (!project) return blankSpec();
   const seeded = window.SEED_SPECS && window.SEED_SPECS[project.id];
   if (seeded && seeded.rows && seeded.sections) {
     return { title: seeded.title || 'Project Specification', ...seeded };
   }
   if (project.id === 'p-brunswick') return brunswickSpecSeed(materials);
   return blankSpec();
+}
+
+function SpecSkeleton() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center',
+      fontFamily: 'var(--font-mono)', fontSize: 11,
+      letterSpacing: '0.18em', textTransform: 'uppercase',
+      color: 'var(--ink-3)' }}>
+      Loading specification…
+    </div>
+  );
+}
+
+function SpecErrorState() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: 'var(--ink-3)', marginBottom: 12 }}>
+        Couldn't load specification
+      </div>
+      <button onClick={() => location.reload()} style={{
+        padding: '8px 16px', fontSize: 13, fontFamily: 'var(--font-sans)',
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: 2, cursor: 'pointer',
+      }}>Reload</button>
+    </div>
+  );
 }
 
 function blankSpec() {

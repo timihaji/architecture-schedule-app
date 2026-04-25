@@ -37,8 +37,17 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
     );
   }
 
-  const storageKey = 'aml-schedule-' + project.id;
-  const [schedule, setSchedule] = React.useState(() => window.loadScheduleV2(storageKey, project));
+  // Phase 4: schedule loaded asynchronously from cloud (Supabase row in
+  // `schedules` table). The same row backs both v1 and v2 — switching
+  // versions preserves work.
+  const fallback = React.useCallback(
+    () => window.buildScheduleFallbackV2(project),
+    [project.id]
+  );
+  const transform = React.useCallback(window.transformScheduleV2, []);
+  const { data: schedule, set: setSchedule, status: scheduleStatus } =
+    window.useProjectSchedule(project.id, fallback, transform);
+
   const [pickerFor, setPickerFor] = React.useState(null);
   const [editingOptionId, setEditingOptionId] = React.useState(null);
   const [editingTitle, setEditingTitle] = React.useState(false);
@@ -57,18 +66,14 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
   }
 
   React.useEffect(() => {
-    setSchedule(window.loadScheduleV2(storageKey, project));
     setEditingOptionId(null);
     setEditingTitle(false);
   }, [project.id]);
 
-  React.useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(schedule)); } catch {}
-  }, [schedule, storageKey]);
-
   // Global C / V / Esc handler for cell clipboard.
   React.useEffect(() => {
     function onKey(e) {
+      if (!schedule) return;  // schedule still loading from cloud
       const ae = document.activeElement;
       const tag = ae?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ae?.isContentEditable) return;
@@ -111,7 +116,7 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hoverKey, clipboard, pickerFor, schedule.cells]);
+  }, [hoverKey, clipboard, pickerFor, schedule]);
 
   // Reflect the clipboard source cell with a dashed outline.
   React.useEffect(() => {
@@ -130,6 +135,7 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
       el.style.outlineOffset = prevOffset;
     };
   }, [clipboard, viewMode]);
+
 
   const update = (fn) => setSchedule(s => fn(s));
 
@@ -414,7 +420,9 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
       return t !== null ? s + t : s;
     }, 0);
   }
-  const optionTotals = schedule.options.map(o => optionTotal(o.id));
+  // Guarded — schedule may still be null during load (the loading-gate
+  // early return below catches that case after all hooks have run).
+  const optionTotals = schedule ? schedule.options.map(o => optionTotal(o.id)) : [];
   const validTotals = optionTotals.filter(t => t > 0);
   const lowest = validTotals.length ? Math.min(...validTotals) : 0;
 
@@ -465,7 +473,10 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
   }
 
   // ───── Group components by category, in the order they first appear
+  // Guards null schedule so the hook count stays stable across loading→ready
+  // transitions (the loading gate sits below all hooks per Rules of Hooks).
   const grouped = React.useMemo(() => {
+    if (!schedule) return [];
     const map = new Map(); // preserves insertion order
     schedule.components.forEach((c, idx) => {
       const key = c.category || 'Uncategorised';
@@ -473,12 +484,22 @@ function CostScheduleV2({ materials, projects, libraries, labelTemplates,
       map.get(key).push({ component: c, globalIndex: idx });
     });
     return Array.from(map.entries());
-  }, [schedule.components]);
+  }, [schedule]);
 
   // Existing category names for the picker in the menu
-  const categoryNames = React.useMemo(() =>
-    Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised'))),
-    [schedule.components]);
+  const categoryNames = React.useMemo(() => {
+    if (!schedule) return [];
+    return Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
+  }, [schedule]);
+
+  // Loading / error gates — must come AFTER all hooks so React's hook count
+  // stays stable across renders.
+  if (scheduleStatus === 'loading' || !schedule) {
+    return <ScheduleSkeletonV2 />;
+  }
+  if (scheduleStatus === 'error') {
+    return <ScheduleErrorStateV2 />;
+  }
 
   const gridColumns = `72px minmax(220px, 2fr) 64px 96px repeat(${schedule.options.length}, minmax(180px, 1.4fr))`;
 
@@ -780,6 +801,34 @@ function ClipboardToast({ label, onClear }) {
           cursor: 'pointer', opacity: 0.6, padding: '0 0 0 6px',
           fontSize: 16, lineHeight: 1,
         }}>×</button>
+    </div>
+  );
+}
+
+function ScheduleSkeletonV2() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center',
+      fontFamily: 'var(--font-mono)', fontSize: 11,
+      letterSpacing: '0.18em', textTransform: 'uppercase',
+      color: 'var(--ink-3)' }}>
+      Loading schedule…
+    </div>
+  );
+}
+
+function ScheduleErrorStateV2() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: 'var(--ink-3)', marginBottom: 12 }}>
+        Couldn't load schedule
+      </div>
+      <button onClick={() => location.reload()} style={{
+        padding: '8px 16px', fontSize: 13, fontFamily: 'var(--font-sans)',
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: 2, cursor: 'pointer',
+      }}>Reload</button>
     </div>
   );
 }

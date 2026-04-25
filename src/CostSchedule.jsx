@@ -21,9 +21,18 @@ function CostSchedule({ materials, projects, libraries, labelTemplates, activePr
     );
   }
 
-  const storageKey = 'aml-schedule-' + project.id;
+  // Phase 4: schedule loaded asynchronously from cloud (Supabase row in
+  // `schedules` table, project_id = this project's id). The hook handles
+  // race-guarding (project switch mid-load) and one-time migration from
+  // localStorage if the cloud row is missing.
+  const fallback = React.useCallback(
+    () => buildScheduleFallback(project),
+    [project.id]
+  );
+  const transform = React.useCallback(transformSchedule, []);
+  const { data: schedule, set: setSchedule, status: scheduleStatus } =
+    window.useProjectSchedule(project.id, fallback, transform);
 
-  const [schedule, setSchedule] = React.useState(() => loadSchedule(storageKey, project));
   const [pickerFor, setPickerFor] = React.useState(null);
   const [groupBy, setGroupBy] = React.useState('category');
   const [editingOptionId, setEditingOptionId] = React.useState(null);
@@ -35,17 +44,11 @@ function CostSchedule({ materials, projects, libraries, labelTemplates, activePr
   const [addingCategory, setAddingCategory] = React.useState(false);
   const [newCatName, setNewCatName] = React.useState('');
 
-  // Reload schedule when project changes
+  // Reset transient editing state when the project changes.
   React.useEffect(() => {
-    setSchedule(loadSchedule(storageKey, project));
     setEditingOptionId(null);
     setEditingTitle(false);
   }, [project.id]);
-
-  // Persist
-  React.useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(schedule)); } catch {}
-  }, [schedule, storageKey]);
 
   function update(updater) { setSchedule(s => updater(s)); }
 
@@ -155,11 +158,16 @@ function CostSchedule({ materials, projects, libraries, labelTemplates, activePr
       return t !== null ? s + t : s;
     }, 0);
   }
-  const optionTotals = schedule.options.map(o => optionTotal(o.id));
+  // Guarded — schedule may still be null during load (the loading-gate
+  // early return below catches that case after all hooks have run).
+  const optionTotals = schedule ? schedule.options.map(o => optionTotal(o.id)) : [];
   const validTotals = optionTotals.filter(t => t > 0);
   const lowest = validTotals.length ? Math.min(...validTotals) : 0;
 
+  // Guards null schedule so the hook count stays stable across loading→ready
+  // transitions (the loading gate sits below all hooks per Rules of Hooks).
   const groups = React.useMemo(() => {
+    if (!schedule) return [];
     if (groupBy === 'none') return [['All components', schedule.components]];
     const map = new Map();
     schedule.components.forEach(c => {
@@ -168,7 +176,15 @@ function CostSchedule({ materials, projects, libraries, labelTemplates, activePr
       map.get(k).push(c);
     });
     return Array.from(map.entries());
-  }, [schedule.components, groupBy]);
+  }, [schedule, groupBy]);
+
+  // Loading / error gates — must come AFTER all hooks (rules of hooks).
+  if (scheduleStatus === 'loading' || !schedule) {
+    return <ScheduleSkeleton />;
+  }
+  if (scheduleStatus === 'error') {
+    return <ScheduleErrorState />;
+  }
 
   function gridColumns() {
     return `2.2fr 70px 80px repeat(${schedule.options.length}, minmax(180px, 1.4fr)) 28px`;
@@ -976,36 +992,66 @@ function scopeChip(active) {
   };
 }
 
-// ───────── Schedule persistence ─────────
-
-function loadSchedule(storageKey, project) {
-  const migrate = (sched) => ({
+// ───────── Schedule persistence helpers (Phase 4: cloud-backed) ─────────
+// transformSchedule applies per-component migration (legacy → current shape).
+// Run via the useProjectSchedule hook on whatever data loads — cloud row,
+// localStorage-migrated row, seed fallback, or blank fallback.
+function transformSchedule(sched) {
+  if (!sched) return null;
+  return {
+    title: sched.title || 'Materials Cost Schedule',
     ...sched,
     components: Array.isArray(sched.components) && window.migrateComponent
       ? sched.components.map(window.migrateComponent)
       : sched.components,
-  });
-  try {
-    const v = localStorage.getItem(storageKey);
-    if (v) {
-      const parsed = JSON.parse(v);
-      if (parsed?.options && parsed?.components && parsed?.cells) {
-        return migrate({ title: parsed.title || 'Materials Cost Schedule', ...parsed });
-      }
-    }
-  } catch {}
+  };
+}
+
+// buildScheduleFallback returns the seed-or-blank schedule for a project when
+// neither cloud nor localStorage has data. Phase 5 ships an explicit "seed
+// workspace" button — until then we keep the legacy auto-seed from
+// window.SEED_SCHEDULES so existing projects don't get blank schedules.
+function buildScheduleFallback(project) {
+  if (!project) return null;
   const seeded = window.SEED_SCHEDULES && window.SEED_SCHEDULES[project.id];
   if (seeded && seeded.options && seeded.components && seeded.cells) {
-    return migrate({ title: seeded.title || 'Materials Cost Schedule', ...seeded });
+    return { title: seeded.title || 'Materials Cost Schedule', ...seeded };
   }
-  // Seed default for the built-in Brunswick project; blank for user-created ones
-  if (project.id === 'p-brunswick') return migrate(brunswickSeed());
+  if (project.id === 'p-brunswick') return brunswickSeed();
   return {
     title: 'Materials Cost Schedule',
     options: [{ id: 'o-1', name: 'Option 1' }],
     components: [],
     cells: {},
   };
+}
+
+function ScheduleSkeleton() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center',
+      fontFamily: 'var(--font-mono)', fontSize: 11,
+      letterSpacing: '0.18em', textTransform: 'uppercase',
+      color: 'var(--ink-3)' }}>
+      Loading schedule…
+    </div>
+  );
+}
+
+function ScheduleErrorState() {
+  return (
+    <div style={{ padding: '80px 0', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: 'var(--ink-3)', marginBottom: 12 }}>
+        Couldn't load schedule
+      </div>
+      <button onClick={() => location.reload()} style={{
+        padding: '8px 16px', fontSize: 13, fontFamily: 'var(--font-sans)',
+        background: 'var(--accent)', color: '#fff',
+        border: 'none', borderRadius: 2, cursor: 'pointer',
+      }}>Reload</button>
+    </div>
+  );
 }
 
 function brunswickSeed() {
