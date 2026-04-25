@@ -165,15 +165,26 @@
   // from sleep), reject so the AuthGate can recover instead of spinning
   // forever on "Checking access…".
   async function isAllowedUser() {
-    const timeoutMs = 10_000;
-    const rpcPromise = sb.rpc('is_allowed_user').then(({ data, error }) => {
-      if (error) throw error;
-      return data === true;
-    });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`access check timed out after ${timeoutMs}ms`)), timeoutMs)
-    );
-    return Promise.race([rpcPromise, timeoutPromise]);
+    // PostgREST cold starts on Supabase free tier can stall the first RPC
+    // for ~10–30s; subsequent calls are fast. We retry once on timeout so a
+    // cold start doesn't surface as a UI-visible failure.
+    async function attempt(timeoutMs) {
+      const rpcPromise = sb.rpc('is_allowed_user').then(({ data, error }) => {
+        if (error) throw error;
+        return data === true;
+      });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`access check timed out after ${timeoutMs}ms`)), timeoutMs)
+      );
+      return Promise.race([rpcPromise, timeoutPromise]);
+    }
+    try {
+      return await attempt(15_000);
+    } catch (err) {
+      if (!/timed out/.test(String(err && err.message))) throw err;
+      console.warn('[cloud] is_allowed_user slow on first try, retrying…');
+      return attempt(20_000);
+    }
   }
 
   // ───── Generic CRUD ─────
