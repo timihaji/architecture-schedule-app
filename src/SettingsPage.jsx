@@ -29,9 +29,10 @@ function SettingsPage({
     { key: 'library',    label: 'Library defaults',  num: '06', group: 'Defaults' },
     { key: 'codes',      label: 'Codes & duplicates', num: '07', group: 'Defaults' },
     { key: 'projects',   label: 'Project defaults',  num: '08', group: 'Defaults' },
-    { key: 'data',       label: 'Data',       num: '09', group: 'System' },
-    { key: 'keyboard',   label: 'Keyboard',   num: '10', group: 'System' },
-    { key: 'about',      label: 'About',      num: '11', group: 'System' },
+    { key: 'cloud',      label: 'Cloud',      num: '09', group: 'System' },
+    { key: 'data',       label: 'Data',       num: '10', group: 'System' },
+    { key: 'keyboard',   label: 'Keyboard',   num: '11', group: 'System' },
+    { key: 'about',      label: 'About',      num: '12', group: 'System' },
   ];
   const groups = [...new Set(sections.map(s => s.group))];
 
@@ -113,6 +114,7 @@ function SettingsPage({
         {section === 'library'    && <LibraryDefaultsSection {...sectionProps} />}
         {section === 'codes'      && <CodesSection {...sectionProps} />}
         {section === 'projects'   && <ProjectDefaultsSection {...sectionProps} />}
+        {section === 'cloud'      && <CloudSection {...sectionProps} />}
         {section === 'data'       && <DataSection {...sectionProps} />}
         {section === 'keyboard'   && <KeyboardSection {...sectionProps} />}
         {section === 'about'      && <AboutSection {...sectionProps} />}
@@ -987,6 +989,384 @@ function ProjectDefaultsSection({ settings, set }) {
 
 // ─────────────── Data ───────────────
 
+// ─────────────── Cloud Section (Phase 5) ───────────────
+// Account chrome, manual migrate / seed / clear actions, sign-out.
+// Migration is idempotent — only fills cloud rows that don't yet exist;
+// never overwrites cloud data with stale localStorage data.
+function CloudSection({ materials, projects, libraries, labelTemplates }) {
+  const { useState, useEffect } = React;
+  const [email, setEmail] = useState('');
+  const [saveState, setSaveState] = useState({ pending: 0, lastError: null, lastSavedAt: null });
+  const [busy, setBusy] = useState(null);          // 'migrate' | 'seed' | 'clear' | 'signout' | null
+  const [progress, setProgress] = useState(null);  // { kind, line, total, current }
+  const [done, setDone] = useState(null);          // { kind, summary } | null
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!window.cloud) return;
+    window.cloud.getSession().then(s => {
+      if (s && s.user) setEmail(s.user.email || '');
+    });
+    return window.cloud.onSaveStatus(setSaveState);
+  }, []);
+
+  function reset() { setProgress(null); setDone(null); setErr(null); }
+
+  async function onMigrate() {
+    if (!window.cloud) return;
+    if (!window.confirm(
+      'Migrate everything in this browser to the shared workspace? Cloud data ' +
+      'is not overwritten — only items missing from cloud get inserted. ' +
+      'Your browser data is not deleted.')) return;
+    reset(); setBusy('migrate');
+    try {
+      const result = await migrateBrowserToCloud();
+      setDone({ kind: 'migrate', summary: result });
+    } catch (e) {
+      setErr(e.message || String(e));
+    } finally { setBusy(null); setProgress(null); }
+  }
+
+  async function onSeed() {
+    if (!window.cloud) return;
+    if (!window.confirm(
+      'Seed the workspace with the starter library? This adds the example ' +
+      'projects, materials, and libraries. Running on a workspace that already ' +
+      'has these starter items will create duplicates if you have edited them.')) return;
+    reset(); setBusy('seed');
+    try {
+      const result = await seedWorkspace();
+      setDone({ kind: 'seed', summary: result });
+    } catch (e) {
+      setErr(e.message || String(e));
+    } finally { setBusy(null); setProgress(null); }
+  }
+
+  function onClear() {
+    if (!window.confirm(
+      'Remove all aml-* keys from this browser\'s localStorage? Use this ONLY ' +
+      'after you\'ve confirmed your data is safely in the cloud (sign in on ' +
+      'another device and check). This cannot be undone.')) return;
+    reset(); setBusy('clear');
+    try {
+      const removed = clearLegacyLocalStorage();
+      setDone({ kind: 'clear', summary: { removed } });
+    } catch (e) {
+      setErr(e.message || String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function onSignOut() {
+    if (!window.cloud) return;
+    if (!window.confirm('Sign out of this device?')) return;
+    setBusy('signout');
+    try { await window.cloud.flushPending(); } catch {}
+    try { await window.cloud.signOut(); } catch (e) { setErr(e.message || String(e)); }
+    setBusy(null);
+  }
+
+  // Migration / seed implementations live below as plain async functions so
+  // we can call them with progress callbacks scoped to this component.
+  async function migrateBrowserToCloud() {
+    const summary = { settings: 0, ui: 0, seedVersion: 0, labelTemplates: 0,
+      materials: 0, projects: 0, libraries: 0, schedules: 0, specs: 0 };
+
+    setProgress({ line: 'Reading workspace from cloud…' });
+    const appStateCloud = (await window.cloud.loadAppState()) || {};
+    const materialsCloud = await window.cloud.loadCollection('materials');
+    const projectsCloud  = await window.cloud.loadCollection('projects');
+    const librariesCloud = await window.cloud.loadCollection('libraries');
+
+    const appPatch = { ...appStateCloud };
+    let appChanged = false;
+
+    setProgress({ line: 'Reading legacy keys from localStorage…' });
+    const lsSettings = readLSJson('aml-settings');
+    if (lsSettings && !appStateCloud.settings) {
+      appPatch.settings = lsSettings; appChanged = true; summary.settings = 1;
+    }
+    const ui = collectLegacyUiKeys();
+    if (Object.keys(ui).length > 0 && !appStateCloud.ui) {
+      appPatch.ui = ui; appChanged = true; summary.ui = Object.keys(ui).length;
+    }
+    const seedVer = readLSRaw('aml-seed-version');
+    if (seedVer != null && appStateCloud.seed_version == null) {
+      const n = parseInt(seedVer, 10);
+      if (!isNaN(n)) { appPatch.seed_version = n; appChanged = true; summary.seedVersion = 1; }
+    }
+    const lsTpl = readLSJson('aml-label-templates');
+    if (lsTpl && typeof lsTpl === 'object' && !Array.isArray(lsTpl)
+        && !appStateCloud.label_templates) {
+      appPatch.label_templates = lsTpl; appChanged = true; summary.labelTemplates = 1;
+    }
+    if (appChanged) {
+      setProgress({ line: 'Saving workspace settings…' });
+      await window.cloud.saveAppStateNow(appPatch);
+    }
+
+    const cloudHasId = (list, id) => list.some(x => x.id === id);
+
+    const lsMaterials = readLSJson('aml-materials');
+    if (Array.isArray(lsMaterials)) {
+      const todo = lsMaterials.filter(m => !cloudHasId(materialsCloud, m.id));
+      for (let i = 0; i < todo.length; i++) {
+        setProgress({ line: 'Uploading materials…', current: i + 1, total: todo.length });
+        await window.cloud.upsertItemNow('materials', todo[i].id, todo[i]);
+      }
+      summary.materials = todo.length;
+    }
+    const lsProjects = readLSJson('aml-projects');
+    if (Array.isArray(lsProjects)) {
+      const todo = lsProjects.filter(p => !cloudHasId(projectsCloud, p.id));
+      for (let i = 0; i < todo.length; i++) {
+        setProgress({ line: 'Uploading projects…', current: i + 1, total: todo.length });
+        await window.cloud.upsertItemNow('projects', todo[i].id, todo[i]);
+      }
+      summary.projects = todo.length;
+    }
+    const lsLibraries = readLSJson('aml-libraries');
+    if (Array.isArray(lsLibraries)) {
+      const todo = lsLibraries.filter(l => !cloudHasId(librariesCloud, l.id));
+      for (let i = 0; i < todo.length; i++) {
+        setProgress({ line: 'Uploading libraries…', current: i + 1, total: todo.length });
+        await window.cloud.upsertItemNow('libraries', todo[i].id, todo[i]);
+      }
+      summary.libraries = todo.length;
+    }
+
+    // Per-project schedules + specs. Use the resulting projects list to scope.
+    const finalProjects = lsProjects || projectsCloud.map(r => r); // best-effort
+    for (let i = 0; i < finalProjects.length; i++) {
+      const p = finalProjects[i];
+      setProgress({ line: 'Uploading schedules + specs…', current: i + 1, total: finalProjects.length });
+      const lsSched = readLSJson('aml-schedule-' + p.id);
+      if (lsSched) {
+        const existing = await window.cloud.loadSchedule(p.id);
+        if (!existing) {
+          await window.cloud.saveScheduleNow(p.id, lsSched);
+          summary.schedules++;
+        }
+      }
+      const lsSpec = readLSJson('aml-spec-' + p.id);
+      if (lsSpec) {
+        const existing = await window.cloud.loadSpec(p.id);
+        if (!existing) {
+          await window.cloud.saveSpecNow(p.id, lsSpec);
+          summary.specs++;
+        }
+      }
+    }
+
+    return summary;
+  }
+
+  async function seedWorkspace() {
+    const summary = { materials: 0, projects: 0, libraries: 0, schedules: 0, specs: 0 };
+    const seeds = {
+      materials: window.MATERIALS || [],
+      projects:  window.PROJECTS  || [],
+      libraries: window.LIBRARIES || [],
+      schedules: window.SEED_SCHEDULES || {},
+      specs:     window.SEED_SPECS     || {},
+    };
+    const tpl = window.DEFAULT_TEMPLATES;
+    if (tpl) {
+      setProgress({ line: 'Seeding label templates…' });
+      const cur = (await window.cloud.loadAppState()) || {};
+      await window.cloud.saveAppStateNow({ ...cur, label_templates: tpl });
+    }
+    for (let i = 0; i < seeds.materials.length; i++) {
+      setProgress({ line: 'Seeding materials…', current: i + 1, total: seeds.materials.length });
+      const m = seeds.materials[i];
+      await window.cloud.upsertItemNow('materials', m.id, m);
+      summary.materials++;
+    }
+    for (let i = 0; i < seeds.projects.length; i++) {
+      setProgress({ line: 'Seeding projects…', current: i + 1, total: seeds.projects.length });
+      const p = seeds.projects[i];
+      await window.cloud.upsertItemNow('projects', p.id, p);
+      summary.projects++;
+    }
+    for (let i = 0; i < seeds.libraries.length; i++) {
+      setProgress({ line: 'Seeding libraries…', current: i + 1, total: seeds.libraries.length });
+      const l = seeds.libraries[i];
+      await window.cloud.upsertItemNow('libraries', l.id, l);
+      summary.libraries++;
+    }
+    const schedIds = Object.keys(seeds.schedules);
+    for (let i = 0; i < schedIds.length; i++) {
+      setProgress({ line: 'Seeding schedules…', current: i + 1, total: schedIds.length });
+      await window.cloud.saveScheduleNow(schedIds[i], seeds.schedules[schedIds[i]]);
+      summary.schedules++;
+    }
+    const specIds = Object.keys(seeds.specs);
+    for (let i = 0; i < specIds.length; i++) {
+      setProgress({ line: 'Seeding specs…', current: i + 1, total: specIds.length });
+      await window.cloud.saveSpecNow(specIds[i], seeds.specs[specIds[i]]);
+      summary.specs++;
+    }
+    return summary;
+  }
+
+  function clearLegacyLocalStorage() {
+    let count = 0;
+    try {
+      const keys = Object.keys(localStorage);
+      for (const k of keys) {
+        if (k.startsWith('aml-')) { localStorage.removeItem(k); count++; }
+      }
+    } catch {}
+    return count;
+  }
+
+  function collectLegacyUiKeys() {
+    const ui = {};
+    const map = [
+      ['aml-view', 'view'],
+      ['aml-library-mode', 'libraryMode'],
+      ['aml-active-library', 'activeLibraryId'],
+      ['aml-active-project', 'activeProjectId'],
+      ['aml-schedule-version', 'scheduleVersion'],
+    ];
+    map.forEach(([lsKey, uiKey]) => {
+      const v = readLSRaw(lsKey);
+      if (v) ui[uiKey] = v;
+    });
+    return ui;
+  }
+  function readLSJson(key) {
+    try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
+    catch { return null; }
+  }
+  function readLSRaw(key) {
+    try { return localStorage.getItem(key) || null; } catch { return null; }
+  }
+
+  // ───── Render ─────
+  const lastSavedLabel = saveState.lastSavedAt
+    ? formatRelativeTime(saveState.lastSavedAt)
+    : '—';
+
+  return (
+    <section style={{ maxWidth: 720 }}>
+      <SectionHeader kicker="09" title="Cloud" subtitle={
+        'Workspace sync. All persistent data lives in the shared Supabase ' +
+        'workspace; this page surfaces account info and one-time migration ' +
+        'tools for moving legacy browser data into the cloud.'} />
+
+      <SubsectionHeader>Account</SubsectionHeader>
+      <SettingRow label="Signed in as" description="The email associated with this device's session.">
+        <span style={{ ...ui.mono, fontSize: 12, color: 'var(--ink-2)' }}>{email || '—'}</span>
+      </SettingRow>
+      <SettingRow label="Last save" description="When this device most recently completed a cloud write.">
+        <span style={{ ...ui.mono, fontSize: 12, color: saveState.lastError ? '#c54a3b' : 'var(--ink-2)' }}>
+          {saveState.lastError ? 'Failed: ' + saveState.lastError : lastSavedLabel}
+        </span>
+      </SettingRow>
+      <SettingRow label="Sign out" description="Ends this device's session. Cloud data is unaffected.">
+        <DataButton onClick={onSignOut} disabled={busy === 'signout'}>
+          {busy === 'signout' ? 'Signing out…' : 'Sign out'}
+        </DataButton>
+      </SettingRow>
+
+      <SubsectionHeader>Migration</SubsectionHeader>
+      <SettingRow
+        label="Migrate browser data → cloud"
+        description={
+          'Uploads everything in this browser\'s localStorage to the shared ' +
+          'workspace. Safe to re-run — only inserts items missing from cloud, ' +
+          'never overwrites. Your browser data is NOT deleted by this action.'}>
+        <DataButton onClick={onMigrate} disabled={!!busy}>
+          {busy === 'migrate' ? 'Migrating…' : 'Start migration'}
+        </DataButton>
+      </SettingRow>
+
+      <SubsectionHeader>Workspace</SubsectionHeader>
+      <SettingRow
+        label="Seed workspace"
+        description={
+          'Populates this workspace with the example projects, materials, ' +
+          'and libraries. Only use on a fresh workspace — running on an ' +
+          'existing workspace will add duplicates if you have edited the ' +
+          'starter items.'}>
+        <DataButton onClick={onSeed} disabled={!!busy}>
+          {busy === 'seed' ? 'Seeding…' : 'Seed workspace'}
+        </DataButton>
+      </SettingRow>
+      <SettingRow
+        label="Clear browser leftovers"
+        description={
+          'Removes all aml-* keys from this browser\'s localStorage. Use ' +
+          'after confirming your data is safely in the cloud (sign in on ' +
+          'another device and check). This cannot be undone.'}>
+        <DataButton onClick={onClear} danger disabled={!!busy}>
+          {busy === 'clear' ? 'Clearing…' : 'Clear localStorage'}
+        </DataButton>
+      </SettingRow>
+
+      {(progress || done || err) && (
+        <div style={{
+          marginTop: 28, padding: '14px 18px',
+          background: err ? 'rgba(197, 74, 59, 0.08)' : 'var(--tint)',
+          border: '1px solid ' + (err ? 'rgba(197, 74, 59, 0.3)' : 'var(--rule)'),
+          borderRadius: 2, fontSize: 13, lineHeight: 1.5,
+        }}>
+          {progress && (
+            <div style={{ ...ui.mono, fontSize: 11, color: 'var(--ink-3)',
+              letterSpacing: '0.08em' }}>
+              {progress.line}{progress.total
+                ? ` (${progress.current} / ${progress.total})` : ''}
+            </div>
+          )}
+          {done && (
+            <div>
+              <div style={{ ...ui.mono, fontSize: 11, letterSpacing: '0.14em',
+                textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 6 }}>
+                {done.kind === 'migrate' && 'Migration complete'}
+                {done.kind === 'seed' && 'Seed complete'}
+                {done.kind === 'clear' && 'Cleared'}
+              </div>
+              <div style={{ color: 'var(--ink-2)' }}>
+                {done.kind === 'clear'
+                  ? `Removed ${done.summary.removed} key${done.summary.removed === 1 ? '' : 's'} from localStorage.`
+                  : Object.entries(done.summary)
+                      .filter(([_, v]) => v > 0)
+                      .map(([k, v]) => `${v} ${k}`).join(' · ') || 'Nothing to do — cloud already populated.'}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <DataButton onClick={() => location.reload()}>
+                  Refresh app
+                </DataButton>
+              </div>
+            </div>
+          )}
+          {err && (
+            <div>
+              <div style={{ ...ui.mono, fontSize: 11, letterSpacing: '0.14em',
+                textTransform: 'uppercase', color: '#c54a3b', marginBottom: 6 }}>
+                Failed
+              </div>
+              <div style={{ color: '#7a2412' }}>{err}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function formatRelativeTime(ts) {
+  const ms = Date.now() - ts;
+  const s = Math.round(ms / 1000);
+  if (s < 5)    return 'just now';
+  if (s < 60)   return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60)   return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24)   return `${h}h ago`;
+  return new Date(ts).toLocaleString();
+}
+
 function DataSection({ settings, materials, projects, libraries, labelTemplates,
   setSettings, onRestoreSeed, onImport }) {
   const fileRef = React.useRef();
@@ -1105,21 +1485,23 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
   );
 }
 
-function DataButton({ children, onClick, danger }) {
+function DataButton({ children, onClick, danger, disabled }) {
   const [hover, setHover] = React.useState(false);
+  const showHover = hover && !disabled;
   return (
-    <button type="button" onClick={onClick}
+    <button type="button" onClick={onClick} disabled={disabled}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
         padding: '9px 18px',
-        background: hover ? 'var(--ink)' : 'transparent',
-        color: hover ? 'var(--paper)' : (danger ? 'var(--ink)' : 'var(--ink)'),
-        border: '1px solid ' + (danger ? 'var(--ink)' : 'var(--ink)'),
+        background: showHover ? 'var(--ink)' : 'transparent',
+        color: showHover ? 'var(--paper)' : 'var(--ink)',
+        border: '1px solid ' + (disabled ? 'var(--rule-2)' : 'var(--ink)'),
+        opacity: disabled ? 0.5 : 1,
         fontFamily: "'Inter Tight', var(--font-sans, system-ui), sans-serif",
         fontSize: 11.5, fontWeight: 500,
         letterSpacing: '0.06em', textTransform: 'uppercase',
-        cursor: 'pointer',
+        cursor: disabled ? 'wait' : 'pointer',
       }}>
       {children}
     </button>
