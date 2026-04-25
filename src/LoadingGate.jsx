@@ -25,11 +25,13 @@
 // cloud.deleteItem. Identical-by-reference items are skipped — React's
 // immutable-update pattern means changed items get fresh refs anyway.
 //
-// What stays in localStorage (not migrated):
+// What stays in localStorage (not migrated — per-device ephemeral prefs):
 //   • Supabase session (SDK-managed, unavoidable)
-//   • aml-table-density, aml-dt-* (per-device UI ergonomic prefs)
-//   • aml-desktop-view (per-device viewport)
-//   • aml-schedule-* and aml-spec-* (per-project blobs — Phase 4 moves these)
+//   • aml-table-density, aml-dt-* (table density / column widths)
+//   • aml-desktop-view (viewport mode toggle)
+//   • aml-gallery-sidebar, aml-kind-filter, aml-cs-*, aml-cs-mode,
+//     aml-cs-rowshape (gallery/schedule ephemeral filters)
+// Everything else (settings, ui.*, collections, schedules, specs) is in cloud.
 
 (function () {
   const { useState, useEffect, useCallback, useMemo, useRef, useContext, createContext } = React;

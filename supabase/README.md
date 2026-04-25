@@ -48,10 +48,12 @@ To confirm RLS is working: use the Supabase API explorer with an authenticated t
 - Per-project cost schedules and specs
 - App settings, UI state, seed version
 
-**Browser localStorage only (per-device):**
-- Supabase session cookie (SDK-managed)
-- `aml-table-density` — table row density preference
-- `aml-dt-*` — column width preferences per table
+**Browser localStorage only (per-device ephemeral prefs):**
+- Supabase session (SDK-managed, unavoidable)
+- `aml-table-density`, `aml-dt-*` — table density / column widths
+- `aml-desktop-view` — viewport mode toggle
+- `aml-gallery-sidebar`, `aml-kind-filter` — gallery filter state
+- `aml-cs-*`, `aml-cs-mode`, `aml-cs-rowshape` — schedule/gallery display filters
 
 ## Emergency: reset the workspace
 

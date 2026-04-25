@@ -8,11 +8,12 @@
 //   • beforeunload flush via customFetch with keepalive=true.
 //   • Save status bus for the chrome indicator.
 //
-// What stays in localStorage (NOT migrated):
-//   • Supabase session (SDK-managed, unavoidable).
-//   • aml-table-density — per-device UI ergonomic.
-//   • aml-dt-* — DataTable column widths, per-device.
-// Everything else lives in Supabase.
+// What stays in localStorage (per-device ephemeral prefs — NOT migrated):
+//   • Supabase session (SDK-managed, unavoidable)
+//   • aml-table-density, aml-dt-* (table density / column widths)
+//   • aml-desktop-view, aml-gallery-sidebar, aml-kind-filter
+//   • aml-cs-*, aml-cs-mode, aml-cs-rowshape (schedule/gallery filters)
+// Everything else (settings, ui, collections, schedules, specs) lives in Supabase.
 
 (function () {
   if (typeof window.supabase === 'undefined') {

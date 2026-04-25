@@ -1,19 +1,18 @@
 // SettingsPage — dedicated view, left-rail navigation, live preview.
 // Each section is a component in this file. Changes apply immediately
-// and persist to localStorage via the parent's setSettings.
+// and persist to cloud via setSettings / setUi.
 
 function SettingsPage({
   settings, setSettings,
   materials, projects, libraries, labelTemplates,
   onRestoreSeed, onImport, onClose,
 }) {
-  const [section, setSection] = React.useState(() => {
-    try { return localStorage.getItem('aml-settings-section') || 'appearance'; }
-    catch { return 'appearance'; }
-  });
-  React.useEffect(() => {
-    try { localStorage.setItem('aml-settings-section', section); } catch {}
-  }, [section]);
+  const cs = window.useCloudState();
+  const section = cs.ui.settingsSection || 'appearance';
+  const setSection = React.useCallback(
+    (v) => cs.setUi({ settingsSection: v }),
+    [cs.setUi],
+  );
 
   // Shortcut helper
   function set(key, value) {
