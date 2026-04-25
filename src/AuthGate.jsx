@@ -24,6 +24,11 @@
     // SDK events (TOKEN_REFRESHED, USER_UPDATED, focus-triggered re-validation)
     // don't bounce the UI back to "Checking access…".
     const verifiedUserId = useRef(null);
+    // Dedupe parallel access checks for the same user. INITIAL_SESSION and
+    // SIGNED_IN can fire back-to-back, both slipping past the verifiedUserId
+    // check while still null; without this, both fire RPCs in parallel and the
+    // slower one's timeout can sign the user out even after the fast one won.
+    const checkInFlight = useRef(null);
 
     useEffect(() => {
       if (!window.cloud) {
@@ -58,6 +63,12 @@
 
         // First time seeing this user (or a different user) — verify access.
         setSession(sess);
+        // Dedupe: if we already have a check in flight for this same user,
+        // skip silently. The original handler will set state when it resolves.
+        if (checkInFlight.current === sess.user.id) {
+          return;
+        }
+        checkInFlight.current = sess.user.id;
         setStatus('checking');
         try {
           const allowed = await window.cloud.isAllowedUser();
@@ -69,9 +80,21 @@
           setError(null);
           setStatus('ready');
         } catch (err) {
-          console.error('[AuthGate] access check failed:', err);
-          setError('Could not reach the workspace. Check your connection.');
-          setStatus('signin');
+          // Timeout on a healthy session: don't bounce to sign-in (which is
+          // both confusing and wrong — the user is signed in, just couldn't
+          // reach the allowlist RPC). Stay on 'checking'; the next auth event
+          // (TOKEN_REFRESHED, visibility change, etc.) will retry.
+          if (/timed out/.test(String(err && err.message))) {
+            console.warn('[AuthGate] access check timed out, awaiting next auth event:', err);
+          } else {
+            console.error('[AuthGate] access check failed:', err);
+            setError('Could not reach the workspace. Check your connection.');
+            setStatus('signin');
+          }
+        } finally {
+          if (checkInFlight.current === sess.user.id) {
+            checkInFlight.current = null;
+          }
         }
       });
 
