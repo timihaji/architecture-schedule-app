@@ -49,6 +49,13 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
 
   const [drawer, setDrawer] = React.useState(null);  // { trade } | null
   const [tagFilter, setTagFilter] = React.useState(null);
+  const [specMode, setSpecMode] = React.useState(() => {
+    try { return localStorage.getItem('aml-spec-mode') || 'list'; } catch { return 'list'; }
+  });
+  function setSpecModePersist(v) {
+    setSpecMode(v);
+    try { localStorage.setItem('aml-spec-mode', v); } catch {}
+  }
 
   const update = (fn) => setSpec(s => fn(s));
 
@@ -66,6 +73,8 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
         tags: [],
         note: '',
         componentType: null,
+        status: 'specified',
+        rooms: [],
       };
       const sections = s.sections.slice();
       let idx = sections.findIndex(sec => sec.trade === trade);
@@ -152,46 +161,62 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
         itemCount={itemCount}
         grand={totals.grand}
         onTitleChange={v => update(s => ({ ...s, title: v }))}
+        specMode={specMode}
+        setSpecMode={setSpecModePersist}
       />
 
-      {allTags.length > 0 && (
-        <div style={{
-          display: 'flex', gap: 6, alignItems: 'baseline',
-          padding: '0 0 18px',
-          flexWrap: 'wrap',
-        }}>
-          <Eyebrow style={{ marginRight: 8 }}>Filter by tag</Eyebrow>
-          <TagPill label="All" active={!tagFilter} onClick={() => setTagFilter(null)} />
-          {allTags.map(t => (
-            <TagPill key={t} label={t} active={tagFilter === t}
-              onClick={() => setTagFilter(tagFilter === t ? null : t)} />
-          ))}
-        </div>
-      )}
-
-      {spec.sections.length === 0 && (
-        <EmptyState onPick={t => { addSection(t); setDrawer({ trade: t }); }} />
-      )}
-
-      {spec.sections.map(sec => (
-        <TradeSection
-          key={sec.trade}
-          trade={sec.trade}
-          rowIds={sec.rowIds}
-          rows={spec.rows}
+      {specMode === 'register' ? (
+        <window.ProjectSpecV2
+          spec={spec}
+          project={project}
           materials={materials}
           labelTemplates={labelTemplates}
-          subtotal={totals.bySection[sec.trade] || 0}
-          tagFilter={tagFilter}
-          onAdd={() => setDrawer({ trade: sec.trade })}
-          onRemoveRow={removeRow}
           onUpdateRow={updateRow}
+          onRemoveRow={removeRow}
+          onAddItem={(trade) => { addSection(trade); setDrawer({ trade }); }}
         />
-      ))}
+      ) : (
+        <>
+          {allTags.length > 0 && (
+            <div style={{
+              display: 'flex', gap: 6, alignItems: 'baseline',
+              padding: '0 0 18px',
+              flexWrap: 'wrap',
+            }}>
+              <Eyebrow style={{ marginRight: 8 }}>Filter by tag</Eyebrow>
+              <TagPill label="All" active={!tagFilter} onClick={() => setTagFilter(null)} />
+              {allTags.map(t => (
+                <TagPill key={t} label={t} active={tagFilter === t}
+                  onClick={() => setTagFilter(tagFilter === t ? null : t)} />
+              ))}
+            </div>
+          )}
 
-      {/* Add trade section button */}
-      {spec.sections.length > 0 && (
-        <AddTradeRow existing={spec.sections.map(s => s.trade)} onAdd={addSection} />
+          {spec.sections.length === 0 && (
+            <EmptyState onPick={t => { addSection(t); setDrawer({ trade: t }); }} />
+          )}
+
+          {spec.sections.map(sec => (
+            <TradeSection
+              key={sec.trade}
+              trade={sec.trade}
+              rowIds={sec.rowIds}
+              rows={spec.rows}
+              materials={materials}
+              labelTemplates={labelTemplates}
+              subtotal={totals.bySection[sec.trade] || 0}
+              tagFilter={tagFilter}
+              onAdd={() => setDrawer({ trade: sec.trade })}
+              onRemoveRow={removeRow}
+              onUpdateRow={updateRow}
+            />
+          ))}
+
+          {/* Add trade section button */}
+          {spec.sections.length > 0 && (
+            <AddTradeRow existing={spec.sections.map(s => s.trade)} onAdd={addSection} />
+          )}
+        </>
       )}
 
       {drawer && (
@@ -211,8 +236,10 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
 
 // ───────── Header (project switcher + title + summary) ─────────
 
-function SpecHeader({ spec, project, projects, setActiveProjectId, itemCount, grand, onTitleChange }) {
+function SpecHeader({ spec, project, projects, setActiveProjectId, itemCount, grand, onTitleChange,
+  specMode, setSpecMode }) {
   const [editingTitle, setEditingTitle] = React.useState(false);
+  const ModeToggle = window.ModeToggle;
   return (
     <header style={{ marginBottom: 28 }}>
       <div style={{
@@ -260,6 +287,15 @@ function SpecHeader({ spec, project, projects, setActiveProjectId, itemCount, gr
         <div style={{ display: 'flex', gap: 32, alignItems: 'baseline' }}>
           <Stat label="Items" value={itemCount} />
           <Stat label="Indicative total" value={grand ? fmtCurrency(grand) : '—'} big />
+          <div style={{ textAlign: 'right' }}>
+            <Eyebrow style={{ marginBottom: 6 }}>View</Eyebrow>
+            {ModeToggle && (
+              <ModeToggle mode={specMode} setMode={setSpecMode} modes={[
+                { id: 'list',     label: 'List',     icon: '≡' },
+                { id: 'register', label: 'Register', icon: '▦' },
+              ]} />
+            )}
+          </div>
           <div style={{ textAlign: 'right' }}>
             <Eyebrow style={{ marginBottom: 6 }}>Project</Eyebrow>
             <select value={project.id} onChange={e => setActiveProjectId(e.target.value)}
@@ -744,7 +780,17 @@ const smallIconBtn = {
 function transformSpec(raw) {
   if (!raw) return null;
   if (!raw.rows || !raw.sections) return null;  // malformed → null → fallback
-  return { title: raw.title || 'Project Specification', ...raw };
+  // v2 register fields default lazily — older rows persist with these once edited
+  const rows = {};
+  for (const id in raw.rows) {
+    const r = raw.rows[id];
+    rows[id] = {
+      ...r,
+      status: r.status || 'specified',
+      rooms: Array.isArray(r.rooms) ? r.rooms : [],
+    };
+  }
+  return { title: raw.title || 'Project Specification', ...raw, rows };
 }
 
 // Returns the seed-or-blank spec for a project when neither cloud nor

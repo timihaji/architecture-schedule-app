@@ -13,6 +13,7 @@
 //   • aml-table-density, aml-dt-* (table density / column widths)
 //   • aml-desktop-view, aml-gallery-sidebar, aml-kind-filter
 //   • aml-cs-*, aml-cs-mode, aml-cs-rowshape (schedule/gallery filters)
+//   • aml-spec-mode, aml-spec-cols (spec view + per-trade column visibility)
 // Everything else (settings, ui, collections, schedules, specs) lives in Supabase.
 
 (function () {

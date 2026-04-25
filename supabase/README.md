@@ -54,6 +54,8 @@ To confirm RLS is working: use the Supabase API explorer with an authenticated t
 - `aml-desktop-view` — viewport mode toggle
 - `aml-gallery-sidebar`, `aml-kind-filter` — gallery filter state
 - `aml-cs-*`, `aml-cs-mode`, `aml-cs-rowshape` — schedule/gallery display filters
+- `aml-spec-mode` — spec view: List vs Register
+- `aml-spec-cols` — Register view: per-trade column visibility
 
 ## Emergency: reset the workspace
 

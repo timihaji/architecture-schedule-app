@@ -1156,17 +1156,18 @@ function CompareStrip({ ids, materials, labelTemplates, onClose }) {
 Object.assign(window, { Library });
 
 // ───────── Gallery / Table mode toggle ─────────
-function ModeToggle({ mode, setMode }) {
+function ModeToggle({ mode, setMode, modes }) {
+  const items = modes || [
+    { id: 'gallery', label: 'Gallery', icon: '▦' },
+    { id: 'table',   label: 'Table',   icon: '≡' },
+  ];
   return (
     <div style={{
       display: 'inline-flex', alignItems: 'stretch',
       border: '1px solid var(--rule-2)',
       height: 26,
     }}>
-      {[
-        { id: 'gallery', label: 'Gallery', icon: '▦' },
-        { id: 'table',   label: 'Table',   icon: '≡' },
-      ].map((m, i) => {
+      {items.map((m, i) => {
         const active = mode === m.id;
         return (
           <button key={m.id} type="button"
