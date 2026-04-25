@@ -1,5 +1,7 @@
 # Local Claude Code settings (machine-specific)
 .claude/settings.local.json
+.claude/launch.json
+.claude/serve.py
 
 # OS junk
 .DS_Store

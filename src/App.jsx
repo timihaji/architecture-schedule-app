@@ -2206,4 +2206,14 @@ function CustomNameBar({ draft, set, labelTemplates, onOpenLabelBuilder }) {
 }
 Object.assign(window, { CustomNameBar });
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+// Phase 1b: wrap App in AuthGate so the cloud session is required before
+// any UI renders. App itself still reads/writes localStorage in this phase;
+// the cloud-backed state migration begins in Phase 2.
+const RootGate = window.AuthGate;
+const rootEl = document.getElementById('root');
+if (RootGate) {
+  ReactDOM.createRoot(rootEl).render(<RootGate><App /></RootGate>);
+} else {
+  console.error('[boot] window.AuthGate missing — cloud module failed to load. Rendering app without auth gate.');
+  ReactDOM.createRoot(rootEl).render(<App />);
+}
