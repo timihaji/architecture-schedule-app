@@ -1,30 +1,60 @@
-// src/LoadingGate.jsx — hydrates the cloud-backed app_state singleton and
-// exposes it to children via React context.
+// src/LoadingGate.jsx — hydrates the cloud workspace on top of AuthGate's
+// "ready" state, then exposes everything via React context.
 //
-// Runs after AuthGate confirms the user is authenticated + allowlisted.
-// Renders a skeleton while loading, an error screen on failure, or the
-// children wrapped in <CloudStateContext.Provider> on success.
+// Loads in parallel: app_state (singleton) + materials + projects + libraries
+// + label_templates. Renders a skeleton during load, an error screen on
+// failure, or the children wrapped in <CloudStateContext.Provider> on success.
 //
-// One-time silent migration: on first load, if cloud appState lacks a
-// `settings` or `ui` key, copy the corresponding values from localStorage
-// (aml-settings, aml-view, aml-library-mode, aml-active-library, etc.) and
-// push back to cloud. Idempotent — only fills missing keys, never overwrites
-// cloud data. The user's existing browser-local settings persist seamlessly.
+// One-time silent migration from localStorage:
+//   • appState keys (settings, ui.*, seed_version, label_templates) — Phase 2/3
+//   • collections (aml-materials, aml-projects, aml-libraries) — Phase 3
+// Idempotent — only fills cloud rows that are empty/missing. Never overwrites.
 //
-// Phase 2 scope:
-//   • settings  → app_state.data.settings  (full blob)
-//   • ui.view, ui.libraryMode, ui.activeLibraryId, ui.activeProjectId,
-//     ui.scheduleVersion  → app_state.data.ui.<key>
-// Materials/projects/libraries stay localStorage-backed in Phase 2.
+// label_templates is a singleton object ({ global, byCategory }), not a
+// collection — it lives inside appState.label_templates alongside settings.
+// The label_templates Postgres table from schema.sql is unused after Phase 3
+// (kept around so older deployments don't break; safe to drop in cleanup).
+//
+// Seed backfill: if appState.seed_version < SEED_VERSION (the constant defined
+// in App.jsx), append any new starter materials the user doesn't already have
+// (matched by id) and bump appState.seed_version. Runs once per version bump.
+//
+// Setters (setMaterials, setProjects, setLibraries, setLabelTemplates) take
+// either a value or an updater function. The new list is diffed against the
+// previous: added/changed items go to cloud.upsertItem, removed items go to
+// cloud.deleteItem. Identical-by-reference items are skipped — React's
+// immutable-update pattern means changed items get fresh refs anyway.
+//
+// What stays in localStorage (not migrated):
+//   • Supabase session (SDK-managed, unavoidable)
+//   • aml-table-density, aml-dt-* (per-device UI ergonomic prefs)
+//   • aml-desktop-view (per-device viewport)
+//   • aml-schedule-* and aml-spec-* (per-project blobs — Phase 4 moves these)
 
 (function () {
-  const { useState, useEffect, useCallback, useMemo, useContext, createContext } = React;
+  const { useState, useEffect, useCallback, useMemo, useRef, useContext, createContext } = React;
 
   const CloudStateContext = createContext(null);
 
+  // ─────────────────────────────────────────────
+  // Component
+  // ─────────────────────────────────────────────
   function LoadingGate({ children }) {
+    // Hydrated state. null = still loading.
     const [appState, _setAppState] = useState(null);
+    const [materials, _setMaterials] = useState(null);
+    const [projects, _setProjects] = useState(null);
+    const [libraries, _setLibraries] = useState(null);
+    // labelTemplates is a SINGLETON config object ({ global, byCategory }),
+    // not a collection — lives inside appState.label_templates. No separate
+    // useState needed; it's derived from appState below.
     const [error, setError] = useState(null);
+
+    // Cloud sync gating: setters only push to cloud once initial hydration is
+    // complete. Otherwise the migration phase would race with itself (the
+    // initial _setX would diff against null and try to push everything again,
+    // duplicating writes already done during migration).
+    const cloudSyncReady = useRef(false);
 
     useEffect(() => {
       let cancelled = false;
@@ -34,35 +64,31 @@
           return;
         }
         try {
-          let cloudState = await window.cloud.loadAppState();
-          if (!cloudState || typeof cloudState !== 'object') cloudState = {};
-
-          const migrated = autoMigrateFromLocalStorage(cloudState);
-          if (migrated.changed) {
-            try {
-              await window.cloud.saveAppStateNow(migrated.state);
-            } catch (err) {
-              console.error('[LoadingGate] one-time migration save failed:', err);
-              // Continue anyway — user can keep working; future edits will save.
-            }
-          }
+          const result = await hydrateAll();
           if (cancelled) return;
-          _setAppState(migrated.state);
+          // Set all state synchronously so the first context value has
+          // everything, not a stream of partial states.
+          _setAppState(result.appState);
+          _setMaterials(result.materials);
+          _setProjects(result.projects);
+          _setLibraries(result.libraries);
+          // Enable cloud sync for subsequent setter calls.
+          cloudSyncReady.current = true;
         } catch (err) {
-          console.error('[LoadingGate] loadAppState failed:', err);
+          console.error('[LoadingGate] hydrate failed:', err);
           if (!cancelled) setError(err);
         }
       })();
       return () => { cancelled = true; };
     }, []);
 
-    // Stable setters — closure-only references to _setAppState and window.cloud.
+    // ───── Singleton (appState) setters ─────
     const setSettings = useCallback((updater) => {
       _setAppState(prev => {
         const prevSettings = (prev && prev.settings) || {};
         const nextSettings = typeof updater === 'function' ? updater(prevSettings) : updater;
         const nextState = { ...(prev || {}), settings: nextSettings };
-        if (window.cloud) window.cloud.saveAppState(nextState);
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
         return nextState;
       });
     }, []);
@@ -74,22 +100,75 @@
           ? patchOrUpdater(prevUi)
           : { ...prevUi, ...patchOrUpdater };
         const nextState = { ...(prev || {}), ui: nextUi };
-        if (window.cloud) window.cloud.saveAppState(nextState);
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
         return nextState;
       });
     }, []);
 
-    const ctxValue = useMemo(() => ({
-      settings: mergeWithSettingsDefaults(appState && appState.settings),
-      ui: (appState && appState.ui) || {},
-      seedVersion: (appState && appState.seed_version) || 0,
-      setSettings,
-      setUi,
-      _appState: appState,
-    }), [appState, setSettings, setUi]);
+    const setSeedVersion = useCallback((n) => {
+      _setAppState(prev => {
+        const nextState = { ...(prev || {}), seed_version: n };
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
+        return nextState;
+      });
+    }, []);
 
-    if (error)        return <ErrorScreen error={error} />;
-    if (!appState)    return <SkeletonScreen />;
+    const setLabelTemplates = useCallback((updater) => {
+      _setAppState(prev => {
+        const prevTpl = (prev && prev.label_templates) || (window.DEFAULT_TEMPLATES || {});
+        const nextTpl = typeof updater === 'function' ? updater(prevTpl) : updater;
+        const nextState = { ...(prev || {}), label_templates: nextTpl };
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
+        return nextState;
+      });
+    }, []);
+
+    // ───── Collection setters: diff prev vs next, push add/update/delete ─────
+    const makeCollectionSetter = (table, setter) => (updater) => {
+      setter(prev => {
+        const next = typeof updater === 'function' ? updater(prev || []) : (updater || []);
+        if (cloudSyncReady.current && window.cloud) {
+          const { additions, updates, deletions } = diffCollection(prev || [], next);
+          additions.forEach(item => window.cloud.upsertItem(table, item.id, item));
+          updates.forEach(item => window.cloud.upsertItem(table, item.id, item));
+          deletions.forEach(item => {
+            window.cloud.deleteItem(table, item.id).catch(err => {
+              console.error(`[LoadingGate] delete failed: ${table}/${item.id}`, err);
+            });
+          });
+        }
+        return next;
+      });
+    };
+
+    const setMaterials = useCallback(makeCollectionSetter('materials', _setMaterials), []);
+    const setProjects  = useCallback(makeCollectionSetter('projects',  _setProjects),  []);
+    const setLibraries = useCallback(makeCollectionSetter('libraries', _setLibraries), []);
+
+    const ctxValue = useMemo(() => ({
+      // Singleton
+      settings:       mergeWithSettingsDefaults(appState && appState.settings),
+      ui:             (appState && appState.ui) || {},
+      seedVersion:    (appState && appState.seed_version) || 0,
+      labelTemplates: (appState && appState.label_templates) || (window.DEFAULT_TEMPLATES || {}),
+      setSettings, setUi, setSeedVersion, setLabelTemplates,
+      // Collections
+      materials: materials || [],
+      projects:  projects  || [],
+      libraries: libraries || [],
+      setMaterials, setProjects, setLibraries,
+      // Diagnostic / Phase 5+ access
+      _appState: appState,
+    }), [
+      appState, materials, projects, libraries,
+      setSettings, setUi, setSeedVersion, setLabelTemplates,
+      setMaterials, setProjects, setLibraries,
+    ]);
+
+    if (error) return <ErrorScreen error={error} />;
+    if (appState === null || materials === null || projects === null || libraries === null) {
+      return <SkeletonScreen />;
+    }
 
     return (
       <CloudStateContext.Provider value={ctxValue}>
@@ -107,41 +186,165 @@
   }
 
   // ─────────────────────────────────────────────
-  // One-time migration helpers
+  // Hydration orchestration
   // ─────────────────────────────────────────────
-  function autoMigrateFromLocalStorage(cloudState) {
-    let changed = false;
-    const state = { ...cloudState };
+  async function hydrateAll() {
+    // 1. Parallel cloud load. label_templates is a singleton — it lives
+    //    inside appState (not as a collection), so no separate load.
+    const [appStateRaw, materialsCloud, projectsCloud, librariesCloud] =
+      await Promise.all([
+        window.cloud.loadAppState().then(x => (x && typeof x === 'object') ? x : {}),
+        window.cloud.loadCollection('materials'),
+        window.cloud.loadCollection('projects'),
+        window.cloud.loadCollection('libraries'),
+      ]);
 
-    if (!state.settings) {
-      const local = readLSJson('aml-settings');
-      if (local && typeof local === 'object') {
-        state.settings = local;
-        changed = true;
+    // 2. Mutable working state. We accumulate migrations; one final
+    //    saveAppStateNow at the end pushes any singleton changes.
+    let appState = { ...appStateRaw };
+    let appStateChanged = false;
+
+    // 3. Auto-migrate appState keys from localStorage:
+    //    Phase 2: settings, ui, seed_version
+    //    Phase 3: label_templates
+    if (!appState.settings) {
+      const v = readLSJson('aml-settings');
+      if (v && typeof v === 'object') { appState.settings = v; appStateChanged = true; }
+    }
+    if (!appState.ui) {
+      const ui = collectLegacyUiKeys();
+      if (Object.keys(ui).length > 0) { appState.ui = ui; appStateChanged = true; }
+    }
+    if (appState.seed_version == null) {
+      const ver = readLSRaw('aml-seed-version');
+      if (ver) {
+        const n = parseInt(ver, 10);
+        if (!isNaN(n)) { appState.seed_version = n; appStateChanged = true; }
+      }
+    }
+    if (!appState.label_templates) {
+      const v = readLSJson('aml-label-templates');
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        appState.label_templates = v;
+        appStateChanged = true;
       }
     }
 
-    if (!state.ui) {
-      const ui = {};
-      const view             = readLSRaw('aml-view');
-      const libraryMode      = readLSRaw('aml-library-mode');
-      const activeLibraryId  = readLSRaw('aml-active-library');
-      const activeProjectId  = readLSRaw('aml-active-project');
-      const scheduleVersion  = readLSRaw('aml-schedule-version');
+    // 4. Migrate collections. For each: if cloud is empty, try localStorage;
+    //    if also empty, leave empty (Phase 5 ships the explicit seed button).
+    let materials = materialsCloud;
+    let projects  = projectsCloud;
+    let libraries = librariesCloud;
 
-      if (view)             ui.view = view;
-      if (libraryMode)      ui.libraryMode = libraryMode;
-      if (activeLibraryId)  ui.activeLibraryId = activeLibraryId;
-      if (activeProjectId)  ui.activeProjectId = activeProjectId;
-      if (scheduleVersion)  ui.scheduleVersion = scheduleVersion;
-
-      if (Object.keys(ui).length > 0) {
-        state.ui = ui;
-        changed = true;
+    if (materials.length === 0) {
+      const local = readLSJson('aml-materials');
+      if (Array.isArray(local) && local.length > 0) {
+        materials = (window.migrateMaterials || identity)(local);
+        await pushAllSequential('materials', materials);
+      }
+    }
+    if (projects.length === 0) {
+      const local = readLSJson('aml-projects');
+      if (Array.isArray(local) && local.length > 0) {
+        projects = (window.migrateProjects || identity)(local);
+        await pushAllSequential('projects', projects);
+      }
+    }
+    if (libraries.length === 0) {
+      const local = readLSJson('aml-libraries');
+      if (Array.isArray(local) && local.length > 0) {
+        libraries = (window.migrateLibraries || identity)(local);
+        await pushAllSequential('libraries', libraries);
       }
     }
 
-    return { state, changed };
+    // 5. Seed backfill for materials. Idempotent: items already in `materials`
+    //    are skipped by id. Bumps appState.seed_version regardless of whether
+    //    items were added so we don't run this on every load.
+    if (window.SEED_VERSION != null && window.backfillMaterialsFromSeed) {
+      const currentSeed = (appState.seed_version | 0);
+      if (currentSeed < window.SEED_VERSION) {
+        const { items, added, newSeedVer } = window.backfillMaterialsFromSeed(materials, currentSeed);
+        if (added.length > 0) {
+          await pushAllSequential('materials', added);
+          materials = items;
+        }
+        if (newSeedVer !== currentSeed) {
+          appState = { ...appState, seed_version: newSeedVer };
+          appStateChanged = true;
+        }
+      }
+    }
+
+    // 6. Push singleton if anything changed.
+    if (appStateChanged) {
+      try {
+        await window.cloud.saveAppStateNow(appState);
+      } catch (err) {
+        console.error('[LoadingGate] singleton migration save failed:', err);
+        // Non-fatal — user can continue; future edits will retry.
+      }
+    }
+
+    return { appState, materials, projects, libraries };
+  }
+
+  // ─────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────
+  function diffCollection(oldList, newList) {
+    const oldById = new Map();
+    for (const item of oldList) oldById.set(item.id, item);
+
+    const additions = [];
+    const updates = [];
+    for (const item of newList) {
+      const old = oldById.get(item.id);
+      if (!old) {
+        additions.push(item);
+      } else if (old !== item) {
+        // React's immutable-update pattern: changed items get fresh references.
+        // Reference equality is sufficient and avoids deep-equal cost.
+        updates.push(item);
+      }
+    }
+
+    const newIds = new Set();
+    for (const item of newList) newIds.add(item.id);
+    const deletions = oldList.filter(item => !newIds.has(item.id));
+
+    return { additions, updates, deletions };
+  }
+
+  // Sequential to keep the migration burst polite to Supabase. For 200 items
+  // at ~50ms/round-trip, a one-time migration takes ~10s. Acceptable.
+  async function pushAllSequential(table, items) {
+    for (const item of items) {
+      try {
+        await window.cloud.upsertItemNow(table, item.id, item);
+      } catch (err) {
+        console.error(`[LoadingGate] migration upsert failed: ${table}/${item.id}`, err);
+        // Continue — partial migration is recoverable on next load (cloud
+        // will be partially populated; remaining items still in localStorage
+        // — but cloud.length > 0 means we won't re-migrate. So if any items
+        // failed here, the user will lose them on reload. Worth surfacing.)
+      }
+    }
+  }
+
+  function collectLegacyUiKeys() {
+    const ui = {};
+    const view             = readLSRaw('aml-view');
+    const libraryMode      = readLSRaw('aml-library-mode');
+    const activeLibraryId  = readLSRaw('aml-active-library');
+    const activeProjectId  = readLSRaw('aml-active-project');
+    const scheduleVersion  = readLSRaw('aml-schedule-version');
+    if (view)            ui.view = view;
+    if (libraryMode)     ui.libraryMode = libraryMode;
+    if (activeLibraryId) ui.activeLibraryId = activeLibraryId;
+    if (activeProjectId) ui.activeProjectId = activeProjectId;
+    if (scheduleVersion) ui.scheduleVersion = scheduleVersion;
+    return ui;
   }
 
   function readLSJson(key) {
@@ -166,6 +369,8 @@
     const defaults = window.SETTINGS_DEFAULTS || {};
     return { ...defaults, ...(s || {}) };
   }
+
+  function identity(x) { return x; }
 
   // ─────────────────────────────────────────────
   // Screens
