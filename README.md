@@ -1,5 +1,7 @@
 # Architecture Material Library
 
+**[timihajnady.github.io/architecture-schedule-app](https://timihajnady.github.io/architecture-schedule-app)**
+
 A personal workspace for managing architectural materials, cost schedules, and project specs. Built as a static single-page app backed by Supabase for cloud sync.
 
 ## Running locally
