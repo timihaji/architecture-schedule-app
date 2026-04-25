@@ -141,6 +141,17 @@
     if (error) throw error;
     return data.session;
   }
+  async function signUp(email, password) {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin + window.location.pathname,
+      },
+    });
+    if (error) throw error;
+    return data;
+  }
   async function signOut() {
     await sb.auth.signOut();
   }
@@ -332,7 +343,7 @@
 
   window.cloud = {
     sb,
-    signIn, signOut, getSession, onAuth, resetPassword, updatePassword,
+    signIn, signUp, signOut, getSession, onAuth, resetPassword, updatePassword,
     isAllowedUser,
     loadAppState, saveAppState, saveAppStateNow,
     loadCollection, upsertItem, upsertItemNow, deleteItem,

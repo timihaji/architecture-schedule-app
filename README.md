@@ -18,12 +18,12 @@ Then open `http://localhost:8080`.
 
 ## Authentication
 
-The credentials in `src/cloud-config.jsx` point to the owner's private Supabase workspace. Self-signup is disabled and access is restricted to an email allowlist, so a fresh clone will show a login screen you cannot get past.
+The credentials in `src/cloud-config.jsx` point to the owner's private Supabase workspace. Anyone can sign up, but workspace access is gated by an email allowlist — so a fresh clone will let you create an account but stop you at a "Not authorised" screen until the owner grants you access.
 
 You have two options:
 
 **Option A — join the existing workspace:**  
-Ask the owner to invite you (Supabase dashboard → Authentication → Users → Invite user) and add your email to the `allowed_emails` table.
+Click "Create an account" on the sign-in screen, confirm your email, then ask the owner to add your email to the `allowed_emails` table.
 
 **Option B — run your own instance:**  
 Follow the steps below to set up a separate Supabase project.
@@ -32,8 +32,8 @@ Follow the steps below to set up a separate Supabase project.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open the SQL editor (Project → SQL Editor → New query), paste the contents of `supabase/schema.sql`, and run it.
-3. Go to **Authentication → Providers → Email** and disable _Enable new user signups_ (do this after creating accounts).
-4. Go to **Authentication → URL Configuration** and set the Site URL to where you'll serve the app (e.g. `http://localhost:8080` for local dev).
+3. Go to **Authentication → Providers → Email** and confirm _Enable new user signups_ is **on** and _Confirm email_ is **on**. Access is gated by the `allowed_emails` table, not by the signup toggle.
+4. Go to **Authentication → URL Configuration** and set the Site URL (and add it to Redirect URLs) so the email-confirmation link returns to the app — e.g. `http://localhost:8080` for local dev.
 5. In `src/cloud-config.jsx`, replace the URL and anon key with your project's values (Project Settings → API):
    ```js
    window.CLOUD_CONFIG = {
@@ -41,7 +41,7 @@ Follow the steps below to set up a separate Supabase project.
      SUPABASE_ANON_KEY: 'your-anon-key',
    };
    ```
-6. Invite yourself: Authentication → Users → **Invite user** → enter your email. You'll receive a link to set a password.
+6. Open the app, click "Create an account", and confirm your email via the link Supabase sends you.
 7. Add your email to the access allowlist in the SQL editor:
    ```sql
    insert into allowed_emails (email) values ('you@example.com');

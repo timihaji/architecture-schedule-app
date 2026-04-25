@@ -5,17 +5,18 @@ Access control for the Architecture Schedule App workspace.
 ## Initial setup
 
 1. Run `schema.sql` in the Supabase SQL editor (Project → SQL Editor → New query → paste → Run).
-2. In **Auth → Providers → Email**: ensure email+password is enabled.
-3. In **Auth → Providers → Email**: set **"Enable new user signups"** to **OFF** once all accounts are created.
-4. In **Auth → URL Configuration**: set Site URL to your deployment URL (e.g. `https://timihajnady.github.io/architecture-schedule-app`).
+2. In **Auth → Providers → Email**: ensure email+password is enabled, **"Enable new user signups"** is **ON**, and **"Confirm email"** is **ON**. Access is gated by the `allowed_emails` table — not by the signup toggle — so leaving signups on is safe.
+3. In **Auth → URL Configuration**: set Site URL and add the deployment URL to Redirect URLs (e.g. `https://timihajnady.github.io/architecture-schedule-app`) so the email confirmation link returns to the app.
 
 ## Adding a collaborator
 
-1. **Create their account** — Supabase dashboard → Authentication → Users → **Invite user** → enter their email. They receive a magic-link email to set their password.
-2. **Add to allowlist** — SQL editor:
+1. **They sign themselves up** — collaborator opens the app, clicks "Create an account" on the sign-in screen, and confirms their email via the link Supabase sends them.
+2. **They tell you out-of-band** that they've signed up (the app does not notify the owner).
+3. **Add to allowlist** — SQL editor:
    ```sql
    insert into allowed_emails (email) values ('newperson@example.com');
    ```
+4. **They sign out and back in** — until they do, they sit on the "Not authorised" screen.
 
 ## Removing a collaborator
 

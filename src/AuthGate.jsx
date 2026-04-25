@@ -149,22 +149,38 @@
   }
 
   function SignInScreen({ initialError }) {
-    const [mode, setMode] = useState('signin'); // 'signin' | 'reset'
+    const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'reset'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [password2, setPassword2] = useState('');
     const [busy, setBusy] = useState(false);
     const [errMsg, setErrMsg] = useState(initialError || '');
     const [okMsg, setOkMsg] = useState('');
 
     useEffect(() => { setErrMsg(initialError || ''); }, [initialError]);
 
+    function switchMode(next) {
+      setMode(next);
+      setErrMsg('');
+      setOkMsg('');
+      setPassword2('');
+    }
+
     async function onSubmit(e) {
       e.preventDefault();
+      if (mode === 'signup') {
+        if (password.length < 8) { setErrMsg('Password must be at least 8 characters.'); return; }
+        if (password !== password2) { setErrMsg('Passwords do not match.'); return; }
+      }
       setBusy(true); setErrMsg(''); setOkMsg('');
       try {
         if (mode === 'signin') {
           await window.cloud.signIn(email.trim(), password);
           // onAuthStateChange will progress us to ready.
+        } else if (mode === 'signup') {
+          const trimmed = email.trim();
+          await window.cloud.signUp(trimmed, password);
+          setOkMsg(`Check ${trimmed} for a confirmation link. Once confirmed, ask the workspace owner to grant you access.`);
         } else {
           await window.cloud.resetPassword(email.trim());
           setOkMsg("Check your email for a password reset link.");
@@ -176,11 +192,18 @@
       }
     }
 
+    const title = mode === 'signin' ? 'Sign in'
+                : mode === 'signup' ? 'Create account'
+                : 'Reset password';
+    const submitLabel = mode === 'signin' ? 'Sign in'
+                      : mode === 'signup' ? 'Create account'
+                      : 'Send reset link';
+
     return (
       <div style={shell()}>
         <form style={card()} onSubmit={onSubmit}>
           <div style={hLabel()}>Architecture Schedule</div>
-          <div style={hTitle()}>{mode === 'signin' ? 'Sign in' : 'Reset password'}</div>
+          <div style={hTitle()}>{title}</div>
 
           <label style={fieldLabel()}>
             Email
@@ -195,16 +218,32 @@
             />
           </label>
 
-          {mode === 'signin' ? (
+          {mode !== 'reset' ? (
             <label style={fieldLabel()}>
               Password
               <input
                 type="password"
                 required
-                autoComplete="current-password"
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 style={input()}
+                minLength={mode === 'signup' ? 8 : undefined}
+              />
+            </label>
+          ) : null}
+
+          {mode === 'signup' ? (
+            <label style={fieldLabel()}>
+              Confirm password
+              <input
+                type="password"
+                required
+                autoComplete="new-password"
+                value={password2}
+                onChange={e => setPassword2(e.target.value)}
+                style={input()}
+                minLength={8}
               />
             </label>
           ) : null}
@@ -213,15 +252,19 @@
           {okMsg  ? <div style={okBox()}>{okMsg}</div>   : null}
 
           <button type="submit" disabled={busy} style={primaryBtn(busy)}>
-            {busy ? '…' : (mode === 'signin' ? 'Sign in' : 'Send reset link')}
+            {busy ? '…' : submitLabel}
           </button>
 
           <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
             {mode === 'signin' ? (
-              <button type="button" onClick={() => { setMode('reset'); setErrMsg(''); setOkMsg(''); }}
-                      style={linkBtn()}>Forgot password?</button>
+              <>
+                <button type="button" onClick={() => switchMode('reset')}
+                        style={linkBtn()}>Forgot password?</button>
+                <button type="button" onClick={() => switchMode('signup')}
+                        style={linkBtn()}>Create an account</button>
+              </>
             ) : (
-              <button type="button" onClick={() => { setMode('signin'); setErrMsg(''); setOkMsg(''); }}
+              <button type="button" onClick={() => switchMode('signin')}
                       style={linkBtn()}>← Back to sign in</button>
             )}
           </div>
