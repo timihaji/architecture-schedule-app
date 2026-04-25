@@ -55,6 +55,13 @@
     // initial _setX would diff against null and try to push everything again,
     // duplicating writes already done during migration).
     const cloudSyncReady = useRef(false);
+    // Phase 5: degraded mode — cloud unreachable but a sessionStorage snapshot
+    // from earlier in this session lets the user keep browsing read-only.
+    // Mirrored as a ref so setter closures (with empty useCallback deps) read
+    // the live value rather than capturing the initial false.
+    const [degraded, setDegradedState] = useState(false);
+    const degradedRef = useRef(false);
+    const setDegraded = (v) => { degradedRef.current = v; setDegradedState(v); };
 
     useEffect(() => {
       let cancelled = false;
@@ -72,10 +79,32 @@
           _setMaterials(result.materials);
           _setProjects(result.projects);
           _setLibraries(result.libraries);
+          // Cache the snapshot for degraded-mode fallback within this session.
+          // sessionStorage (not localStorage) so the snapshot dies with the tab
+          // and never serves stale data on a fresh launch.
+          try {
+            sessionStorage.setItem('cloud-snapshot', JSON.stringify(result));
+          } catch (_) { /* over quota / disabled — fine */ }
           // Enable cloud sync for subsequent setter calls.
           cloudSyncReady.current = true;
         } catch (err) {
           console.error('[LoadingGate] hydrate failed:', err);
+          // Try a sessionStorage snapshot — degraded mode lets the user keep
+          // browsing without write access.
+          try {
+            const cached = sessionStorage.getItem('cloud-snapshot');
+            if (cached) {
+              const snap = JSON.parse(cached);
+              if (cancelled) return;
+              console.warn('[LoadingGate] cloud unreachable; entering degraded mode from snapshot');
+              _setAppState(snap.appState);
+              _setMaterials(snap.materials);
+              _setProjects(snap.projects);
+              _setLibraries(snap.libraries);
+              setDegraded(true);
+              return;
+            }
+          } catch (_) { /* fall through to ErrorScreen */ }
           if (!cancelled) setError(err);
         }
       })();
@@ -83,7 +112,10 @@
     }, []);
 
     // ───── Singleton (appState) setters ─────
+    // In degraded mode, setters update local state but do NOT push to cloud
+    // (cloud is unreachable). The banner tells the user changes won't persist.
     const setSettings = useCallback((updater) => {
+      if (degradedRef.current) return;
       _setAppState(prev => {
         const prevSettings = (prev && prev.settings) || {};
         const nextSettings = typeof updater === 'function' ? updater(prevSettings) : updater;
@@ -94,6 +126,7 @@
     }, []);
 
     const setUi = useCallback((patchOrUpdater) => {
+      if (degradedRef.current) return;
       _setAppState(prev => {
         const prevUi = (prev && prev.ui) || {};
         const nextUi = typeof patchOrUpdater === 'function'
@@ -106,6 +139,7 @@
     }, []);
 
     const setSeedVersion = useCallback((n) => {
+      if (degradedRef.current) return;
       _setAppState(prev => {
         const nextState = { ...(prev || {}), seed_version: n };
         if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
@@ -114,6 +148,7 @@
     }, []);
 
     const setLabelTemplates = useCallback((updater) => {
+      if (degradedRef.current) return;
       _setAppState(prev => {
         const prevTpl = (prev && prev.label_templates) || (window.DEFAULT_TEMPLATES || {});
         const nextTpl = typeof updater === 'function' ? updater(prevTpl) : updater;
@@ -125,6 +160,7 @@
 
     // ───── Collection setters: diff prev vs next, push add/update/delete ─────
     const makeCollectionSetter = (table, setter) => (updater) => {
+      if (degradedRef.current) return;
       setter(prev => {
         const next = typeof updater === 'function' ? updater(prev || []) : (updater || []);
         if (cloudSyncReady.current && window.cloud) {
@@ -157,10 +193,12 @@
       projects:  projects  || [],
       libraries: libraries || [],
       setMaterials, setProjects, setLibraries,
+      // Phase 5: degraded-mode flag — read-only when cloud is unreachable.
+      cloudReadOnly: degraded,
       // Diagnostic / Phase 5+ access
       _appState: appState,
     }), [
-      appState, materials, projects, libraries,
+      appState, materials, projects, libraries, degraded,
       setSettings, setUi, setSeedVersion, setLabelTemplates,
       setMaterials, setProjects, setLibraries,
     ]);
@@ -170,8 +208,18 @@
       return <SkeletonScreen />;
     }
 
+    // Empty workspace: cloud loaded fine but contains zero items in every
+    // collection. Likely a fresh device that hasn't migrated or seeded yet.
+    // Show a prominent banner pointing to the manual migration tools.
+    const isEmpty = !degraded
+      && (materials || []).length === 0
+      && (projects || []).length === 0
+      && (libraries || []).length === 0;
+
     return (
       <CloudStateContext.Provider value={ctxValue}>
+        {degraded && <DegradedBanner />}
+        {isEmpty && <EmptyWorkspaceBanner setUi={setUi} />}
         {children}
       </CloudStateContext.Provider>
     );
@@ -504,6 +552,66 @@
         }}>
           Loading workspace…
         </div>
+      </div>
+    );
+  }
+
+  function EmptyWorkspaceBanner({ setUi }) {
+    const [dismissed, setDismissed] = useState(false);
+    if (dismissed) return null;
+    return (
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 9100,
+        padding: '12px 18px',
+        background: 'var(--ink)',
+        color: 'var(--paper)',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 13,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 14, flexWrap: 'wrap',
+        boxShadow: '0 2px 8px rgba(20,20,20,0.18)',
+      }}>
+        <span>
+          Workspace is empty. Migrate browser data, import a backup, or seed
+          the starter library from{' '}
+          <button onClick={() => setUi({ view: 'settings' })} style={{
+            background: 'transparent', border: 'none', color: 'inherit',
+            textDecoration: 'underline', cursor: 'pointer', font: 'inherit', padding: 0,
+          }}>Settings → Cloud</button>.
+        </span>
+        <button onClick={() => setDismissed(true)} style={{
+          background: 'transparent', border: '1px solid rgba(255,255,255,0.3)',
+          color: 'inherit', font: 'inherit', cursor: 'pointer',
+          padding: '2px 10px', borderRadius: 2,
+        }}>Dismiss</button>
+      </div>
+    );
+  }
+
+  function DegradedBanner() {
+    return (
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 9200,
+        padding: '8px 16px',
+        background: 'rgba(197, 74, 59, 0.96)',
+        color: '#fff',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 11,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        textAlign: 'center',
+        boxShadow: '0 2px 8px rgba(20,20,20,0.18)',
+      }}>
+        Offline — changes disabled.{' '}
+        <button onClick={() => location.reload()} style={{
+          marginLeft: 12, padding: '2px 10px',
+          background: 'rgba(255,255,255,0.18)',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.4)',
+          fontFamily: 'inherit', fontSize: 'inherit',
+          letterSpacing: 'inherit', textTransform: 'inherit',
+          borderRadius: 2, cursor: 'pointer',
+        }}>Retry</button>
       </div>
     );
   }
