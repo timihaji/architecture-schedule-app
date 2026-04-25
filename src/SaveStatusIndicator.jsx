@@ -1,13 +1,13 @@
-// src/SaveStatusIndicator.jsx — top-right chrome widget showing save state.
+// src/SaveStatusIndicator.jsx — inline save-state widget for the lower revision bar.
 //
 // States:
 //   idle (no saves yet)              — hidden
 //   pending > 0                       — pulsing dot, "Saving…"
 //   pending === 0 && lastSavedAt      — green dot, "Saved <relative>"
-//   lastError                         — red dot, "Couldn't save", with retry
+//   lastError                         — red dot, "Couldn't save", with dismiss
 //
-// Wires via window.cloud.onSaveStatus. Phase 1b: no saves happen yet (App
-// still uses localStorage), so this stays hidden until Phase 2.
+// Wires via window.cloud.onSaveStatus. Rendered inline by RevisionBadge so the
+// styling matches the bar's 10px JetBrains Mono / var(--ink-4) typography.
 
 (function () {
   const { useState, useEffect } = React;
@@ -44,26 +44,21 @@
     }
 
     return (
-      <div style={wrap()}>
+      <span style={wrap()}>
         <span style={dot(dotColor, pulsing)} />
         <span>{label}</span>
         {state.lastError ? (
-          <button type="button" style={retryBtn()}
-                  title={state.lastError}
-                  onClick={() => {
-                    // Phase 1b: just clears the error so user can keep working.
-                    // Real retry is wired in Phase 3 when actual saves are happening.
-                    if (window.cloud && window.cloud.onSaveStatus) {
-                      // Force-emit a cleared state by re-subscribing nothing — just
-                      // reset locally; the next successful save will overwrite this.
-                      setState(s => ({ ...s, lastError: null }));
-                    }
-                  }}>
+          <a href="#" style={dismissLink()}
+             title={state.lastError}
+             onClick={e => {
+               e.preventDefault();
+               setState(s => ({ ...s, lastError: null }));
+             }}>
             Dismiss
-          </button>
+          </a>
         ) : null}
         {pulsing ? <PulseKeyframes /> : null}
-      </div>
+      </span>
     );
   }
 
@@ -90,45 +85,27 @@
 
   function wrap() {
     return {
-      position: 'fixed',
-      top: 12,
-      right: 12,
-      zIndex: 9000,
-      display: 'flex',
+      display: 'inline-flex',
       alignItems: 'center',
-      gap: 8,
-      padding: '6px 10px',
-      fontFamily: 'var(--font-mono)',
-      fontSize: 11,
-      letterSpacing: '0.06em',
-      color: 'var(--ink-2)',
-      background: 'rgba(243, 239, 231, 0.92)',
-      border: '1px solid var(--rule-2)',
-      borderRadius: 2,
-      backdropFilter: 'blur(4px)',
-      pointerEvents: 'auto',
+      gap: 6,
+      color: 'inherit',
     };
   }
   function dot(color, pulsing) {
     return {
-      width: 8,
-      height: 8,
+      display: 'inline-block',
+      width: 6,
+      height: 6,
       borderRadius: '50%',
       background: color,
       animation: pulsing ? 'amlSavePulse 1.2s ease-in-out infinite' : 'none',
     };
   }
-  function retryBtn() {
+  function dismissLink() {
     return {
       marginLeft: 4,
-      padding: '2px 6px',
-      fontFamily: 'inherit',
-      fontSize: 10,
-      letterSpacing: 'inherit',
-      color: 'var(--accent-ink)',
-      background: 'transparent',
-      border: '1px solid var(--rule-2)',
-      borderRadius: 2,
+      color: 'var(--ink-3)',
+      textDecoration: 'none',
       cursor: 'pointer',
     };
   }

@@ -119,14 +119,12 @@
       return <SignInScreen initialError={error} />;
     }
     // ready — wrap children in LoadingGate so cloud appState hydrates before
-    // the app reads from useCloudState(). SaveStatusIndicator + Toasts render
-    // outside the gate so they're visible during the brief skeleton flash.
-    const SaveStatus = window.SaveStatusIndicator || (() => null);
-    const Toasts     = window.CloudToasts          || (() => null);
-    const Gate       = window.LoadingGate          || (({children}) => children);
+    // the app reads from useCloudState(). SaveStatusIndicator now renders
+    // inline inside RevisionBadge (the lower bar). Toasts stay top-level.
+    const Toasts = window.CloudToasts || (() => null);
+    const Gate   = window.LoadingGate || (({children}) => children);
     return (
       <React.Fragment>
-        <SaveStatus />
         <Toasts />
         <Gate>{children}</Gate>
       </React.Fragment>

@@ -1048,6 +1048,12 @@ function RevisionBadge() {
             maxWidth: 480, marginLeft: 8,
           }}>{info.msg}</span></>}
           <span style={{ flex: 1 }} />
+          {window.SaveStatusIndicator ? (
+            <>
+              <window.SaveStatusIndicator />
+              {dot}
+            </>
+          ) : null}
           <a href={'https://github.com/' + REPO} target="_blank" rel="noreferrer"
             style={{ color: 'var(--ink-4)', textDecoration: 'none', opacity: 0.7 }}>
             github.com/{REPO}
