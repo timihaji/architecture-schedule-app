@@ -468,18 +468,30 @@ function App() {
     const loser = materials.find(m => m.id === loserId);
     if (!loser) return;
 
-    // Rewrite materialId references in every project's schedule + spec
-    try {
-      const keys = Object.keys(localStorage);
-      for (const key of keys) {
-        if (key.startsWith('aml-schedule-') || key.startsWith('aml-spec-')) {
-          const raw = localStorage.getItem(key);
-          if (!raw || !raw.includes(loserId)) continue;
-          // Replace all occurrences of the loser id in the JSON blob
-          localStorage.setItem(key, raw.split('"' + loserId + '"').join('"' + survivorId + '"'));
-        }
-      }
-    } catch {}
+    // Phase 4: rewrite materialId references in every project's cloud
+    // schedule + spec. Best-effort: load each, swap, push back. Async and
+    // fire-and-forget — the materials list update below is what the user sees
+    // immediately; the cross-references catch up in the background.
+    if (window.cloud && Array.isArray(projects)) {
+      const swap = (raw) => {
+        if (!raw) return null;
+        const blob = JSON.stringify(raw);
+        if (!blob.includes(loserId)) return null;
+        return JSON.parse(blob.split('"' + loserId + '"').join('"' + survivorId + '"'));
+      };
+      projects.forEach(p => {
+        window.cloud.loadSchedule(p.id).then(sched => {
+          const next = swap(sched);
+          if (next) window.cloud.saveScheduleNow(p.id, next).catch(err =>
+            console.error('[mergeMaterials] schedule rewrite failed:', p.id, err));
+        }).catch(() => {});
+        window.cloud.loadSpec(p.id).then(spec => {
+          const next = swap(spec);
+          if (next) window.cloud.saveSpecNow(p.id, next).catch(err =>
+            console.error('[mergeMaterials] spec rewrite failed:', p.id, err));
+        }).catch(() => {});
+      });
+    }
 
     setMaterials(list => list
       .filter(m => m.id !== loserId)
@@ -538,7 +550,17 @@ function App() {
   function deleteProject(id) {
     if (!window.confirm('Delete this project? Its cost schedule will also be removed.')) return;
     setProjects(list => list.filter(p => p.id !== id));
+    // Drop the cloud schedule + spec rows. Cloud delete is best-effort —
+    // the project itself is already gone from the user's perspective.
+    if (window.cloud) {
+      window.cloud.deleteSchedule(id).catch(err =>
+        console.error('[deleteProject] schedule delete failed:', err));
+      window.cloud.deleteSpec(id).catch(err =>
+        console.error('[deleteProject] spec delete failed:', err));
+    }
+    // Also clear the legacy localStorage rows so they don't re-migrate.
     try { localStorage.removeItem('aml-schedule-' + id); } catch {}
+    try { localStorage.removeItem('aml-spec-' + id); } catch {}
   }
 
   // ───────── Library CRUD ─────────
@@ -736,12 +758,15 @@ function App() {
               // Bump seed_version so the LoadingGate backfill on next load
               // doesn't try to re-add the seeds we just wrote.
               cs.setSeedVersion(SEED_VERSION);
-              // Per-project schedules still live in localStorage in Phase 3
-              // (Phase 4 moves them). Clear them here so the restored projects
-              // start with fresh schedules.
-              try { Object.keys(localStorage).forEach(k => {
-                if (k.startsWith('aml-schedule-')) localStorage.removeItem(k);
-              }); } catch {}
+              // Phase 4: per-project schedules live in cloud now. Restore-seed
+              // doesn't have schedules to write, but we should clear any
+              // existing cloud rows so restored projects start fresh.
+              if (window.cloud) {
+                (projects || []).forEach(p => {
+                  window.cloud.deleteSchedule(p.id).catch(() => {});
+                  window.cloud.deleteSpec(p.id).catch(() => {});
+                });
+              }
             }}
             onImport={(data) => {
               const imported = data.materials ? migrateMaterials(data.materials) : null;
@@ -757,24 +782,19 @@ function App() {
               if (data.libraries) setLibraries(data.libraries);
               if (data.labelTemplates) setLabelTemplates(data.labelTemplates);
               if (data.settings) setSettings({ ...window.SETTINGS_DEFAULTS, ...data.settings });
-              // Restore per-project cost schedules and specs to localStorage.
-              try {
-                Object.keys(localStorage).forEach(k => {
-                  if (k.startsWith('aml-schedule-') || k.startsWith('aml-spec-')) {
-                    localStorage.removeItem(k);
-                  }
+              // Phase 4: per-project schedules + specs go to cloud.
+              if (window.cloud && data.schedules && typeof data.schedules === 'object') {
+                Object.entries(data.schedules).forEach(([pid, sched]) => {
+                  window.cloud.saveScheduleNow(pid, sched).catch(err =>
+                    console.error('[onImport] schedule save failed:', pid, err));
                 });
-                if (data.schedules && typeof data.schedules === 'object') {
-                  Object.entries(data.schedules).forEach(([pid, sched]) => {
-                    localStorage.setItem('aml-schedule-' + pid, JSON.stringify(sched));
-                  });
-                }
-                if (data.specs && typeof data.specs === 'object') {
-                  Object.entries(data.specs).forEach(([pid, spec]) => {
-                    localStorage.setItem('aml-spec-' + pid, JSON.stringify(spec));
-                  });
-                }
-              } catch {}
+              }
+              if (window.cloud && data.specs && typeof data.specs === 'object') {
+                Object.entries(data.specs).forEach(([pid, spec]) => {
+                  window.cloud.saveSpecNow(pid, spec).catch(err =>
+                    console.error('[onImport] spec save failed:', pid, err));
+                });
+              }
             }}
           />
         )}

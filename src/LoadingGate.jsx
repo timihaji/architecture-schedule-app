@@ -186,6 +186,119 @@
   }
 
   // ─────────────────────────────────────────────
+  // Per-project blob hooks (Phase 4)
+  // Used by CostSchedule, CostScheduleV2, ProjectSpec to lazily load each
+  // project's schedule/spec from cloud on mount or project change.
+  //
+  // Race guard: if the user switches projects A → B mid-load, A's response
+  // is dropped (cancelled flag) so it can't overwrite B's state.
+  //
+  // Auto-migration: if the cloud row is missing AND localStorage has the
+  // legacy aml-schedule-<id> / aml-spec-<id> blob, push the local data to
+  // cloud once (saveScheduleNow / saveSpecNow) and use it. After this runs,
+  // cloud is the source of truth — subsequent loads ignore localStorage.
+  //
+  // Setter: the wrapped setSchedule / setSpec writes to cloud via the
+  // debounced saveSchedule / saveSpec — keyed on projectId. Switching
+  // projects mid-debounce does NOT lose the pending save (per-key debounce).
+  //
+  // Caller passes:
+  //   • projectId  — the row key (cloud column = project_id)
+  //   • fallback   — () => defaultData  (seed or blank, used if cloud + LS both empty)
+  //   • transform  — (raw) => migrated  (data-shape migration, applied to whatever loads)
+  //
+  // Both fallback and transform must be referentially stable (defined outside
+  // the component or via useCallback) — the hook only re-runs the load
+  // effect when projectId changes.
+  // ─────────────────────────────────────────────
+  function useProjectBlob({ projectId, lsKey, cloudLoad, cloudSaveNow, cloudSave, fallback, transform }) {
+    const [state, setState] = useState({ status: 'loading', data: null, error: null });
+    // Active projectId at the time of the most recent setSchedule call —
+    // captured in closure so saves flush to the right key even if React
+    // hasn't re-rendered yet.
+    const projectIdRef = useRef(projectId);
+
+    useEffect(() => {
+      let cancelled = false;
+      projectIdRef.current = projectId;
+      setState({ status: 'loading', data: null, error: null });
+
+      (async () => {
+        if (!projectId) {
+          if (!cancelled) setState({ status: 'ready', data: null, error: null });
+          return;
+        }
+        try {
+          let raw = await cloudLoad(projectId);
+
+          // Cloud empty? Try localStorage migration.
+          if (raw == null && lsKey) {
+            const local = readLSJson(lsKey);
+            if (local != null) {
+              raw = local;
+              try {
+                await cloudSaveNow(projectId, local);
+              } catch (err) {
+                console.error(`[useProjectBlob] migration save failed for ${lsKey}:`, err);
+                // Continue — caller still gets the data; future edits will retry.
+              }
+            }
+          }
+
+          if (cancelled) return;
+
+          if (raw == null && fallback) raw = fallback();
+          const data = transform ? transform(raw) : raw;
+          setState({ status: 'ready', data, error: null });
+        } catch (err) {
+          console.error('[useProjectBlob] load failed:', err);
+          if (!cancelled) setState({ status: 'error', data: null, error: err });
+        }
+      })();
+
+      return () => { cancelled = true; };
+    }, [projectId]);
+
+    const setBlob = useCallback((updater) => {
+      setState(prev => {
+        if (prev.status !== 'ready') return prev;  // ignore writes while loading
+        const next = typeof updater === 'function' ? updater(prev.data) : updater;
+        // Save is keyed on projectId at call time. Even if the active project
+        // has since changed, this write goes to the correct row because the
+        // closure captures projectId.
+        if (window.cloud && cloudSave) cloudSave(projectId, next);
+        return { ...prev, data: next };
+      });
+    }, [projectId]);
+
+    return { data: state.data, set: setBlob, status: state.status, error: state.error };
+  }
+
+  function useProjectSchedule(projectId, fallback, transform) {
+    return useProjectBlob({
+      projectId,
+      lsKey: projectId ? ('aml-schedule-' + projectId) : null,
+      cloudLoad:    (id) => window.cloud.loadSchedule(id),
+      cloudSaveNow: (id, data) => window.cloud.saveScheduleNow(id, data),
+      cloudSave:    (id, data) => window.cloud.saveSchedule(id, data),
+      fallback,
+      transform,
+    });
+  }
+
+  function useProjectSpec(projectId, fallback, transform) {
+    return useProjectBlob({
+      projectId,
+      lsKey: projectId ? ('aml-spec-' + projectId) : null,
+      cloudLoad:    (id) => window.cloud.loadSpec(id),
+      cloudSaveNow: (id, data) => window.cloud.saveSpecNow(id, data),
+      cloudSave:    (id, data) => window.cloud.saveSpec(id, data),
+      fallback,
+      transform,
+    });
+  }
+
+  // ─────────────────────────────────────────────
   // Hydration orchestration
   // ─────────────────────────────────────────────
   async function hydrateAll() {
@@ -431,5 +544,5 @@
     );
   }
 
-  Object.assign(window, { LoadingGate, useCloudState });
+  Object.assign(window, { LoadingGate, useCloudState, useProjectSchedule, useProjectSpec });
 })();

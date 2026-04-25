@@ -992,19 +992,25 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
   const fileRef = React.useRef();
   const [importMsg, setImportMsg] = React.useState(null);
 
-  function exportAll() {
-    // Pull per-project cost schedules and specs out of localStorage, keyed by
-    // project id so they can be restored on import.
+  async function exportAll() {
+    // Phase 4: per-project cost schedules and specs live in the cloud.
+    // Load each project's row in parallel, then build the archive payload.
     const schedules = {};
     const specs = {};
-    try {
-      (projects || []).forEach(p => {
-        const sRaw = localStorage.getItem('aml-schedule-' + p.id);
-        if (sRaw) { try { schedules[p.id] = JSON.parse(sRaw); } catch {} }
-        const pRaw = localStorage.getItem('aml-spec-' + p.id);
-        if (pRaw) { try { specs[p.id] = JSON.parse(pRaw); } catch {} }
-      });
-    } catch {}
+    if (window.cloud && Array.isArray(projects)) {
+      const tasks = [];
+      for (const p of projects) {
+        tasks.push(
+          window.cloud.loadSchedule(p.id).then(s => { if (s) schedules[p.id] = s; })
+            .catch(err => console.error('[exportAll] schedule load failed:', p.id, err))
+        );
+        tasks.push(
+          window.cloud.loadSpec(p.id).then(s => { if (s) specs[p.id] = s; })
+            .catch(err => console.error('[exportAll] spec load failed:', p.id, err))
+        );
+      }
+      await Promise.all(tasks);
+    }
 
     const payload = {
       _type: 'hollis-arne-archive',
