@@ -1,13 +1,5 @@
 // App shell — navigation + edit/add material modal + Tweaks integration
 
-function loadLS(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    if (!v) return fallback;
-    return JSON.parse(v);
-  } catch { return fallback; }
-}
-
 // Seed version. Bump whenever new seed items are added to window.MATERIALS.
 // On mismatch, we merge in any seed items the user doesn't already have
 // (matched by id) without touching their edits/additions.
@@ -26,57 +18,58 @@ function migrateMaterialToPaint(m) {
   return out;
 }
 
-function migrateMaterials(list) {
+// Per-item migration — paint kind upgrade + library remap. Pure: no
+// localStorage side effects. Idempotent — running on already-migrated
+// data is a no-op-equivalent (returns equivalent shape).
+function migrateOneMaterial(m) {
   const K2L = window.KIND_TO_LIBRARY || {};
   const libForKind = (kind) => K2L[kind || 'material'] || 'lib-finishes';
 
-  const stored = list.map(m => {
-    const paintMig = migrateMaterialToPaint(m);
-    const withKind = window.migrateItem ? window.migrateItem(paintMig) : paintMig;
-    // Library remap:
-    //  - legacy 'lib-master' → map by kind
-    //  - empty/missing → assign by kind
-    //  - otherwise keep user's choice (they may have custom libraries)
-    let libs = withKind.libraryIds || [];
-    if (libs.length === 0 || (libs.length === 1 && libs[0] === 'lib-master')) {
-      libs = [libForKind(withKind.kind)];
-    } else {
-      // Strip any 'lib-master' references and ensure non-empty
-      libs = libs.filter(id => id !== 'lib-master');
-      if (libs.length === 0) libs = [libForKind(withKind.kind)];
-    }
-    return { ...withKind, libraryIds: libs };
-  });
-
-  // Read the user's recorded seed version. If absent or older than current,
-  // backfill missing seed ids.
-  let seedVer = 0;
-  try { seedVer = parseInt(localStorage.getItem('aml-seed-version') || '0', 10) || 0; } catch {}
-  if (seedVer < SEED_VERSION && Array.isArray(window.MATERIALS)) {
-    const haveIds = new Set(stored.map(m => m.id));
-    const newSeeds = window.MATERIALS
-      .filter(m => !haveIds.has(m.id))
-      .map(m => {
-        const paintMig = migrateMaterialToPaint(m);
-        const withKind = window.migrateItem ? window.migrateItem(paintMig) : paintMig;
-        let libs = withKind.libraryIds || [];
-        if (libs.length === 0) libs = [libForKind(withKind.kind)];
-        return { ...withKind, libraryIds: libs };
-      });
-    try { localStorage.setItem('aml-seed-version', String(SEED_VERSION)); } catch {}
-    const merged = [...stored, ...newSeeds];
-    // Orphan check: any paintedWithId references that no longer resolve.
-    try {
-      const ids = new Set(merged.map(x => x.id));
-      merged.forEach(x => {
-        if (x.paintable && x.paintedWithId && !ids.has(x.paintedWithId)) {
-          console.warn('[migrateMaterials] orphan paintedWithId:', x.id, '→', x.paintedWithId);
-        }
-      });
-    } catch {}
-    return merged;
+  const paintMig = migrateMaterialToPaint(m);
+  const withKind = window.migrateItem ? window.migrateItem(paintMig) : paintMig;
+  // Library remap:
+  //  - legacy 'lib-master' → map by kind
+  //  - empty/missing → assign by kind
+  //  - otherwise keep user's choice (they may have custom libraries)
+  let libs = withKind.libraryIds || [];
+  if (libs.length === 0 || (libs.length === 1 && libs[0] === 'lib-master')) {
+    libs = [libForKind(withKind.kind)];
+  } else {
+    libs = libs.filter(id => id !== 'lib-master');
+    if (libs.length === 0) libs = [libForKind(withKind.kind)];
   }
-  return stored;
+  return { ...withKind, libraryIds: libs };
+}
+
+function migrateMaterials(list) {
+  return (list || []).map(migrateOneMaterial);
+}
+
+// Append any seed materials the user doesn't already have (matched by id).
+// Returns { items, newSeedVer }. Pure — caller persists newSeedVer to
+// appState.seed_version. Idempotent across runs because of the haveIds check.
+function backfillMaterialsFromSeed(list, currentSeedVer) {
+  const cur = currentSeedVer | 0;
+  if (cur >= SEED_VERSION || !Array.isArray(window.MATERIALS)) {
+    return { items: list, added: [], newSeedVer: cur };
+  }
+  const haveIds = new Set(list.map(m => m.id));
+  const added = window.MATERIALS
+    .filter(m => !haveIds.has(m.id))
+    .map(migrateOneMaterial);
+  const items = added.length > 0 ? [...list, ...added] : list;
+
+  // Orphan check: warn on any paintedWithId references that don't resolve.
+  try {
+    const ids = new Set(items.map(x => x.id));
+    items.forEach(x => {
+      if (x.paintable && x.paintedWithId && !ids.has(x.paintedWithId)) {
+        console.warn('[backfillMaterialsFromSeed] orphan paintedWithId:', x.id, '→', x.paintedWithId);
+      }
+    });
+  } catch {}
+
+  return { items, added, newSeedVer: SEED_VERSION };
 }
 
 function migrateLibraries(list) {
@@ -93,11 +86,22 @@ function migrateLibraries(list) {
   return [...seeded, ...userCustom];
 }
 function migrateProjects(list) {
-  return list.map(p => ({
+  return (list || []).map(p => ({
     ...p,
     libraryIds: p.libraryIds || [],
   }));
 }
+
+// Expose migration helpers to window so LoadingGate (a separate script) can
+// use them when hydrating cloud-loaded collections + running seed backfill.
+Object.assign(window, {
+  SEED_VERSION,
+  migrateMaterials,
+  migrateOneMaterial,
+  backfillMaterialsFromSeed,
+  migrateProjects,
+  migrateLibraries,
+});
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "umber",
@@ -272,9 +276,10 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
 }
 
 function App() {
-  // Phase 2: settings + UI singleton keys come from the cloud-backed app_state
-  // singleton via LoadingGate's CloudStateContext. Materials/projects/libraries
-  // still init from localStorage in this phase — Phase 3 moves those.
+  // Phase 3: settings, UI singleton keys, AND collections all come from the
+  // cloud-backed app_state + per-collection rows via LoadingGate's
+  // CloudStateContext. Per-project schedules/specs still come from
+  // localStorage — Phase 4 moves those.
   const cs = window.useCloudState();
   const settings = cs.settings;
   const setSettings = cs.setSettings;
@@ -296,11 +301,16 @@ function App() {
   const activeProjectId = cs.ui.activeProjectId || null;
   const setActiveProjectId = React.useCallback((v) => cs.setUi({ activeProjectId: v }), [cs]);
 
-  // ─── Collections (still localStorage in Phase 2; Phase 3 moves these) ───
-  const [materials, setMaterials] = React.useState(() => migrateMaterials(loadLS('aml-materials', window.MATERIALS)));
-  const [projects, setProjects] = React.useState(() => migrateProjects(loadLS('aml-projects', window.PROJECTS)));
-  const [libraries, setLibraries] = React.useState(() => migrateLibraries(loadLS('aml-libraries', window.LIBRARIES)));
-  const [labelTemplates, setLabelTemplates] = React.useState(() => loadLS('aml-label-templates', window.DEFAULT_TEMPLATES));
+  // ─── Collections (cloud) ───
+  const materials = cs.materials;
+  const setMaterials = cs.setMaterials;
+  const projects = cs.projects;
+  const setProjects = cs.setProjects;
+  const libraries = cs.libraries;
+  const setLibraries = cs.setLibraries;
+  const labelTemplates = cs.labelTemplates;
+  const setLabelTemplates = cs.setLabelTemplates;
+
   const [labelBuilderOpen, setLabelBuilderOpen] = React.useState(false);
   const [labelBuilderTab, setLabelBuilderTab] = React.useState('Global');
   const [editingMaterial, setEditingMaterial] = React.useState(null);
@@ -311,11 +321,6 @@ function App() {
   const [findDupesOpen, setFindDupesOpen] = React.useState(false);
   const [renumberState, setRenumberState] = React.useState(null);
   const [importSummary, setImportSummary] = React.useState(null);
-
-  React.useEffect(() => { try { localStorage.setItem('aml-materials', JSON.stringify(materials)); } catch {} }, [materials]);
-  React.useEffect(() => { try { localStorage.setItem('aml-projects', JSON.stringify(projects)); } catch {} }, [projects]);
-  React.useEffect(() => { try { localStorage.setItem('aml-libraries', JSON.stringify(libraries)); } catch {} }, [libraries]);
-  React.useEffect(() => { try { localStorage.setItem('aml-label-templates', JSON.stringify(labelTemplates)); } catch {} }, [labelTemplates]);
 
   // Tweaks protocol
   React.useEffect(() => {
@@ -728,6 +733,12 @@ function App() {
               setProjects(migrateProjects(window.PROJECTS));
               setLibraries(window.LIBRARIES);
               setLabelTemplates(window.DEFAULT_TEMPLATES);
+              // Bump seed_version so the LoadingGate backfill on next load
+              // doesn't try to re-add the seeds we just wrote.
+              cs.setSeedVersion(SEED_VERSION);
+              // Per-project schedules still live in localStorage in Phase 3
+              // (Phase 4 moves them). Clear them here so the restored projects
+              // start with fresh schedules.
               try { Object.keys(localStorage).forEach(k => {
                 if (k.startsWith('aml-schedule-')) localStorage.removeItem(k);
               }); } catch {}
