@@ -272,38 +272,37 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
 }
 
 function App() {
-  // User-facing settings — single source of truth for all style preferences.
-  const [settings, _setSettings] = React.useState(() => window.loadSettings());
-  const setSettings = React.useCallback((updater) => {
-    _setSettings(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      window.saveSettings(next);
-      window.applySettingsToDOM(next);
-      return next;
-    });
-  }, []);
+  // Phase 2: settings + UI singleton keys come from the cloud-backed app_state
+  // singleton via LoadingGate's CloudStateContext. Materials/projects/libraries
+  // still init from localStorage in this phase — Phase 3 moves those.
+  const cs = window.useCloudState();
+  const settings = cs.settings;
+  const setSettings = cs.setSettings;
 
-  // Apply settings on first mount
-  React.useEffect(() => { window.applySettingsToDOM(settings); }, []);
+  // Apply settings to DOM on every change (initial mount + user edits).
+  React.useEffect(() => { window.applySettingsToDOM(settings); }, [settings]);
 
   // Dev-only Tweaks panel — now for experiments only.
   const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
   const [tweaksOpen, setTweaksOpen] = React.useState(false);
-  const [view, setView] = React.useState(() => {
-    try { return localStorage.getItem('aml-view') || 'library'; } catch { return 'library'; }
-  });
+
+  // ─── UI singleton keys (cloud) ───
+  const view = cs.ui.view || 'library';
+  const setView = React.useCallback((v) => cs.setUi({ view: v }), [cs]);
+  const libraryMode = cs.ui.libraryMode || 'gallery';
+  const setLibraryMode = React.useCallback((v) => cs.setUi({ libraryMode: v }), [cs]);
+  const activeLibraryId = cs.ui.activeLibraryId || 'all';
+  const setActiveLibraryId = React.useCallback((v) => cs.setUi({ activeLibraryId: v }), [cs]);
+  const activeProjectId = cs.ui.activeProjectId || null;
+  const setActiveProjectId = React.useCallback((v) => cs.setUi({ activeProjectId: v }), [cs]);
+
+  // ─── Collections (still localStorage in Phase 2; Phase 3 moves these) ───
   const [materials, setMaterials] = React.useState(() => migrateMaterials(loadLS('aml-materials', window.MATERIALS)));
   const [projects, setProjects] = React.useState(() => migrateProjects(loadLS('aml-projects', window.PROJECTS)));
   const [libraries, setLibraries] = React.useState(() => migrateLibraries(loadLS('aml-libraries', window.LIBRARIES)));
   const [labelTemplates, setLabelTemplates] = React.useState(() => loadLS('aml-label-templates', window.DEFAULT_TEMPLATES));
   const [labelBuilderOpen, setLabelBuilderOpen] = React.useState(false);
   const [labelBuilderTab, setLabelBuilderTab] = React.useState('Global');
-  const [activeLibraryId, setActiveLibraryId] = React.useState(() => {
-    try { return localStorage.getItem('aml-active-library') || 'all'; } catch { return 'all'; }
-  });
-  const [activeProjectId, setActiveProjectId] = React.useState(() => {
-    try { return localStorage.getItem('aml-active-project') || null; } catch { return null; }
-  });
   const [editingMaterial, setEditingMaterial] = React.useState(null);
   const [editingProject, setEditingProject] = React.useState(null);
   const [kindPickerOpen, setKindPickerOpen] = React.useState(false);
@@ -312,22 +311,11 @@ function App() {
   const [findDupesOpen, setFindDupesOpen] = React.useState(false);
   const [renumberState, setRenumberState] = React.useState(null);
   const [importSummary, setImportSummary] = React.useState(null);
-  const [libraryMode, setLibraryMode] = React.useState(() => {
-    try { return localStorage.getItem('aml-library-mode') || 'gallery'; } catch { return 'gallery'; }
-  });
 
-  React.useEffect(() => { try { localStorage.setItem('aml-view', view); } catch {} }, [view]);
-  React.useEffect(() => { try { localStorage.setItem('aml-library-mode', libraryMode); } catch {} }, [libraryMode]);
   React.useEffect(() => { try { localStorage.setItem('aml-materials', JSON.stringify(materials)); } catch {} }, [materials]);
   React.useEffect(() => { try { localStorage.setItem('aml-projects', JSON.stringify(projects)); } catch {} }, [projects]);
   React.useEffect(() => { try { localStorage.setItem('aml-libraries', JSON.stringify(libraries)); } catch {} }, [libraries]);
   React.useEffect(() => { try { localStorage.setItem('aml-label-templates', JSON.stringify(labelTemplates)); } catch {} }, [labelTemplates]);
-  React.useEffect(() => { try { localStorage.setItem('aml-active-library', activeLibraryId); } catch {} }, [activeLibraryId]);
-  React.useEffect(() => {
-    try {
-      if (activeProjectId) localStorage.setItem('aml-active-project', activeProjectId);
-    } catch {}
-  }, [activeProjectId]);
 
   // Tweaks protocol
   React.useEffect(() => {
@@ -921,13 +909,10 @@ function DesktopViewToggle() {
 }
 
 function CostScheduleHost(props) {
-  const [version, setVersion] = React.useState(() => {
-    try { return localStorage.getItem('aml-schedule-version') || 'v2'; }
-    catch { return 'v2'; }
-  });
+  const cs = window.useCloudState();
+  const version = cs.ui.scheduleVersion || 'v2';
   function setV(v) {
-    setVersion(v);
-    try { localStorage.setItem('aml-schedule-version', v); } catch {}
+    cs.setUi({ scheduleVersion: v });
   }
   const Current = version === 'v2' ? window.CostScheduleV2 : window.CostSchedule;
   return (

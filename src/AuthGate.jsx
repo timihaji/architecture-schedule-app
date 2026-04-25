@@ -20,6 +20,10 @@
     const [session, setSession] = useState(null);
     const [error, setError] = useState(null);
     const lastEvent = useRef(null);
+    // Once we've verified a user's access, remember their id so subsequent
+    // SDK events (TOKEN_REFRESHED, USER_UPDATED, focus-triggered re-validation)
+    // don't bounce the UI back to "Checking access…".
+    const verifiedUserId = useRef(null);
 
     useEffect(() => {
       if (!window.cloud) {
@@ -29,7 +33,7 @@
       }
 
       // Supabase JS v2 fires INITIAL_SESSION on subscribe, then SIGNED_IN /
-      // SIGNED_OUT / PASSWORD_RECOVERY / TOKEN_REFRESHED as they happen.
+      // SIGNED_OUT / PASSWORD_RECOVERY / TOKEN_REFRESHED / USER_UPDATED.
       const subscription = window.cloud.sb.auth.onAuthStateChange(async (evt, sess) => {
         lastEvent.current = evt;
 
@@ -38,18 +42,21 @@
           setStatus('recover');
           return;
         }
-        if (evt === 'TOKEN_REFRESHED') {
-          // Just store the new session; don't bounce the UI.
-          if (sess) setSession(sess);
-          return;
-        }
 
         if (!sess) {
+          verifiedUserId.current = null;
           setSession(null);
           setStatus('signin');
           return;
         }
 
+        // Same user we already verified — just refresh the session ref silently.
+        if (verifiedUserId.current === sess.user.id) {
+          setSession(sess);
+          return;
+        }
+
+        // First time seeing this user (or a different user) — verify access.
         setSession(sess);
         setStatus('checking');
         try {
@@ -58,6 +65,7 @@
             setStatus('notallowed');
             return;
           }
+          verifiedUserId.current = sess.user.id;
           setError(null);
           setStatus('ready');
         } catch (err) {
@@ -87,14 +95,17 @@
     if (status === 'signin') {
       return <SignInScreen initialError={error} />;
     }
-    // ready
+    // ready — wrap children in LoadingGate so cloud appState hydrates before
+    // the app reads from useCloudState(). SaveStatusIndicator + Toasts render
+    // outside the gate so they're visible during the brief skeleton flash.
     const SaveStatus = window.SaveStatusIndicator || (() => null);
     const Toasts     = window.CloudToasts          || (() => null);
+    const Gate       = window.LoadingGate          || (({children}) => children);
     return (
       <React.Fragment>
         <SaveStatus />
         <Toasts />
-        {children}
+        <Gate>{children}</Gate>
       </React.Fragment>
     );
   }
