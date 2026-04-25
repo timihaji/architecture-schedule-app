@@ -479,27 +479,31 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
     >
       <div style={{
         borderRight: '1px solid var(--rule)',
-        background: swatchTone,
         position: 'relative',
-        minHeight: 192,
       }}>
         <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 6,
+          width: 178, height: 178,
+          background: swatchTone,
+          position: 'relative',
         }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="rgba(255,255,255,0.32)" strokeWidth="1.4"
-            strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="1" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21,15 16,10 5,21" />
-          </svg>
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: 8,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'rgba(255,255,255,0.32)',
-          }}>swatch</span>
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="rgba(255,255,255,0.32)" strokeWidth="1.4"
+              strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="1" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21,15 16,10 5,21" />
+            </svg>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 8,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.32)',
+            }}>swatch</span>
+          </div>
         </div>
       </div>
 
