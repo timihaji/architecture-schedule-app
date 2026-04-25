@@ -1,8 +1,7 @@
-// Settings — user-facing preferences. Single source of truth, persisted to
-// localStorage as `aml-settings`. Applied as CSS variables on <html>.
-//
-// Migrated once from the old `aml-tweaks` blob; the Tweaks panel is now
-// dev-only (experimental toggles) — mature controls live here.
+// Settings — user-facing preferences. Single source of truth in appState
+// (cloud-backed). Applied as CSS variables on <html>.
+// loadSettings / saveSettings remain for one-time localStorage migration
+// on first cloud load; resetSettings() returns defaults for the reset flow.
 
 // ─────────────── Registries ───────────────
 
