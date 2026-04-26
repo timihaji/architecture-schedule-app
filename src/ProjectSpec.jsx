@@ -75,6 +75,8 @@ function ProjectSpec({ materials, projects, libraries, labelTemplates,
         componentType: null,
         status: 'specified',
         rooms: [],
+        approvalComment: '',
+        revision: '',
       };
       const sections = s.sections.slice();
       let idx = sections.findIndex(sec => sec.trade === trade);
@@ -788,6 +790,8 @@ function transformSpec(raw) {
       ...r,
       status: r.status || 'specified',
       rooms: Array.isArray(r.rooms) ? r.rooms : [],
+      approvalComment: r.approvalComment || '',
+      revision: r.revision || '',
     };
   }
   return { title: raw.title || 'Project Specification', ...raw, rows };

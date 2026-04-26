@@ -378,6 +378,32 @@
       const ui = collectLegacyUiKeys();
       if (Object.keys(ui).length > 0) { appState.ui = ui; appStateChanged = true; }
     }
+    // Migrate specV2Cols: aml-spec-cols (old per-device localStorage blob) →
+    // appState.ui.specV2Cols (cloud-synced, workspace-wide). Only runs once:
+    // once the key is in cloud the condition is false. Does NOT delete the
+    // localStorage key — leave that to the existing "Clear browser leftovers" flow.
+    if (!(appState.ui && appState.ui.specV2Cols)) {
+      const raw = readLSRaw('aml-spec-cols');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            appState = {
+              ...appState,
+              ui: {
+                ...(appState.ui || {}),
+                specV2Cols: {
+                  // Keep in sync with DEFAULT_GLOBAL_COLS in ProjectSpecV2.jsx
+                  global: ['finish', 'rooms', 'supplier', 'price'],
+                  byTrade: parsed,
+                },
+              },
+            };
+            appStateChanged = true;
+          }
+        } catch {}
+      }
+    }
     if (appState.seed_version == null) {
       const ver = readLSRaw('aml-seed-version');
       if (ver) {

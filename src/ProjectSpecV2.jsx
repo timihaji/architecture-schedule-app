@@ -3,12 +3,20 @@
 // Alternate "Register" view for the spec section. Same per-project rows as
 // ProjectSpec.jsx (v1 List view), reframed as an editorial submittal register:
 // large product cards per item, status badges, sticky trade headers with
-// status counts, per-trade column visibility, search + trade/status filter.
+// status counts, global + per-trade column visibility (synced via Supabase),
+// smart auto-hide of empty columns per card, search + trade/status filter.
+//
+// Field visibility is now workspace-wide (stored in appState.ui.specV2Cols via
+// useCloudState) with optional per-trade overrides. The global Fields picker
+// in the toolbar sets the baseline; each section header's Fields ▾ picker
+// overrides it for that trade. Per-section overrides show a · indicator and
+// a "Reset to default" link.
 //
 // Receives spec data + ops as props from ProjectSpec.jsx, so persistence and
 // cloud sync are handled upstream — this file is purely presentation + minor
-// inline editing (status, rooms). Material-level fields (mfr/contact/url/
-// warranty/installNotes) are read-only here; edited via the Library editor.
+// inline editing (status, rooms, revision, approvalComment). Material-level
+// fields (mfr/contact/url/warranty/installNotes/leadTime/dimensions/price)
+// are read-only here; edited via the Library editor.
 
 const SPEC_STATUS = {
   specified:  { label: 'Specified',  dot: '#9a9385', bg: 'rgba(154,147,133,0.10)' },
@@ -19,58 +27,83 @@ const SPEC_STATUS = {
 };
 const STATUS_ORDER = ['specified','submitted','approved','on-order','installed'];
 
-// Columns the user can toggle per trade.
+// All 15 toggleable columns, grouped for the picker UI.
 const SPEC_V2_COLS = [
-  { id: 'finish',   label: 'Finish' },
-  { id: 'desc',     label: 'Description' },
-  { id: 'rooms',    label: 'Rooms' },
-  { id: 'supplier', label: 'Supplier' },
-  { id: 'mfr',      label: 'Manufacturer' },
-  { id: 'url',      label: 'Product URL' },
-  { id: 'contact',  label: 'Contact' },
-  { id: 'install',  label: 'Installation' },
-  { id: 'warranty', label: 'Warranty' },
-  { id: 'note',     label: 'Project note' },
+  // Project-specific (per spec row)
+  { id: 'rooms',           label: 'Rooms',            group: 'Project' },
+  { id: 'note',            label: 'Project note',     group: 'Project' },
+  { id: 'approvalComment', label: 'Approval comment', group: 'Project' },
+  { id: 'revision',        label: 'Revision',         group: 'Project' },
+  // Material details (per Library entry)
+  { id: 'finish',          label: 'Finish',            group: 'Material' },
+  { id: 'desc',            label: 'Description',       group: 'Material' },
+  { id: 'supplier',        label: 'Supplier',          group: 'Material' },
+  { id: 'mfr',             label: 'Manufacturer',      group: 'Material' },
+  { id: 'url',             label: 'Product URL',       group: 'Material' },
+  { id: 'contact',         label: 'Contact',           group: 'Material' },
+  { id: 'install',         label: 'Installation',      group: 'Material' },
+  { id: 'warranty',        label: 'Warranty',          group: 'Material' },
+  { id: 'price',           label: 'Price',             group: 'Material' },
+  { id: 'leadTime',        label: 'Lead time',         group: 'Material' },
+  { id: 'dimensions',      label: 'Dimensions',        group: 'Material' },
 ];
 
-// Sensible defaults per trade — falls back to DEFAULT_VIS_FALLBACK for unlisted.
-const DEFAULT_VIS = {
-  Flooring:            ['finish','rooms','supplier','contact','install','warranty'],
-  'Paints & Finishes': ['finish','rooms','supplier','install'],
-  Tiling:              ['finish','rooms','supplier','install'],
-  Stonework:           ['finish','rooms','supplier','warranty'],
-  Joinery:             ['finish','desc','rooms','mfr','install'],
-  Carpentry:           ['finish','rooms','supplier','install'],
-  Electrical:          ['finish','desc','rooms','supplier','contact'],
-  Plumbing:            ['finish','desc','rooms','supplier','contact'],
-  Mechanical:          ['desc','rooms','supplier','contact'],
-  Glazing:             ['finish','rooms','supplier','warranty'],
-  'Doors & Windows':   ['finish','rooms','supplier','mfr'],
-  Hardware:            ['finish','desc','rooms','supplier','contact'],
-  FFE:                 ['desc','rooms','supplier','warranty'],
-  Landscape:           ['rooms','supplier','install'],
-  Other:               ['finish','rooms','supplier'],
+// 3-col grid layout vs full-width layout in the card.
+const SHORT_COL_IDS = new Set([
+  'rooms','revision','finish','supplier','mfr','contact','warranty',
+  'price','leadTime','dimensions','url',
+]);
+const LONG_COL_IDS = new Set([
+  'desc','install','note','approvalComment',
+]);
+
+// Maps col id → material property name (for material-sourced fields).
+const FIELD_TO_MATERIAL_KEY = {
+  finish:     'finish',
+  desc:       'spec',
+  supplier:   'supplier',
+  mfr:        'mfr',
+  url:        'url',
+  contact:    'contact',
+  install:    'installNotes',
+  warranty:   'warranty',
+  leadTime:   'leadTime',
+  dimensions: 'dimensions',
 };
-const DEFAULT_VIS_FALLBACK = ['finish','rooms','supplier'];
 
-const SHORT_COL_IDS = new Set(['finish','rooms','supplier','mfr','url','contact','warranty']);
-const LONG_COL_IDS  = new Set(['desc','install','note']);
+// Inline-editable row-level fields — always show when enabled so users can add data.
+const ALWAYS_SHOW_IDS = new Set(['rooms', 'revision', 'approvalComment']);
 
-function getSpecV2DefaultVis(trade) {
-  return DEFAULT_VIS[trade] || DEFAULT_VIS_FALLBACK;
+// Curated baseline shown on first use / fresh workspace.
+const DEFAULT_GLOBAL_COLS = ['finish', 'rooms', 'supplier', 'price'];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+// Returns the col list to render for a given trade, applying the override
+// hierarchy: byTrade[trade] > global > DEFAULT_GLOBAL_COLS.
+function resolveVisCols(trade, specV2Cols) {
+  const byTrade = (specV2Cols && specV2Cols.byTrade) || {};
+  if (byTrade[trade]) return byTrade[trade];
+  const global = specV2Cols && specV2Cols.global;
+  if (global && global.length > 0) return global;
+  return DEFAULT_GLOBAL_COLS;
 }
 
-// Persisted per-trade visibility, single JSON blob in localStorage.
-function loadSpecV2Cols() {
-  try {
-    const raw = localStorage.getItem('aml-spec-cols');
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch { return {}; }
+// Whether a single row/material has a value for the given col id.
+function rowHasColData(colId, row, material) {
+  switch (colId) {
+    case 'rooms':           return (row.rooms || []).length > 0;
+    case 'note':            return !!row.note;
+    case 'approvalComment': return !!(row.approvalComment);
+    case 'revision':        return !!(row.revision);
+    case 'price':           return material && (material.unitCost > 0);
+    default:                return material && !!(material[FIELD_TO_MATERIAL_KEY[colId]]);
+  }
 }
-function saveSpecV2Cols(state) {
-  try { localStorage.setItem('aml-spec-cols', JSON.stringify(state)); } catch {}
+
+// How many rows in a given list have data for the given col id.
+function colDataCount(colId, rows) {
+  return rows.filter(({ row, material }) => rowHasColData(colId, row, material)).length;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -79,20 +112,31 @@ function saveSpecV2Cols(state) {
 function ProjectSpecV2({ spec, project, materials, labelTemplates,
   onUpdateRow, onRemoveRow, onAddItem }) {
 
+  // Column visibility state lives in cloud (appState.ui.specV2Cols).
+  const cs = window.useCloudState();
+  const specV2Cols = cs.ui.specV2Cols || { global: DEFAULT_GLOBAL_COLS, byTrade: {} };
+
+  function setGlobalCols(colsSet) {
+    cs.setUi({ specV2Cols: { ...specV2Cols, global: Array.from(colsSet) } });
+  }
+  function setTradeCols(trade, colsSet) {
+    cs.setUi({
+      specV2Cols: {
+        ...specV2Cols,
+        byTrade: { ...(specV2Cols.byTrade || {}), [trade]: Array.from(colsSet) },
+      },
+    });
+  }
+  function resetTradeCols(trade) {
+    const { [trade]: _removed, ...rest } = specV2Cols.byTrade || {};
+    cs.setUi({ specV2Cols: { ...specV2Cols, byTrade: rest } });
+  }
+
   const [q, setQ] = React.useState('');
   const [tradeFilter, setTradeFilter] = React.useState('All trades');
   const [statusFilter, setStatusFilter] = React.useState('All statuses');
-  const [colsByTrade, setColsByTrade] = React.useState(() => loadSpecV2Cols());
 
-  function setColsForTrade(trade, cols) {
-    setColsByTrade(prev => {
-      const next = { ...prev, [trade]: Array.from(cols) };
-      saveSpecV2Cols(next);
-      return next;
-    });
-  }
-
-  // Flatten rows with their trade for filtering. Preserve section order.
+  // Flat list of all rows (for global counts + filtering).
   const allRows = React.useMemo(() => {
     const out = [];
     spec.sections.forEach(sec => {
@@ -124,7 +168,8 @@ function ProjectSpecV2({ spec, project, materials, labelTemplates,
         const m = material || {};
         const hay = [
           m.name, m.code, m.supplier, m.mfr, m.contact, m.finish, m.spec,
-          m.installNotes, row.note, ...(row.rooms || []),
+          m.installNotes, row.note, row.revision, row.approvalComment,
+          ...(row.rooms || []),
         ].filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(query)) return false;
       }
@@ -154,6 +199,13 @@ function ProjectSpecV2({ spec, project, materials, labelTemplates,
         countText={isFiltered
           ? `${filtered.length} of ${allRows.length}`
           : `${allRows.length} item${allRows.length === 1 ? '' : 's'}`}
+        globalVis={new Set(specV2Cols.global || DEFAULT_GLOBAL_COLS)}
+        allRows={allRows}
+        onToggleGlobalCol={(id) => {
+          const next = new Set(specV2Cols.global || DEFAULT_GLOBAL_COLS);
+          next.has(id) ? next.delete(id) : next.add(id);
+          setGlobalCols(next);
+        }}
       />
 
       {tradesAfterFilter.length === 0 && (
@@ -169,18 +221,22 @@ function ProjectSpecV2({ spec, project, materials, labelTemplates,
 
       {tradesAfterFilter.map(trade => {
         const tradeRows = filtered.filter(r => r.trade === trade);
-        const visSet = new Set(colsByTrade[trade] || getSpecV2DefaultVis(trade));
+        const visCols = resolveVisCols(trade, specV2Cols);
+        const hasOverride = !!(specV2Cols.byTrade && specV2Cols.byTrade[trade]);
+        const visSet = new Set(visCols);
         return (
           <SpecV2Section
             key={trade}
             trade={trade}
             tradeRows={tradeRows}
             vis={visSet}
+            hasOverride={hasOverride}
             onToggleCol={(id) => {
               const next = new Set(visSet);
               next.has(id) ? next.delete(id) : next.add(id);
-              setColsForTrade(trade, next);
+              setTradeCols(trade, next);
             }}
+            onResetCols={() => resetTradeCols(trade)}
             labelTemplates={labelTemplates}
             onUpdateRow={onUpdateRow}
             onRemoveRow={onRemoveRow}
@@ -221,7 +277,8 @@ function SpecV2Header({ project }) {
 
 // ───────── Toolbar ─────────
 function SpecV2Toolbar({ q, setQ, trades, tradeFilter, setTradeFilter,
-  statusFilter, setStatusFilter, isFiltered, onClear, countText }) {
+  statusFilter, setStatusFilter, isFiltered, onClear, countText,
+  globalVis, allRows, onToggleGlobalCol }) {
 
   const selStyle = {
     background: 'transparent', border: '1px solid var(--rule-2)',
@@ -270,6 +327,16 @@ function SpecV2Toolbar({ q, setQ, trades, tradeFilter, setTradeFilter,
         {STATUS_ORDER.map(s => <option key={s} value={SPEC_STATUS[s].label}>{SPEC_STATUS[s].label}</option>)}
       </select>
 
+      {/* Global Fields picker — between status filter and count */}
+      <SpecV2ColPicker
+        trade={null}
+        vis={globalVis}
+        rows={allRows}
+        hasOverride={false}
+        onToggle={onToggleGlobalCol}
+        onReset={null}
+      />
+
       <span style={{ flex: 1 }} />
 
       <Mono size={10} color={isFiltered ? 'var(--ink)' : 'var(--ink-4)'}
@@ -290,8 +357,8 @@ function SpecV2Toolbar({ q, setQ, trades, tradeFilter, setTradeFilter,
 }
 
 // ───────── Trade section ─────────
-function SpecV2Section({ trade, tradeRows, vis, onToggleCol, labelTemplates,
-  onUpdateRow, onRemoveRow, onAddItem }) {
+function SpecV2Section({ trade, tradeRows, vis, hasOverride, onToggleCol, onResetCols,
+  labelTemplates, onUpdateRow, onRemoveRow, onAddItem }) {
 
   const [collapsed, setCollapsed] = React.useState(false);
   const code = tradeCode(trade);
@@ -312,7 +379,14 @@ function SpecV2Section({ trade, tradeRows, vis, onToggleCol, labelTemplates,
           </Mono>
         </div>
         <SpecV2StatusCounts items={tradeRows} />
-        <SpecV2ColPicker vis={vis} onToggle={onToggleCol} />
+        <SpecV2ColPicker
+          trade={trade}
+          vis={vis}
+          rows={tradeRows}
+          hasOverride={hasOverride}
+          onToggle={onToggleCol}
+          onReset={onResetCols}
+        />
         <button type="button" onClick={() => setCollapsed(c => !c)} style={{
           background: 'none', border: '1px solid var(--rule-2)',
           padding: '4px 10px', cursor: 'pointer',
@@ -356,7 +430,6 @@ function SpecV2Section({ trade, tradeRows, vis, onToggleCol, labelTemplates,
 
 function tradeCode(trade) {
   if (!trade) return '—';
-  // Multi-word trades → first letters of first two words; single word → first 3 chars.
   const words = trade.split(/\s+/);
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return trade.slice(0, 3).toUpperCase();
@@ -384,8 +457,24 @@ function SpecV2StatusCounts({ items }) {
 }
 
 // ───────── Column picker popover ─────────
-function SpecV2ColPicker({ vis, onToggle }) {
+// Handles both the global picker (trade=null) and per-section picker (trade=string).
+function SpecV2ColPicker({ trade, vis, rows, hasOverride, onToggle, onReset }) {
   const [open, setOpen] = React.useState(false);
+  const isGlobal = !trade;
+
+  const buttonLabel = isGlobal
+    ? 'Default fields'
+    : hasOverride ? 'Fields ▾·' : 'Fields ▾';
+
+  const title = isGlobal ? 'Default fields' : `Fields for ${trade}`;
+
+  const groups = [
+    { label: 'Project',  cols: SPEC_V2_COLS.filter(c => c.group === 'Project')  },
+    { label: 'Material', cols: SPEC_V2_COLS.filter(c => c.group === 'Material') },
+  ];
+
+  const total = rows.length;
+
   return (
     <div style={{ position: 'relative' }}>
       <button type="button" onClick={() => setOpen(o => !o)} style={{
@@ -395,7 +484,8 @@ function SpecV2ColPicker({ vis, onToggle }) {
         letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)',
         display: 'inline-flex', alignItems: 'center', gap: 5,
       }}>
-        Fields <span style={{ opacity: 0.6, fontSize: 8 }}>▾</span>
+        {buttonLabel}
+        {!isGlobal && <span style={{ opacity: 0.5, fontSize: 8 }}>▾</span>}
       </button>
       {open && (
         <>
@@ -403,35 +493,74 @@ function SpecV2ColPicker({ vis, onToggle }) {
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', right: 0,
             background: 'var(--paper)', border: '1px solid var(--ink)',
-            zIndex: 20, minWidth: 210, boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
+            zIndex: 20, minWidth: 230, boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
           }}>
+            {/* Popover header */}
             <div style={{
               padding: '8px 14px 6px',
-              fontFamily: "'Inter Tight', sans-serif", fontSize: 9,
-              letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-4)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
               borderBottom: '1px solid var(--rule)',
-            }}>Toggle fields</div>
-            {SPEC_V2_COLS.map(col => {
-              const on = vis.has(col.id);
-              return (
-                <div key={col.id} onClick={() => onToggle(col.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 9,
-                    padding: '7px 14px', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <div style={{
-                    width: 12, height: 12, flexShrink: 0,
-                    border: '1px solid ' + (on ? 'var(--ink)' : 'var(--rule-2)'),
-                    background: on ? 'var(--ink)' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {on && <span style={{ color: 'var(--paper)', fontSize: 9, lineHeight: 1, fontWeight: 600 }}>✓</span>}
-                  </div>
-                  <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
-                    color: on ? 'var(--ink)' : 'var(--ink-3)' }}>{col.label}</span>
-                </div>
-              );
-            })}
+            }}>
+              <span style={{
+                fontFamily: "'Inter Tight', sans-serif", fontSize: 9,
+                letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-4)',
+              }}>{title}</span>
+              {!isGlobal && hasOverride && onReset && (
+                <button type="button"
+                  onClick={() => { onReset(); setOpen(false); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
+                    color: 'var(--ink-4)', padding: 0, textDecoration: 'underline',
+                    letterSpacing: '0.04em',
+                  }}>Reset to default</button>
+              )}
+            </div>
+
+            {/* Grouped column rows */}
+            {groups.map(group => (
+              <div key={group.label}>
+                <div style={{
+                  padding: '5px 14px 3px',
+                  fontFamily: "'Inter Tight', sans-serif", fontSize: 8,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: 'var(--ink-4)', background: 'var(--paper-2)',
+                }}>{group.label}</div>
+                {group.cols.map(col => {
+                  const on = vis.has(col.id);
+                  const count = colDataCount(col.id, rows);
+                  const hasData = count > 0;
+                  return (
+                    <div key={col.id} onClick={() => onToggle(col.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 9,
+                        padding: '6px 14px', cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <div style={{
+                        width: 12, height: 12, flexShrink: 0,
+                        border: '1px solid ' + (on ? 'var(--ink)' : 'var(--rule-2)'),
+                        background: on ? 'var(--ink)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {on && <span style={{ color: 'var(--paper)', fontSize: 9, lineHeight: 1, fontWeight: 600 }}>✓</span>}
+                      </div>
+                      <span style={{ flex: 1, fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
+                        color: hasData ? (on ? 'var(--ink)' : 'var(--ink-3)') : 'var(--ink-4)' }}>
+                        {col.label}
+                      </span>
+                      {total > 0 && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 9,
+                          color: hasData ? 'var(--ink-4)' : 'var(--ink-4)',
+                          opacity: hasData ? 1 : 0.5,
+                          whiteSpace: 'nowrap',
+                        }}>· {count}/{total}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -462,9 +591,15 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
   }
 
   const swatchTone = material.swatch?.tone || '#cbc6ba';
+
+  // Auto-hide: render only cols that have data in this card (or are always-shown editable fields).
   const visibleCols = SPEC_V2_COLS.filter(c => vis.has(c.id));
-  const shortFields = visibleCols.filter(c => SHORT_COL_IDS.has(c.id));
-  const wideFields  = visibleCols.filter(c => LONG_COL_IDS.has(c.id));
+  const shortFields = visibleCols
+    .filter(c => SHORT_COL_IDS.has(c.id))
+    .filter(c => ALWAYS_SHOW_IDS.has(c.id) || rowHasColData(c.id, row, material));
+  const wideFields = visibleCols
+    .filter(c => LONG_COL_IDS.has(c.id))
+    .filter(c => ALWAYS_SHOW_IDS.has(c.id) || rowHasColData(c.id, row, material));
 
   return (
     <div
@@ -477,15 +612,9 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
         transition: 'background 0.1s',
       }}
     >
-      <div style={{
-        borderRight: '1px solid var(--rule)',
-        position: 'relative',
-      }}>
-        <div style={{
-          width: 178, height: 178,
-          background: swatchTone,
-          position: 'relative',
-        }}>
+      {/* Swatch column */}
+      <div style={{ borderRight: '1px solid var(--rule)', position: 'relative' }}>
+        <div style={{ width: 178, height: 178, background: swatchTone, position: 'relative' }}>
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', flexDirection: 'column',
@@ -507,7 +636,9 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
         </div>
       </div>
 
+      {/* Content column */}
       <div style={{ padding: '16px 24px', position: 'relative' }}>
+        {/* Material name + status row */}
         <div style={{ display: 'flex', justifyContent: 'space-between',
           alignItems: 'flex-start', marginBottom: 10, gap: 12 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -543,6 +674,7 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
           />
         </div>
 
+        {/* Short fields — 3-column grid */}
         {shortFields.length > 0 && (
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
@@ -559,6 +691,10 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
                 {col.id === 'rooms' ? (
                   <SpecV2RoomsField rooms={row.rooms || []}
                     onChange={rooms => onUpdate({ rooms })} />
+                ) : col.id === 'revision' ? (
+                  <SpecV2RevisionField
+                    value={row.revision || ''}
+                    onChange={revision => onUpdate({ revision })} />
                 ) : (
                   <SpecV2ShortValue colId={col.id} material={material} />
                 )}
@@ -567,7 +703,22 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
           </div>
         )}
 
+        {/* Wide fields — full width */}
         {wideFields.map(col => {
+          if (col.id === 'approvalComment') {
+            return (
+              <div key={col.id} style={{ borderTop: '1px solid var(--rule)', padding: '10px 0' }}>
+                <div style={{
+                  fontFamily: "'Inter Tight', sans-serif", fontSize: 8.5,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: 'var(--ink-4)', marginBottom: 4,
+                }}>{col.label}</div>
+                <SpecV2ApprovalCommentField
+                  value={row.approvalComment || ''}
+                  onChange={approvalComment => onUpdate({ approvalComment })} />
+              </div>
+            );
+          }
           const value = wideFieldValue(col.id, row, material);
           if (!value) return null;
           return (
@@ -605,13 +756,20 @@ function SpecV2ProductCard({ row, material, vis, refCode, labelTemplates, onUpda
 function SpecV2ShortValue({ colId, material }) {
   const value = (() => {
     switch (colId) {
-      case 'finish':   return material.finish;
-      case 'supplier': return material.supplier;
-      case 'mfr':      return material.mfr;
-      case 'url':      return material.url;
-      case 'contact':  return material.contact;
-      case 'warranty': return material.warranty;
-      default:         return null;
+      case 'finish':     return material.finish;
+      case 'supplier':   return material.supplier;
+      case 'mfr':        return material.mfr;
+      case 'url':        return material.url;
+      case 'contact':    return material.contact;
+      case 'warranty':   return material.warranty;
+      case 'leadTime':   return material.leadTime;
+      case 'dimensions': return material.dimensions;
+      case 'price': {
+        if (!material.unitCost) return null;
+        const cost = fmtCurrency(material.unitCost);
+        return material.unit ? `${cost} / ${material.unit}` : cost;
+      }
+      default: return null;
     }
   })();
   if (!value) {
@@ -626,7 +784,7 @@ function SpecV2ShortValue({ colId, material }) {
           wordBreak: 'break-all', lineHeight: 1.35 }}>{value}</a>
     );
   }
-  const isMono = colId === 'contact';
+  const isMono = colId === 'contact' || colId === 'price' || colId === 'dimensions';
   return (
     <div style={{
       fontFamily: isMono ? 'var(--font-mono)' : "'Inter Tight', sans-serif",
@@ -642,6 +800,110 @@ function wideFieldValue(colId, row, material) {
   if (colId === 'install') return material.installNotes || '';
   if (colId === 'note')    return row.note || '';
   return '';
+}
+
+// ───────── Inline revision input (short, ~80px) ─────────
+function SpecV2RevisionField({ value, onChange }) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+
+  React.useEffect(() => { setDraft(value); }, [value]);
+
+  function commit() {
+    setEditing(false);
+    if (draft !== value) onChange(draft);
+  }
+
+  if (!editing && !value) {
+    return (
+      <span
+        onClick={() => { setEditing(true); setDraft(''); }}
+        style={{
+          fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
+          color: 'var(--ink-4)', cursor: 'text',
+          fontStyle: 'italic',
+        }}>Rev A</span>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => { setEditing(true); setDraft(value); }}
+        style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10.5,
+          color: 'var(--ink-2)', cursor: 'text',
+        }}>{value}</div>
+    );
+  }
+
+  return (
+    <input
+      autoFocus
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+      placeholder="Rev A"
+      style={{
+        background: 'transparent', border: 'none',
+        borderBottom: '1px dotted var(--ink)',
+        fontFamily: 'var(--font-mono)', fontSize: 10.5,
+        color: 'var(--ink)', outline: 'none', padding: '1px 0',
+        width: 80,
+      }}
+    />
+  );
+}
+
+// ───────── Inline approval comment textarea ─────────
+function SpecV2ApprovalCommentField({ value, onChange }) {
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(value);
+
+  React.useEffect(() => { setDraft(value); }, [value]);
+
+  function commit() {
+    setEditing(false);
+    if (draft !== value) onChange(draft);
+  }
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => { setEditing(true); setDraft(value); }}
+        style={{
+          fontFamily: "'Newsreader', serif", fontSize: 13,
+          color: value ? 'var(--ink-3)' : 'var(--ink-4)',
+          fontStyle: 'italic',
+          lineHeight: 1.55, cursor: 'text',
+          whiteSpace: 'pre-wrap',
+          minHeight: 22,
+        }}>
+        {value || 'e.g. Approved with sample submitted 12 May'}
+      </div>
+    );
+  }
+
+  return (
+    <textarea
+      autoFocus
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setDraft(value); } }}
+      placeholder="e.g. Approved with sample submitted 12 May"
+      rows={2}
+      style={{
+        width: '100%', background: 'transparent', border: 'none',
+        borderBottom: '1px dotted var(--ink)',
+        fontFamily: "'Newsreader', serif", fontSize: 13,
+        fontStyle: 'italic', color: 'var(--ink)', lineHeight: 1.55,
+        outline: 'none', padding: '1px 0', resize: 'vertical',
+        boxSizing: 'border-box',
+      }}
+    />
+  );
 }
 
 // ───────── Status badge + dropdown editor ─────────

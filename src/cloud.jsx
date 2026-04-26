@@ -13,7 +13,8 @@
 //   • aml-table-density, aml-dt-* (table density / column widths)
 //   • aml-desktop-view, aml-gallery-sidebar, aml-kind-filter
 //   • aml-cs-*, aml-cs-mode, aml-cs-rowshape (schedule/gallery filters)
-//   • aml-spec-mode, aml-spec-cols (spec view + per-trade column visibility)
+//   • aml-spec-mode (spec view — List vs Register; per-device preference)
+//   • aml-spec-cols (legacy; migrated to appState.ui.specV2Cols on first load)
 // Everything else (settings, ui, collections, schedules, specs) lives in Supabase.
 
 (function () {
