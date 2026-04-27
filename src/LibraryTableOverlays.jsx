@@ -227,9 +227,15 @@ function PanelKV({ label, value }) {
 }
 
 // ───────── Column picker ─────────
+// Adopts the .ae aesthetic: 1px ink frame, paper bg, no shadow, no radius.
+// Reads the full column catalogue + default-visible set from window so the
+// picker stays in sync with LibraryColumns.jsx.
 function LTColumnPicker({ colPref, setColPref, onClose }) {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
+  const COLUMNS = window.LIBRARY_COLUMNS || [];
+  const DEFAULT_VISIBLE = window.LIBRARY_DEFAULT_VISIBLE || [];
+  const DEFAULT_ORDER = window.LIBRARY_DEFAULT_ORDER || COLUMNS.map(c => c.id);
 
   function toggleVisible(id) {
     setColPref(p => ({
@@ -241,8 +247,8 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
   }
   function resetDefaults() {
     setColPref({
-      visible: ['select', 'swatch', 'code', 'label', 'category', 'supplier', 'finish', 'leadTime', 'unitCost', 'libraries'],
-      order: LT_COLUMNS.map(c => c.id),
+      visible: DEFAULT_VISIBLE.slice(),
+      order: DEFAULT_ORDER.slice(),
       widths: {},
     });
   }
@@ -263,19 +269,24 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
 
   return (
     <div onClick={onClose} style={modalBackdrop}>
-      <div onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)', border: '1px solid var(--ink)',
-          width: 340, maxHeight: '70vh',
-          display: 'flex', flexDirection: 'column',
-        }}>
-        <div style={modalHead}>
-          <Eyebrow>Columns</Eyebrow>
-          <button type="button" onClick={onClose} style={panelBtn}>×</button>
+      <div onClick={e => e.stopPropagation()} style={aePanel(360, '70vh')}>
+        <div style={aeHead}>
+          <div>
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 10,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: 'var(--ink-3)', marginBottom: 4,
+            }}>Columns</div>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: 18,
+              color: 'var(--ink)', lineHeight: 1.2,
+            }}>Show, hide, reorder</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={aeClose}>×</button>
         </div>
-        <div style={{ padding: '8px 0', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '6px 0', overflowY: 'auto', flex: 1 }}>
           {colPref.order.map(id => {
-            const col = LT_COLUMNS.find(c => c.id === id);
+            const col = COLUMNS.find(c => c.id === id);
             if (!col) return null;
             const visible = colPref.visible.includes(id);
             const isOver = overId === id && dragId !== id;
@@ -289,18 +300,20 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
                 style={{
                   display: 'grid', gridTemplateColumns: '16px 16px 1fr auto',
                   gap: 8, alignItems: 'center',
-                  padding: '5px 14px',
+                  padding: '6px 16px',
                   background: isOver ? 'var(--tint)' : 'transparent',
                   opacity: dragId === id ? 0.4 : 1,
                   cursor: col.fixed ? 'default' : 'grab',
                   borderTop: isOver ? '1px solid var(--accent)' : '1px solid transparent',
                 }}>
-                <span style={{ ...ui.mono, fontSize: 11, color: 'var(--ink-4)',
-                  userSelect: 'none' }}>
+                <span style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-4)',
+                  userSelect: 'none',
+                }}>
                   {col.fixed ? '·' : '⋮⋮'}
                 </span>
                 <Checkbox checked={visible} onChange={() => toggleVisible(id)} />
-                <span style={{ ...ui.serif, fontSize: 13 }}>
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13 }}>
                   {col.label || <em style={{ color: 'var(--ink-4)' }}>({col.id})</em>}
                 </span>
                 <Mono size={9} color="var(--ink-4)">
@@ -310,8 +323,7 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
             );
           })}
         </div>
-        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--rule)',
-          display: 'flex', justifyContent: 'space-between' }}>
+        <div style={aeFoot}>
           <TextButton onClick={resetDefaults}>Reset to defaults</TextButton>
           <Mono size={10} color="var(--ink-4)">Drag to reorder</Mono>
         </div>
@@ -347,7 +359,6 @@ function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMate
             background: 'var(--paper)', color: 'var(--ink)',
             border: '1px solid var(--ink)',
             minWidth: 200, zIndex: 2,
-            boxShadow: '0 6px 22px rgba(0,0,0,0.25)',
           }}>
             {libraries.map(l => (
               <button key={l.id} type="button"
@@ -445,7 +456,6 @@ function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, o
         style={{
           background: 'var(--paper)', border: '1px solid var(--ink)',
           width: 560, maxHeight: '60vh', display: 'flex', flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
         }}>
         <input autoFocus value={q}
           onChange={e => setQ(e.target.value)}
@@ -455,7 +465,7 @@ function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, o
             border: 'none', borderBottom: '1px solid var(--rule)',
             outline: 'none',
             padding: '14px 18px',
-            fontFamily: "'Inter Tight', sans-serif",
+            fontFamily: 'var(--font-sans)',
             fontSize: 15, color: 'var(--ink)',
             background: 'transparent',
           }} />
@@ -484,7 +494,7 @@ function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, o
                 ) : (
                   <span style={{ ...ui.mono, fontSize: 11, color: 'var(--ink-4)' }}>→</span>
                 )}
-                <span style={{ ...ui.serif, fontSize: 13.5, color: 'var(--ink)',
+                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13.5, color: 'var(--ink)',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.label}
                 </span>
@@ -533,18 +543,23 @@ function LTCheatsheet({ onClose }) {
   ];
   return (
     <div onClick={onClose} style={modalBackdrop}>
-      <div onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)', border: '1px solid var(--ink)',
-          width: 460, padding: '22px 26px',
-        }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between',
-          alignItems: 'baseline', marginBottom: 14 }}>
-          <Serif size={20}>Keyboard</Serif>
-          <button type="button" onClick={onClose} style={panelBtn}>×</button>
+      <div onClick={e => e.stopPropagation()} style={aePanel(480, 'auto')}>
+        <div style={aeHead}>
+          <div>
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 10,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: 'var(--ink-3)', marginBottom: 4,
+            }}>Shortcuts</div>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: 20,
+              color: 'var(--ink)', lineHeight: 1.2,
+            }}>Keyboard</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={aeClose}>×</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr',
-          rowGap: 7, columnGap: 16 }}>
+        <div style={{ padding: '16px 22px 20px', display: 'grid',
+          gridTemplateColumns: '110px 1fr', rowGap: 7, columnGap: 16 }}>
           {rows.map(([k, v]) => (
             <React.Fragment key={k}>
               <Mono size={11} color="var(--ink-2)"
@@ -553,8 +568,8 @@ function LTCheatsheet({ onClose }) {
                   padding: '2px 6px', textAlign: 'center',
                   justifySelf: 'start',
                 }}>{k}</Mono>
-              <span style={{ ...ui.serif, fontSize: 13, color: 'var(--ink-2)',
-                lineHeight: 1.5 }}>{v}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13,
+                color: 'var(--ink-2)', lineHeight: 1.5 }}>{v}</span>
             </React.Fragment>
           ))}
         </div>
@@ -563,10 +578,10 @@ function LTCheatsheet({ onClose }) {
   );
 }
 
-// ───── Shared modal styles ─────
+// ───── Shared modal styles (.ae aesthetic — 1px ink frame, no shadow) ─────
 const modalBackdrop = {
   position: 'fixed', inset: 0,
-  background: 'rgba(20,20,20,0.45)',
+  background: 'rgba(20,20,20,0.42)',
   zIndex: 90,
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   padding: 24,
@@ -575,6 +590,33 @@ const modalHead = {
   padding: '10px 14px',
   borderBottom: '1px solid var(--rule)',
   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+};
+
+function aePanel(width, maxHeight) {
+  return {
+    background: 'var(--paper)',
+    border: '1px solid var(--ink)',
+    width, maxWidth: '92vw',
+    maxHeight: maxHeight === 'auto' ? undefined : maxHeight,
+    display: 'flex', flexDirection: 'column',
+  };
+}
+const aeHead = {
+  padding: '14px 22px 12px',
+  borderBottom: '1px solid var(--rule)',
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+  gap: 12,
+};
+const aeFoot = {
+  padding: '12px 18px',
+  borderTop: '1px solid var(--rule)',
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+};
+const aeClose = {
+  background: 'none', border: 'none', cursor: 'pointer',
+  padding: 4,
+  fontFamily: 'var(--font-sans)', fontSize: 18, lineHeight: 1,
+  color: 'var(--ink-3)',
 };
 
 Object.assign(window, { LTSidePanel, LTColumnPicker, LTBulkBar, LTCommandPalette, LTCheatsheet });

@@ -1,23 +1,76 @@
-// LibraryColumns — material column catalogue for the shared DataTable.
+// LibraryColumns — Phase B4 register catalogue.
 //
-// Each column owns its own cell rendering. The DataTable frame handles
-// padding, border, alignment, and inline-edit plumbing via the `ctx` arg
-// passed to each `render(row, ctx)` fn. Keep render fns pure + stateless.
+// Row markup follows the design's `.reg-row` pattern: drag-handle gutter,
+// checkbox, square thumb, mono accent code, serif name, sans brand, mono
+// productType, sans supplier, right-aligned mono price, hover-reveal action
+// cluster. Implemented as DataTable columns so search/sort/multi-select/
+// bulk/inline-edit/keyboard-nav stay intact.
 //
-// ctx shape (from DataTable): {
-//   baseStyle, editing, setEditing, onSave, rowId,
-//   isSelected, onToggleSelect, col,
-//   colPref, setColPref, editingCell, setEditingCell,
-//   onSaveCell, selected, toggleSelect, sort, setSort,
-//   // host-provided via `cellCtx` extension:
+// Hover-reveal (drag handle, action cluster) uses :hover CSS injected once,
+// keyed off the row's [data-row-id] attribute already set by DataTable.
+//
+// ctx (from DataTable) extended via cellContext from LibraryTable.jsx:
 //   libraries, allMaterials, labelTemplates,
-// }
+//   onEditMaterial, onDuplicateMaterial, onDeleteMaterial,
 
-// ───────── Tiny leaf renderers ─────────
+// ─── Hover-reveal stylesheet (one-time injection) ──────────────────────────
+(function injectRegRowStyles() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('aml-reg-row-styles')) return;
+  const css = `
+    [data-row-id] .reg-row-drag,
+    [data-row-id] .reg-row-actions { opacity: 0; transition: opacity 0.12s; }
+    [data-row-id]:hover .reg-row-drag,
+    [data-row-id]:hover .reg-row-actions { opacity: 1; }
+  `;
+  const tag = document.createElement('style');
+  tag.id = 'aml-reg-row-styles';
+  tag.textContent = css;
+  document.head.appendChild(tag);
+})();
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function productTypeLabel(id) {
+  if (!id) return null;
+  const tx = window.DEFAULT_TAXONOMIES?.productTypes;
+  const found = tx?.find(t => t.id === id);
+  if (found) return found.label.toLowerCase();
+  return String(id).replace(/_/g, ' ');
+}
+
+// Effective swatch — paintable products inherit the linked paint's tone.
+function effectiveSwatch(m, allMaterials) {
+  if (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId) {
+    const linked = (allMaterials || []).find(x => x.id === m.paintedWithId);
+    if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
+  }
+  return m.swatch;
+}
+
+// ─── Cell renderers ────────────────────────────────────────────────────────
+
+// Drag-handle gutter — visual hover-reveal only for v1. Reorder behaviour
+// stays parked in V2_BACKLOG (per-room canvas / spreadsheet entry).
+function DragCell(row, ctx) {
+  return (
+    <div data-dt-raw="true" style={{ ...ctx.baseStyle, justifyContent: 'center', cursor: 'grab' }}>
+      <span className="reg-row-drag"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11, color: 'var(--ink-4)', lineHeight: 1,
+          userSelect: 'none',
+        }}>⋮⋮</span>
+    </div>
+  );
+}
+
+// Square thumb — scales with density. Design's 36×36 lands at "comfortable"
+// row height; compact/regular shrink the thumb proportionally.
 function SwatchCell(row, ctx) {
-  const { baseStyle, allMaterials } = ctx;
+  const { baseStyle, allMaterials, rowH = 32 } = ctx;
   const m = row;
+  const thumbSize = Math.max(18, Math.min(rowH - 4, 36));
   const kind = m.kind || 'material';
   if (kind !== 'material') {
     const glyph = (window.subtypeGlyph ? window.subtypeGlyph(kind, m.subtype) : window.kindGlyph?.(kind)) || '·';
@@ -29,9 +82,9 @@ function SwatchCell(row, ctx) {
     return (
       <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'center' }}>
         <span style={{
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 13, color: ink, lineHeight: 1,
-          display: 'inline-flex', width: 20, height: 20,
+          fontFamily: 'var(--font-sans)',
+          fontSize: Math.round(thumbSize * 0.55), color: ink, lineHeight: 1,
+          display: 'inline-flex', width: thumbSize, height: thumbSize,
           alignItems: 'center', justifyContent: 'center',
           border: '1px solid var(--rule-2)',
           background: bg,
@@ -39,37 +92,20 @@ function SwatchCell(row, ctx) {
       </div>
     );
   }
-  const mForSwatch = (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId)
-    ? (allMaterials || []).find(x => x.id === m.paintedWithId) || m
-    : m;
+  const swatch = effectiveSwatch(m, allMaterials);
   return (
     <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'center' }}>
       <Swatch
-        swatch={{ ...m.swatch, tone: (m.swatch?.inheritTone && mForSwatch !== m) ? mForSwatch.swatch?.tone : m.swatch?.tone }}
+        swatch={swatch}
         size="xs"
         seed={parseInt((m.id || '').slice(2)) || 1}
-        style={{ width: 20, height: 20, flexShrink: 0 }}
+        style={{ width: thumbSize, height: thumbSize, flexShrink: 0 }}
       />
     </div>
   );
 }
 
-function LabelCell(row, ctx) {
-  const { baseStyle, labelTemplates } = ctx;
-  const label = window.formatLabel(row, labelTemplates);
-  return (
-    <div data-dt-raw="true" style={{ ...baseStyle, fontSize: 12.5, gap: 6 }}>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-      {row.customName && (
-        <span style={{
-          ...ui.mono, fontSize: 8, color: 'var(--accent-ink)',
-          letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0,
-        }}>·</span>
-      )}
-    </div>
-  );
-}
-
+// Code — Mono Clean variant in accent-ink. Duplicate marker preserved.
 function CodeCell(row, ctx) {
   const { baseStyle, allMaterials } = ctx;
   const code = row.code || '';
@@ -77,7 +113,7 @@ function CodeCell(row, ctx) {
     allMaterials.some(m => m.id !== row.id && m.code === code);
   return (
     <div data-dt-raw="true" style={{ ...baseStyle, gap: 5 }}>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{code}</span>
+      <window.CodeChip size="register">{code}</window.CodeChip>
       {hasDupe && (
         <span title="Duplicate code in library" style={{
           color: 'var(--accent)', fontSize: 11, lineHeight: 1, flexShrink: 0,
@@ -86,6 +122,153 @@ function CodeCell(row, ctx) {
     </div>
   );
 }
+
+// Material name — serif 14 to match design row spec. Custom-name pip preserved.
+function LabelCell(row, ctx) {
+  const { baseStyle, labelTemplates } = ctx;
+  const label = window.formatLabel(row, labelTemplates);
+  return (
+    <div data-dt-raw="true" style={{
+      ...baseStyle,
+      fontFamily: 'var(--font-serif)',
+      fontSize: 14,
+      gap: 6,
+    }}>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+      {row.customName && (
+        <span title="Custom label"
+          style={{
+            fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--accent-ink)',
+            letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0,
+          }}>·</span>
+      )}
+    </div>
+  );
+}
+
+// Brand — sans 11. For paint, m.brand. For non-paint, blank-by-default.
+function BrandCell(row, ctx) {
+  const { baseStyle } = ctx;
+  const brand = row.brand;
+  return (
+    <div data-dt-raw="true" style={{
+      ...baseStyle,
+      fontFamily: 'var(--font-sans)',
+      fontSize: 11,
+      color: brand ? 'var(--ink-2)' : 'var(--ink-4)',
+    }}>
+      {brand || '—'}
+    </div>
+  );
+}
+
+// productType — mono 10 ink-3 lowercase. Falls back to legacy kind label.
+function ProductTypeCell(row, ctx) {
+  const { baseStyle } = ctx;
+  let label = productTypeLabel(row.productType);
+  if (!label) {
+    const k = (window.kindById && window.kindById(row.kind)) || null;
+    label = k ? k.label.toLowerCase() : '—';
+  }
+  return (
+    <div data-dt-raw="true" style={{
+      ...baseStyle,
+      fontFamily: 'var(--font-mono)',
+      fontSize: 10,
+      color: label === '—' ? 'var(--ink-4)' : 'var(--ink-3)',
+      letterSpacing: '0.06em',
+    }}>{label}</div>
+  );
+}
+
+// Supplier — sans 11 ink-3, editable on click.
+function SupplierCell(row, ctx) {
+  const { baseStyle, editing, setEditing, onSave } = ctx;
+  if (editing) {
+    return <window.DtInlineInput
+      baseStyle={baseStyle}
+      initial={row.supplier || ''}
+      onCommit={(v) => onSave(v || null)}
+      onCancel={() => setEditing(false)}
+    />;
+  }
+  return (
+    <div data-dt-raw="true"
+      style={{ ...baseStyle, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-3)' }}
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+      {row.supplier || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+    </div>
+  );
+}
+
+// Price — mono 11 right-aligned. Inline-edit preserved.
+function UnitCostCell(row, ctx) {
+  const { baseStyle, editing, setEditing, onSave } = ctx;
+  if (editing) {
+    return <window.DtInlineInput
+      baseStyle={baseStyle}
+      initial={row.unitCost || ''}
+      type="number"
+      onCommit={(v) => onSave(v === '' ? null : Number(v))}
+      onCancel={() => setEditing(false)}
+    />;
+  }
+  const styled = {
+    ...baseStyle,
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+  };
+  return (
+    <div data-dt-raw="true" style={styled}
+      onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
+      {row.unitCost != null
+        ? <>${Number(row.unitCost).toFixed(0)}<span style={{ color: 'var(--ink-4)' }}>/{row.unit || 'u'}</span></>
+        : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+    </div>
+  );
+}
+
+// Hover-reveal action cluster — Edit / Duplicate / Remove. Uses
+// `.reg-row-actions` class so the row's :hover toggles opacity (see CSS at
+// the top of this file).
+function ActionsCell(row, ctx) {
+  const { baseStyle, onEditMaterial, onDuplicateMaterial, onDeleteMaterial } = ctx;
+  function btn(label, title, onClick, danger = false) {
+    return (
+      <button type="button"
+        onClick={(e) => { e.stopPropagation(); onClick && onClick(row); }}
+        title={title}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: '0 4px',
+          cursor: 'pointer',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase',
+          color: danger ? 'var(--accent-ink)' : 'var(--ink-4)',
+          fontWeight: 500,
+          lineHeight: 1,
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = danger ? 'var(--accent)' : 'var(--ink)'}
+        onMouseLeave={e => e.currentTarget.style.color = danger ? 'var(--accent-ink)' : 'var(--ink-4)'}
+      >{label}</button>
+    );
+  }
+  return (
+    <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'flex-end' }}>
+      <span className="reg-row-actions"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        {btn('Edit', 'Edit entry (E)', onEditMaterial)}
+        <span style={{ width: 1, height: 10, background: 'var(--rule-2)' }} />
+        {btn('Dup', 'Duplicate', onDuplicateMaterial)}
+        <span style={{ width: 1, height: 10, background: 'var(--rule-2)' }} />
+        {btn('Del', 'Remove from library', onDeleteMaterial, true)}
+      </span>
+    </div>
+  );
+}
+
+// ─── Legacy / optional cell renderers (still available via column chooser) ─
 
 function CategoryCell(row, ctx) {
   const cat = row.category || '—';
@@ -126,7 +309,7 @@ function TagsCell(row, ctx) {
     <div data-dt-raw="true" style={{ ...baseStyle, gap: 4, overflow: 'hidden' }}>
       {tags.slice(0, 3).map(t => (
         <span key={t} style={{
-          ...ui.mono, fontSize: 9, padding: '2px 5px',
+          fontFamily: 'var(--font-mono)', fontSize: 9, padding: '2px 5px',
           letterSpacing: '0.05em', textTransform: 'uppercase',
           border: '1px solid var(--rule-2)',
           background: 'var(--paper-2)', color: 'var(--ink-3)',
@@ -134,7 +317,7 @@ function TagsCell(row, ctx) {
         }}>{t}</span>
       ))}
       {tags.length > 3 && (
-        <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ink-4)' }}>
           +{tags.length - 3}
         </span>
       )}
@@ -158,7 +341,7 @@ function LibrariesCell(row, ctx) {
         );
       })}
       {ids.length > 4 && (
-        <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)', marginLeft: 2 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ink-4)', marginLeft: 2 }}>
           +{ids.length - 4}
         </span>
       )}
@@ -199,27 +382,7 @@ function PaintedWithCell(row, ctx) {
   );
 }
 
-function UnitCostCell(row, ctx) {
-  const { baseStyle, editing, setEditing, onSave } = ctx;
-  if (editing) {
-    return <window.DtInlineInput
-      baseStyle={baseStyle}
-      initial={row.unitCost || ''}
-      type="number"
-      onCommit={(v) => onSave(v === '' ? null : Number(v))}
-      onCancel={() => setEditing(false)}
-    />;
-  }
-  return (
-    <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
-      {row.unitCost != null
-        ? <>${Number(row.unitCost).toFixed(0)}<span style={{ color: 'var(--ink-4)' }}>/{row.unit || 'u'}</span></>
-        : <span style={{ color: 'var(--ink-4)' }}>—</span>}
-    </div>
-  );
-}
-
-// Generic editable-text factory for leadTime / thickness / dimensions / supplier / origin / finish
+// Generic editable-text factory for leadTime / thickness / dimensions / origin / finish
 function genericEditable(field) {
   return function (row, ctx) {
     const { baseStyle, editing, setEditing, onSave } = ctx;
@@ -240,19 +403,44 @@ function genericEditable(field) {
 }
 
 // ───────── Column catalogue ─────────
+//
+// The first 10 entries are the design's `.reg-row` columns in order. The rest
+// are optional columns surfaced via the column chooser.
 
 const LIBRARY_COLUMNS = [
+  // Design row, in spec order:
+  { id: 'drag',     label: '', width: 24, minWidth: 24, fixed: true, align: 'center', sortable: false,
+    render: DragCell },
   { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
-  { id: 'swatch',   label: '', width: 32, minWidth: 32, align: 'center', sortable: false, render: SwatchCell },
-  { id: 'code',     label: 'Code', width: 82, minWidth: 60, mono: true,
+  { id: 'swatch',   label: '', width: 44, minWidth: 44, fixed: true, align: 'center', sortable: false,
+    render: SwatchCell },
+  { id: 'code',     label: 'Code', width: 96, minWidth: 64,
     render: CodeCell,
     searchText: (m) => m.code,
   },
-  { id: 'label',    label: 'Material', width: 280, minWidth: 160, serif: true,
+  { id: 'label',    label: 'Material', width: 320, minWidth: 180,
     render: LabelCell,
     sortValue: (m) => window.formatLabel(m, window._labelTemplatesCache || {}).toLowerCase(),
     searchText: (m) => (m.name || '') + ' ' + (m.customName || ''),
   },
+  { id: 'brand',    label: 'Brand', width: 130, minWidth: 80,
+    render: BrandCell,
+    searchText: (m) => m.brand },
+  { id: 'productType', label: 'Type', width: 130, minWidth: 90,
+    render: ProductTypeCell,
+    sortValue: (m) => productTypeLabel(m.productType) || (m.kind || 'material'),
+    searchText: (m) => productTypeLabel(m.productType) || '',
+  },
+  { id: 'supplier', label: 'Supplier', width: 150, minWidth: 90, editable: true,
+    render: SupplierCell,
+    searchText: (m) => m.supplier },
+  { id: 'unitCost', label: 'Price', width: 100, minWidth: 70, mono: true, editable: true, align: 'right',
+    render: UnitCostCell,
+    sortValue: (m) => m.unitCost || 0 },
+  { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, align: 'right', sortable: false,
+    render: ActionsCell },
+
+  // Optional columns (off by default; available via column chooser):
   { id: 'kind',     label: 'Kind', width: 120, minWidth: 80, render: KindCell,
     sortValue: (m) => m.kind || 'material' },
   { id: 'trade',    label: 'Trade', width: 140, minWidth: 90, render: TradeCell,
@@ -261,9 +449,6 @@ const LIBRARY_COLUMNS = [
     render: TagsCell },
   { id: 'category', label: 'Category', width: 100, minWidth: 70, render: CategoryCell,
     searchText: (m) => m.category },
-  { id: 'supplier', label: 'Supplier', width: 140, minWidth: 90, editable: true,
-    render: genericEditable('supplier'),
-    searchText: (m) => m.supplier },
   { id: 'supplier_code', label: 'Supplier code', width: 120, minWidth: 70, mono: true, editable: true,
     render: genericEditable('supplier_code'),
     searchText: (m) => m.supplier_code },
@@ -278,9 +463,6 @@ const LIBRARY_COLUMNS = [
     render: genericEditable('dimensions') },
   { id: 'leadTime', label: 'Lead', width: 80, minWidth: 50, mono: true, editable: true, align: 'right',
     render: genericEditable('leadTime') },
-  { id: 'unitCost', label: 'Cost', width: 90, minWidth: 60, mono: true, editable: true, align: 'right',
-    render: UnitCostCell,
-    sortValue: (m) => m.unitCost || 0 },
   { id: 'libraries',label: 'Libs', width: 90, minWidth: 70, align: 'left',
     render: LibrariesCell,
     sortValue: (m) => (m.libraryIds || []).length },
@@ -292,7 +474,11 @@ const LIBRARY_COLUMNS = [
     sortValue: (m) => m.paintedWithId || '' },
 ];
 
-const LIBRARY_DEFAULT_VISIBLE = ['select', 'swatch', 'code', 'label', 'kind', 'trade', 'supplier', 'finish', 'leadTime', 'unitCost', 'libraries'];
+// Default visible set follows the design's `.reg-row` columns.
+const LIBRARY_DEFAULT_VISIBLE = [
+  'drag', 'select', 'swatch', 'code', 'label',
+  'brand', 'productType', 'supplier', 'unitCost', 'actions',
+];
 const LIBRARY_DEFAULT_ORDER = LIBRARY_COLUMNS.map(c => c.id);
 
 // Library-specific filter matcher — supports in-library op on top of defaults.
@@ -307,5 +493,7 @@ Object.assign(window, {
   // Export leaf renderers in case other tables want to reuse (swatch etc)
   SwatchCell, LabelCell, CodeCell, CategoryCell, KindCell, TradeCell,
   TagsCell, LibrariesCell, ProjectsCell, PaintedWithCell, UnitCostCell,
+  BrandCell, ProductTypeCell, SupplierCell, ActionsCell, DragCell,
   genericEditable,
+  productTypeLabel,
 });

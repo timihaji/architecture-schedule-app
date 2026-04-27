@@ -692,7 +692,7 @@ function DtCell({ col, row, rowId, rowH, isSelected, onToggleSelect,
   if (typeof col.render === 'function') {
     const rendered = col.render(row, {
       ...ctx,
-      baseStyle, editing, setEditing, onSave, rowId,
+      baseStyle, editing, setEditing, onSave, rowId, rowH,
       isSelected, onToggleSelect, col,
     });
     // If the render fn returns a bare node (not a cell), wrap it

@@ -100,35 +100,44 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onUpdate
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.5)',
+      position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.42)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
       zIndex: 8000,
     }} onClick={onClose}>
       <div style={{
         width: 680, height: '100vh', background: 'var(--paper)',
-        boxShadow: '-16px 0 48px rgba(20,20,20,0.14)',
+        borderLeft: '1px solid var(--ink)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }} onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
+        {/* Header — eyebrow + serif title, .ae aesthetic */}
         <div style={{
           padding: '18px 24px 14px',
           borderBottom: '1px solid var(--rule)',
-          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: 12,
         }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 14 }}>
-              Find duplicates
-            </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-              fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
+            <div style={{
+              fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 10,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: 'var(--ink-3)', marginBottom: 4,
+            }}>Codes &amp; duplicates</div>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontSize: 20,
+              color: 'var(--ink)', lineHeight: 1.2,
+            }}>Find duplicates</div>
+            <div style={{
+              fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+              fontSize: 13, color: 'var(--ink-3)', marginTop: 4,
+            }}>
               {pairs.length === 0 ? 'No duplicates found' : `${pairs.length} pair${pairs.length !== 1 ? 's' : ''} found`}
               {dismissed.size > 0 && ` · ${dismissed.size} dismissed`}
             </div>
           </div>
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={onClose} aria-label="Close"
             style={{ background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 18, color: 'var(--ink-3)', padding: '0 4px' }}>×</button>
+              fontSize: 18, color: 'var(--ink-3)', padding: 4, lineHeight: 1 }}>×</button>
         </div>
 
         {/* Body */}

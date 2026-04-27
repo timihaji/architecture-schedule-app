@@ -129,8 +129,19 @@ function LibraryTable(props) {
         rows={kindScoped}
         columns={searchColumns}
         colPrefRef={colPrefRef}
-        cellContext={{ libraries, allMaterials: materials, labelTemplates }}
-        colStorageKey="aml-table-cols"
+        cellContext={{
+          libraries, allMaterials: materials, labelTemplates,
+          onEditMaterial: (m) => onEdit(m),
+          onDuplicateMaterial: (m) => {
+            const newId = onDuplicate && onDuplicate(m.id);
+            if (newId) { setCursorId(newId); setEditingCell({ id: newId, field: 'code' }); }
+          },
+          onDeleteMaterial: (m) => {
+            if (!window.confirm('Delete ' + (m.name || m.code || 'this material') + '?')) return;
+            onDelete(m.id, true);
+          },
+        }}
+        colStorageKey="aml-table-cols-v2"
         defaultVisible={window.LIBRARY_DEFAULT_VISIBLE}
         defaultOrder={window.LIBRARY_DEFAULT_ORDER}
         query={query}
