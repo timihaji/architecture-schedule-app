@@ -85,7 +85,6 @@
       padding: '12px 14px',
       background: isError ? 'rgba(197, 74, 59, 0.96)' : 'rgba(20, 20, 20, 0.92)',
       color: '#fff',
-       '0 6px 20px rgba(20, 20, 20, 0.18)',
       fontFamily: 'var(--font-sans)',
       fontSize: 13,
       lineHeight: 1.4,
