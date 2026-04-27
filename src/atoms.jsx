@@ -277,6 +277,68 @@ function Tab({ children, active = false, onClick, disabled = false, count, style
   );
 }
 
+// ─── SegmentedToggle ────────────────────────────────────────────────────────
+// Inline button group with one active item highlighted in ink/paper. Used by
+// ModeToggle (Gallery / Table) and DensityToggle (Compact / Regular /
+// Comfortable). Items: { id, label?, icon?, title? }.
+// `inactiveColor` lets callers tune visual weight (ModeToggle = ink-3;
+// DensityToggle = ink-4 secondary).
+// Name avoids collision with SettingsPage.jsx's local `Segmented` — babel-
+// standalone leaks top-level function declarations to window.
+function SegmentedToggle({
+  items, active, onChange,
+  height = 26,
+  inactiveColor = 'var(--ink-4)',
+  style = {},
+}) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'stretch',
+        border: '1px solid var(--rule-2)',
+        height,
+        ...style,
+      }}
+    >
+      {items.map((item, i) => {
+        const isActive = active === item.id;
+        const hasLabel = !!item.label;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onChange(item.id)}
+            title={item.title || item.label || item.id}
+            style={{
+              background: isActive ? 'var(--ink)' : 'transparent',
+              color: isActive ? 'var(--paper)' : inactiveColor,
+              border: 'none',
+              borderLeft: i === 0 ? 'none' : '1px solid var(--rule-2)',
+              padding: hasLabel ? '0 11px' : '0 8px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: hasLabel ? 10.5 : 13,
+              letterSpacing: hasLabel ? '0.08em' : 0,
+              textTransform: hasLabel ? 'uppercase' : 'none',
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              lineHeight: 1,
+            }}
+          >
+            {item.icon != null && (
+              <span style={{ fontSize: hasLabel ? 12 : 13, lineHeight: 1 }}>{item.icon}</span>
+            )}
+            {hasLabel && <span>{item.label}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Plate ──────────────────────────────────────────────────────────────────
 // Reserved for v2 — Library Switcher overlay rows. Defined so v2 imports
 // against a stable surface; not rendered anywhere in v1.
@@ -503,6 +565,7 @@ Object.assign(window, {
   Textarea,
   LibTabs,
   Tab,
+  SegmentedToggle,
   Plate,
   Modal,
   Toolbar,

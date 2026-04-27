@@ -91,28 +91,15 @@ function Divider() {
 
 function DensityToggle({ density, setDensity }) {
   return (
-    <div style={{ display: 'inline-flex', border: '1px solid var(--rule-2)', height: 26 }}>
-      {[
-        { id: 'compact', l: '≣' },
-        { id: 'regular', l: '≡' },
-        { id: 'comfortable', l: '☰' },
-      ].map((d, i) => {
-        const active = density === d.id;
-        return (
-          <button key={d.id} type="button" onClick={() => setDensity(d.id)}
-            title={d.id}
-            style={{
-              background: active ? 'var(--ink)' : 'transparent',
-              color: active ? 'var(--paper)' : 'var(--ink-4)',
-              border: 'none',
-              borderLeft: i === 0 ? 'none' : '1px solid var(--rule-2)',
-              padding: '0 8px',
-              fontSize: 13, lineHeight: 1,
-              cursor: 'pointer',
-            }}>{d.l}</button>
-        );
-      })}
-    </div>
+    <window.SegmentedToggle
+      items={[
+        { id: 'compact',     icon: '≣', title: 'Compact' },
+        { id: 'regular',     icon: '≡', title: 'Regular' },
+        { id: 'comfortable', icon: '☰', title: 'Comfortable' },
+      ]}
+      active={density}
+      onChange={setDensity}
+    />
   );
 }
 

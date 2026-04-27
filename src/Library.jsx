@@ -777,41 +777,21 @@ function CompareStrip({ ids, materials, labelTemplates, onClose }) {
 Object.assign(window, { Library });
 
 // ───────── Gallery / Table mode toggle ─────────
+// Wraps the shared SegmentedToggle atom. Defaults to Gallery / Table;
+// ProjectSpec and CostScheduleV2 pass their own `modes` array via the same
+// signature.
 function ModeToggle({ mode, setMode, modes }) {
   const items = modes || [
     { id: 'gallery', label: 'Gallery', icon: '▦' },
     { id: 'table',   label: 'Table',   icon: '≡' },
   ];
   return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'stretch',
-      border: '1px solid var(--rule-2)',
-      height: 26,
-    }}>
-      {items.map((m, i) => {
-        const active = mode === m.id;
-        return (
-          <button key={m.id} type="button"
-            onClick={() => setMode(m.id)}
-            title={m.label + ' mode'}
-            style={{
-              background: active ? 'var(--ink)' : 'transparent',
-              color: active ? 'var(--paper)' : 'var(--ink-3)',
-              border: 'none',
-              borderLeft: i === 0 ? 'none' : '1px solid var(--rule-2)',
-              padding: '0 11px',
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 10.5, letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              cursor: 'pointer', fontWeight: 500,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-            <span style={{ fontSize: 12, lineHeight: 1 }}>{m.icon}</span>
-            {m.label}
-          </button>
-        );
-      })}
-    </div>
+    <window.SegmentedToggle
+      items={items.map(m => ({ ...m, title: m.label + ' mode' }))}
+      active={mode}
+      onChange={setMode}
+      inactiveColor="var(--ink-3)"
+    />
   );
 }
 Object.assign(window, { ModeToggle });
