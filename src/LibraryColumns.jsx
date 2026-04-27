@@ -152,7 +152,7 @@ function LibrariesCell(row, ctx) {
         return (
           <span key={lid} title={lib?.name}
             style={{
-              width: 6, height: 6, borderRadius: '50%',
+              width: 6, height: 6,
               background: 'var(--ink-3)', flexShrink: 0,
             }} />
         );

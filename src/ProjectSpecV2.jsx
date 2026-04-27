@@ -447,7 +447,7 @@ function SpecV2StatusCounts({ items }) {
         const cfg = SPEC_STATUS[s];
         return (
           <span key={s} title={cfg.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
+            <span style={{ width: 6, height: 6, background: cfg.dot }} />
             <Mono size={9} color={cfg.dot}>{counts[s]}</Mono>
           </span>
         );
@@ -493,7 +493,7 @@ function SpecV2ColPicker({ trade, vis, rows, hasOverride, onToggle, onReset }) {
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', right: 0,
             background: 'var(--paper)', border: '1px solid var(--ink)',
-            zIndex: 20, minWidth: 230, boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
+            zIndex: 20, minWidth: 230,
           }}>
             {/* Popover header */}
             <div style={{
@@ -922,7 +922,7 @@ function SpecV2StatusEditor({ value, onChange }) {
           letterSpacing: '0.06em', textTransform: 'uppercase',
           color: cfg.dot, fontWeight: 500, whiteSpace: 'nowrap',
         }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
+        <span style={{ width: 6, height: 6, background: cfg.dot, flexShrink: 0 }} />
         {cfg.label}
       </button>
       {open && (
@@ -931,7 +931,7 @@ function SpecV2StatusEditor({ value, onChange }) {
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', right: 0,
             background: 'var(--paper)', border: '1px solid var(--ink)',
-            zIndex: 20, minWidth: 160, boxShadow: '0 8px 28px rgba(0,0,0,0.12)',
+            zIndex: 20, minWidth: 160,
           }}>
             {STATUS_ORDER.map(s => {
               const c = SPEC_STATUS[s];
@@ -947,7 +947,7 @@ function SpecV2StatusEditor({ value, onChange }) {
                   }}
                   onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--tint)'; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+                  <span style={{ width: 6, height: 6, background: c.dot, flexShrink: 0 }} />
                   <span style={{ fontFamily: "'Inter Tight', sans-serif",
                     fontSize: 12, color: 'var(--ink)' }}>{c.label}</span>
                 </button>

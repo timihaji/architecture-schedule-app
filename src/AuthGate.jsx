@@ -362,9 +362,7 @@
       maxWidth: 380,
       background: 'var(--paper-2)',
       border: '1px solid var(--rule)',
-      borderRadius: 4,
       padding: '32px 28px',
-      boxShadow: 'var(--shadow)',
       display: 'flex',
       flexDirection: 'column',
     };
@@ -420,7 +418,6 @@
       color: 'var(--ink)',
       background: 'var(--paper)',
       border: '1px solid var(--rule-2)',
-      borderRadius: 2,
       outline: 'none',
     };
   }
@@ -434,7 +431,6 @@
       color: '#fff',
       background: disabled ? 'var(--ink-4)' : 'var(--accent)',
       border: 'none',
-      borderRadius: 2,
       cursor: disabled ? 'wait' : 'pointer',
       transition: 'background 0.15s ease',
     };
@@ -458,8 +454,7 @@
       color: '#7a2412',
       background: 'rgba(184, 92, 58, 0.12)',
       border: '1px solid rgba(184, 92, 58, 0.3)',
-      borderRadius: 2,
-    };
+          };
   }
   function okBox() {
     return {
@@ -469,8 +464,7 @@
       color: '#1f5a2e',
       background: 'rgba(58, 138, 74, 0.12)',
       border: '1px solid rgba(58, 138, 74, 0.3)',
-      borderRadius: 2,
-    };
+          };
   }
 
   Object.assign(window, { AuthGate });

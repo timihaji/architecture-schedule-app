@@ -247,7 +247,6 @@ function AppearanceSection({ settings, set }) {
                   padding: 0,
                   background: t.preview.paper,
                   border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
-                  boxShadow: active ? '0 0 0 1px var(--ink)' : 'none',
                   cursor: 'pointer',
                   textAlign: 'left',
                   position: 'relative',
@@ -309,7 +308,6 @@ function AppearanceSection({ settings, set }) {
                     width: 58, height: 58,
                     background: p.preview,
                     border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
-                    boxShadow: active ? '0 0 0 1px var(--ink)' : 'none',
                     cursor: 'pointer',
                     position: 'relative',
                   }}>
@@ -400,8 +398,7 @@ function AppearanceSection({ settings, set }) {
                 <div style={{
                   width: 36, height: 36,
                   background: 'var(--accent)',
-                  borderRadius: s.radius,
-                }} />
+                  }} />
                 <span style={{ ...ui.mono, fontSize: 9,
                   letterSpacing: '0.08em',
                   color: active ? 'var(--ink)' : 'var(--ink-4)' }}>
@@ -803,12 +800,12 @@ function CodesSection({ settings, set }) {
                   fontFamily: 'var(--font-sans)',
                 }}>
                 <div style={{
-                  width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
+                  width: 14, height: 14, flexShrink: 0,
                   border: '1.5px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
                   background: active ? 'var(--ink)' : 'transparent',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {active && <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--paper)' }} />}
+                  {active && <div style={{ width: 5, height: 5, background: 'var(--paper)' }} />}
                 </div>
                 <div>
                   <span style={{ fontSize: 13, fontWeight: active ? 500 : 400 }}>{p.label}</span>
@@ -1308,7 +1305,7 @@ function CloudSection({ materials, projects, libraries, labelTemplates }) {
           marginTop: 28, padding: '14px 18px',
           background: err ? 'rgba(197, 74, 59, 0.08)' : 'var(--tint)',
           border: '1px solid ' + (err ? 'rgba(197, 74, 59, 0.3)' : 'var(--rule)'),
-          borderRadius: 2, fontSize: 13, lineHeight: 1.5,
+          fontSize: 13, lineHeight: 1.5,
         }}>
           {progress && (
             <div style={{ ...ui.mono, fontSize: 11, color: 'var(--ink-3)',

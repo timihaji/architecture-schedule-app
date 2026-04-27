@@ -41,7 +41,6 @@ function ComponentTypePicker({ value, onChange, onClose }) {
           maxHeight: '82vh',
           background: 'var(--paper)',
           border: '1px solid var(--ink)',
-          boxShadow: '0 20px 60px rgba(20, 18, 14, 0.25)',
           display: 'grid',
           gridTemplateRows: 'auto 1fr auto',
           overflow: 'hidden',
