@@ -1368,6 +1368,89 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
   const fileRef = React.useRef();
   const [importMsg, setImportMsg] = React.useState(null);
 
+  // Schema migration state
+  const cs = window.useCloudState();
+  const appState = cs._appState || {};
+  const schemaVersion = appState.schemaVersion | 0;
+  const migrations = Array.isArray(appState.migrations) ? appState.migrations : [];
+  const [migMsg, setMigMsg] = React.useState(null);
+  const [migBusy, setMigBusy] = React.useState(false);
+
+  async function runDryRun() {
+    if (!window.migrateV4) {
+      setMigMsg({ kind: 'err', msg: 'migrateV4 not loaded.' });
+      return;
+    }
+    setMigBusy(true); setMigMsg(null);
+    try {
+      const result = await window.migrateV4.runDry({
+        appState, materials, projects, libraries,
+        loadSpec:     (id) => window.cloud.loadSpec(id),
+        loadSchedule: (id) => window.cloud.loadSchedule(id),
+      });
+      setMigMsg({ kind: 'ok',
+        msg: 'Dry run complete. Two JSONs downloaded (before + after). Counts: ' +
+          Object.entries(result.summary).map(([k,v]) => `${k}=${v}`).join(', ') });
+    } catch (err) {
+      setMigMsg({ kind: 'err', msg: 'Dry run failed: ' + (err.message || err) });
+    } finally {
+      setMigBusy(false);
+    }
+  }
+
+  async function downloadSnapshot() {
+    if (!window.migrateV4) {
+      setMigMsg({ kind: 'err', msg: 'migrateV4 not loaded.' });
+      return;
+    }
+    setMigBusy(true); setMigMsg(null);
+    try {
+      await window.migrateV4.snapshot({
+        appState, materials, projects, libraries,
+        loadSpec:     (id) => window.cloud.loadSpec(id),
+        loadSchedule: (id) => window.cloud.loadSchedule(id),
+        label: 'manual',
+      });
+      setMigMsg({ kind: 'ok', msg: 'Snapshot downloaded.' });
+    } catch (err) {
+      setMigMsg({ kind: 'err', msg: 'Snapshot failed: ' + (err.message || err) });
+    } finally {
+      setMigBusy(false);
+    }
+  }
+
+  async function rerunLive() {
+    if (!window.migrateV4) {
+      setMigMsg({ kind: 'err', msg: 'migrateV4 not loaded.' });
+      return;
+    }
+    if (!window.confirm(
+      'Re-run the v4 migration against your current workspace?\n\n' +
+      'A snapshot JSON will be auto-downloaded before any cloud writes. ' +
+      'The migration is idempotent (safe to re-run), and will reload the ' +
+      'page on success so the new schema is hydrated cleanly.')) return;
+    setMigBusy(true); setMigMsg(null);
+    try {
+      const result = await window.migrateV4.runLive({
+        appState, materials, projects, libraries,
+        loadSpec:        (id) => window.cloud.loadSpec(id),
+        loadSchedule:    (id) => window.cloud.loadSchedule(id),
+        saveSchedule:    (id, data) => window.cloud.saveScheduleNow(id, data),
+        upsertItem:      (table, id, item) => window.cloud.upsertItemNow(table, id, item),
+        saveAppStateNow: (blob) => window.cloud.saveAppStateNow(blob),
+      });
+      setMigMsg({ kind: 'ok',
+        msg: 'Migration complete. Reloading… Counts: ' +
+          Object.entries(result.summary).map(([k,v]) => `${k}=${v}`).join(', ') });
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+      setMigMsg({ kind: 'err', msg: 'Migration failed: ' + (err.message || err) +
+        ' — workspace remains at v' + schemaVersion + '. Pre-migration snapshot was downloaded.' });
+    } finally {
+      setMigBusy(false);
+    }
+  }
+
   async function exportAll() {
     // Phase 4: per-project cost schedules and specs live in the cloud.
     // Load each project's row in parallel, then build the archive payload.
@@ -1465,6 +1548,91 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
           }}>{importMsg.msg}</div>
         )}
       </SettingRow>
+
+      <SubsectionHeader>Schema migrations</SubsectionHeader>
+
+      <SettingRow label="Current schema version"
+        description="The data shape your workspace currently uses. v4 introduces productType, extras, schedule rows, rooms, and the taxonomies singleton.">
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--ink)' }}>
+          v{schemaVersion || 3}
+        </span>
+        {schemaVersion < 4 && (
+          <span style={{ marginLeft: 12, ...ui.mono, fontSize: 10,
+            letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+            v4 migration available
+          </span>
+        )}
+      </SettingRow>
+
+      <SettingRow label="Migration history"
+        description="Past schema migrations and their row counts.">
+        {migrations.length === 0 ? (
+          <span style={{ color: 'var(--ink-4)', fontStyle: 'italic',
+            fontFamily: "'Newsreader', var(--font-serif, serif)", fontSize: 13 }}>
+            No migrations have run on this workspace.
+          </span>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {migrations.map((m, i) => (
+              <div key={i} style={{
+                fontFamily: 'var(--font-mono)', fontSize: 11,
+                color: 'var(--ink-3)', letterSpacing: '0.04em',
+                paddingLeft: 10,
+                borderLeft: '2px solid ' + (m.error ? 'var(--accent)' : 'var(--rule-2)'),
+              }}>
+                <strong style={{ color: 'var(--ink)' }}>v{m.version}</strong>
+                {' · '}{new Date(m.ranAt).toLocaleString()}
+                {' · '}{(m.mode || 'live').toUpperCase()}
+                {m.counts && (
+                  <div style={{ fontSize: 10, color: 'var(--ink-4)', marginTop: 2 }}>
+                    {Object.entries(m.counts).map(([k, v]) => `${k}:${v}`).join(' · ')}
+                  </div>
+                )}
+                {m.error && (
+                  <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
+                    Error: {m.error}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </SettingRow>
+
+      <SettingRow label="Dry-run v4 migration"
+        description="Loads everything from cloud, runs the migration in memory, downloads two JSONs (before + after) for inspection. Writes nothing to cloud or localStorage.">
+        <DataButton onClick={runDryRun} disabled={migBusy}>
+          {migBusy ? 'Running…' : 'Dry-run v4…'}
+        </DataButton>
+      </SettingRow>
+
+      <SettingRow label="Download snapshot"
+        description="Save a JSON backup of the current workspace state — same payload as Export archive, but labelled as a snapshot.">
+        <DataButton onClick={downloadSnapshot} disabled={migBusy}>
+          {migBusy ? 'Working…' : 'Download snapshot'}
+        </DataButton>
+      </SettingRow>
+
+      {schemaVersion < 4 && (
+        <SettingRow label="Re-run v4 migration"
+          description="Re-runs the live migration against the current workspace. Idempotent. A snapshot JSON is auto-downloaded before any cloud writes. The page reloads on success.">
+          <DataButton danger onClick={rerunLive} disabled={migBusy}>
+            {migBusy ? 'Migrating…' : 'Re-run v4 migration…'}
+          </DataButton>
+        </SettingRow>
+      )}
+
+      {migMsg && (
+        <SettingRow label="" description="">
+          <div style={{
+            padding: '8px 12px',
+            borderLeft: '2px solid ' + (migMsg.kind === 'ok' ? 'var(--accent)' : 'var(--ink)'),
+            background: 'var(--tint)',
+            fontFamily: "'Newsreader', var(--font-serif, serif)",
+            fontStyle: 'italic', fontSize: 13, color: 'var(--ink-2)',
+          }}>{migMsg.msg}</div>
+        </SettingRow>
+      )}
 
       <SubsectionHeader>Reset</SubsectionHeader>
 

@@ -465,6 +465,37 @@
       }
     }
 
+    // 5b. v4 schema migration. Idempotent. Gated by appState.schemaVersion < 4.
+    //     ADDITIVE: legacy fields (kind, category, brand, etc.) are preserved
+    //     so v3 UI surfaces keep working until Phase B/C/D rewrite them.
+    //     On failure: do NOT bump schemaVersion → next boot retries.
+    if (window.migrateV4 && (appState.schemaVersion | 0) < 4) {
+      try {
+        console.log('[LoadingGate] running v4 migration…');
+        const result = await window.migrateV4.runLive({
+          appState, materials, projects, libraries,
+          loadSpec:        (id) => window.cloud.loadSpec(id),
+          loadSchedule:    (id) => window.cloud.loadSchedule(id),
+          saveSchedule:    (id, data) => window.cloud.saveScheduleNow(id, data),
+          upsertItem:      (table, id, item) => window.cloud.upsertItemNow(table, id, item),
+          saveAppStateNow: (blob) => window.cloud.saveAppStateNow(blob),
+        });
+        appState  = result.appState;     // schemaVersion=4, taxonomies, migrations[]
+        materials = result.materials;     // each with productType + extras added
+        projects  = result.projects;      // each with rooms + roomIds + archetype
+        // saveAppStateNow already happened inside runLive — skip the
+        // redundant save below.
+        appStateChanged = false;
+        console.log('[LoadingGate] v4 migration succeeded:', result.summary);
+      } catch (err) {
+        console.error('[LoadingGate] v4 migration failed — workspace remains at v3:', err);
+        // Workspace boots at v3. Legacy paths still work because A3 is
+        // additive — nothing was destructively changed. User can re-run
+        // from Settings → Data → "Re-run v4 migration". A snapshot was
+        // already downloaded inside runLive before any cloud write.
+      }
+    }
+
     // 6. Push singleton if anything changed.
     if (appStateChanged) {
       try {
