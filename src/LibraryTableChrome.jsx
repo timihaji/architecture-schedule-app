@@ -1,175 +1,18 @@
-// Library Table — top bar + filters bar + compact sidebar
-
-// ───────── Compact sidebar (180px, denser than Gallery's 220px) ─────────
-function LibrarySidebarCompact({ libraries, materials, activeLibraryId, setActiveLibraryId,
-  onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary }) {
-  const [adding, setAdding] = React.useState(false);
-  const [newName, setNewName] = React.useState('');
-  const [renamingId, setRenamingId] = React.useState(null);
-  const [renameVal, setRenameVal] = React.useState('');
-
-  function submitNew() {
-    if (newName.trim()) onAddLibrary(newName);
-    setNewName(''); setAdding(false);
-  }
-  function submitRename() {
-    if (renameVal.trim()) onRenameLibrary(renamingId, renameVal);
-    setRenamingId(null); setRenameVal('');
-  }
-
-  return (
-    <aside style={{
-      borderRight: '1px solid var(--rule)',
-      background: 'var(--paper-2)',
-      overflowY: 'auto',
-      padding: '14px 0',
-      minWidth: 0,
-    }}>
-      <div style={{
-        padding: '0 14px 10px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-        borderBottom: '1px dotted var(--rule-2)',
-      }}>
-        <Eyebrow>Libraries</Eyebrow>
-        <Mono size={10} color="var(--ink-4)">{libraries.length}</Mono>
-      </div>
-      <div style={{ padding: '6px 0' }}>
-        <SidebarRow
-          name="All libraries"
-          count={materials.length}
-          active={activeLibraryId === 'all'}
-          onClick={() => setActiveLibraryId('all')}
-        />
-        <div style={{ height: 6 }} />
-        {libraries.map(lib => {
-          const count = materials.filter(m => (m.libraryIds || []).includes(lib.id)).length;
-          const isActive = activeLibraryId === lib.id;
-          const isRenaming = renamingId === lib.id;
-          return (
-            <div key={lib.id}>
-              {isRenaming ? (
-                <input autoFocus value={renameVal}
-                  onChange={e => setRenameVal(e.target.value)}
-                  onBlur={submitRename}
-                  onKeyDown={e => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal(''); } }}
-                  style={{
-                    width: 'calc(100% - 14px)', margin: '2px 7px',
-                    background: 'transparent',
-                    border: 'none', borderBottom: '1px solid var(--ink)',
-                    outline: 'none',
-                    fontFamily: "'Newsreader', serif", fontSize: 13,
-                    padding: '4px 4px', color: 'var(--ink)',
-                  }} />
-              ) : (
-                <SidebarRow
-                  name={lib.name}
-                  count={count}
-                  active={isActive}
-                  system={lib.system}
-                  onClick={() => setActiveLibraryId(lib.id)}
-                  onRename={() => { setRenamingId(lib.id); setRenameVal(lib.name); }}
-                  onDuplicate={() => onDuplicateLibrary(lib.id)}
-                  onDelete={lib.system ? null : () => onDeleteLibrary(lib.id)}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ padding: '8px 14px', borderTop: '1px dotted var(--rule-2)' }}>
-        {adding ? (
-          <input autoFocus value={newName}
-            onChange={e => setNewName(e.target.value)}
-            onBlur={() => { if (newName.trim()) submitNew(); else setAdding(false); }}
-            onKeyDown={e => { if (e.key === 'Enter') submitNew(); if (e.key === 'Escape') { setAdding(false); setNewName(''); } }}
-            placeholder="Library name"
-            style={{
-              width: '100%', background: 'transparent',
-              border: 'none', borderBottom: '1px solid var(--ink)', outline: 'none',
-              fontFamily: "'Newsreader', serif", fontSize: 13,
-              padding: '4px 0', color: 'var(--ink)',
-            }} />
-        ) : (
-          <button type="button"
-            onClick={() => { setAdding(true); setNewName(''); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '2px 0',
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: 'var(--accent-ink)', fontWeight: 500,
-            }}>＋ New library</button>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function SidebarRow({ name, count, active, onClick, onRename, onDuplicate, onDelete }) {
-  const [hov, setHov] = React.useState(false);
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: 'grid', gridTemplateColumns: '1fr auto', gap: 6,
-        alignItems: 'center',
-        padding: '5px 14px',
-        cursor: 'pointer',
-        background: active ? 'var(--ink)' : (hov ? 'var(--tint)' : 'transparent'),
-        color: active ? 'var(--paper)' : 'var(--ink)',
-        borderLeft: '2px solid ' + (active ? 'var(--accent)' : 'transparent'),
-        fontFamily: "'Newsreader', serif",
-        fontSize: 13, lineHeight: 1.2,
-        transition: 'background 0.08s',
-      }}
-    >
-      <span style={{
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        color: active ? 'var(--paper)' : 'var(--ink)',
-      }}>{name}</span>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 10,
-        color: active ? 'var(--paper-2)' : 'var(--ink-4)',
-      }}>{String(count).padStart(2, '0')}</span>
-      {hov && !active && (onRename || onDuplicate || onDelete) && (
-        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, paddingTop: 2 }}
-          onClick={e => e.stopPropagation()}>
-          {onRename && <TinyAction onClick={onRename}>rename</TinyAction>}
-          {onDuplicate && <TinyAction onClick={onDuplicate}>dup</TinyAction>}
-          {onDelete && <TinyAction onClick={onDelete} danger>del</TinyAction>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TinyAction({ children, onClick, danger }) {
-  return (
-    <button type="button" onClick={onClick}
-      style={{
-        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: danger ? 'var(--accent-ink)' : 'var(--ink-3)',
-        fontWeight: 500,
-      }}>{children}</button>
-  );
-}
+// Library Table — top bar + filters bar.
+// Phase B1: removed LibrarySidebarCompact; library selection lives in
+// LibraryMasthead's switcher overlay now.
 
 // ───────── Top bar ─────────
+// Phase B1: scope label + Add button moved up to LibraryMasthead. This bar
+// keeps the count, search, and per-mode controls.
 function LTTopBar({
   query, setQuery, searchRef,
   mode, setMode,
   labelTemplates, setLabelTemplates, onOpenLabelBuilder,
-  onAdd, density, setDensity,
+  density, setDensity,
   onOpenColPicker, onOpenCheatsheet, onFindDupes,
-  activeLibraryId, libraries, count, total,
+  count, total,
 }) {
-  const activeLib = libraries.find(l => l.id === activeLibraryId);
-  const scopeLabel = activeLibraryId === 'all' ? 'All libraries' : (activeLib?.name || 'Library');
   return (
     <div style={{
       padding: '10px 16px',
@@ -179,15 +22,10 @@ function LTTopBar({
       background: 'var(--paper)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
-          <span style={{ ...ui.mono, fontSize: 10, color: 'var(--ink-4)',
-            letterSpacing: '0.1em', textTransform: 'uppercase' }}>Vol I</span>
-          <span style={{ ...ui.serif, fontSize: 17, color: 'var(--ink)',
-            whiteSpace: 'nowrap' }}>{scopeLabel}</span>
-          <span style={{ ...ui.mono, fontSize: 10.5, color: 'var(--ink-4)' }}>
-            {count === total ? `${total} entries` : `${count} of ${total}`}
-          </span>
-        </div>
+        <span style={{ ...ui.mono, fontSize: 10.5, color: 'var(--ink-4)',
+          letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          {count === total ? `${total} entries` : `${count} of ${total}`}
+        </span>
 
         {/* Search */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, maxWidth: 440,
@@ -231,15 +69,6 @@ function LTTopBar({
         <button type="button" onClick={onOpenCheatsheet}
           title="Keyboard shortcuts ( ? )"
           style={{ ...barBtn, padding: '0 7px' }}>?</button>
-        <button type="button" onClick={onAdd}
-          style={{
-            background: 'var(--ink)', color: 'var(--paper)',
-            border: '1px solid var(--ink)',
-            padding: '4px 12px',
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase',
-            cursor: 'pointer', fontWeight: 500,
-          }}>＋ New</button>
       </div>
     </div>
   );
@@ -557,4 +386,4 @@ const filterInput = {
   outline: 'none',
 };
 
-Object.assign(window, { LibrarySidebarCompact, LTTopBar, LTKindTabs, LTFiltersBar, DensityToggle });
+Object.assign(window, { LTTopBar, LTKindTabs, LTFiltersBar, DensityToggle });

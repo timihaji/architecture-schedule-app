@@ -1,4 +1,6 @@
-// Library — dense editorial spec-book list with left library sidebar
+// Library — dense editorial spec-book list. Phase B1: inline-disclosure
+// masthead owns the page header + library selection; LibrarySwitcher overlay
+// holds the libraries list and CRUD that used to live in the sidebar.
 
 function Library({
   materials, libraries,
@@ -11,53 +13,57 @@ function Library({
   onFindDupes,
   compareIds, toggleCompare, showImagery, density,
 }) {
-  if (mode === 'table') {
-    return (
-      <LibraryTable
-        materials={materials}
+  return (
+    <>
+      <window.LibraryMasthead
         libraries={libraries}
-        labelTemplates={labelTemplates}
-        setLabelTemplates={setLabelTemplates}
-        onOpenLabelBuilder={onOpenLabelBuilder}
-        mode={mode} setMode={setMode}
+        materials={materials}
         activeLibraryId={activeLibraryId}
         setActiveLibraryId={setActiveLibraryId}
-        onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+        onAdd={onAdd}
         onAddLibrary={onAddLibrary}
         onRenameLibrary={onRenameLibrary}
         onDuplicateLibrary={onDuplicateLibrary}
         onDeleteLibrary={onDeleteLibrary}
-        onToggleMaterialInLibrary={onToggleMaterialInLibrary}
-        onMoveMaterial={onMoveMaterial}
-        onDuplicateMaterial={onDuplicateMaterial}
-        onDuplicate={onDuplicate}
-        onFindDupes={onFindDupes}
       />
-    );
-  }
-  return (
-    <LibraryGallery
-      materials={materials}
-      libraries={libraries}
-      labelTemplates={labelTemplates}
-      setLabelTemplates={setLabelTemplates}
-      onOpenLabelBuilder={onOpenLabelBuilder}
-      mode={mode} setMode={setMode}
-      activeLibraryId={activeLibraryId}
-      setActiveLibraryId={setActiveLibraryId}
-      onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
-      onAddLibrary={onAddLibrary}
-      onRenameLibrary={onRenameLibrary}
-      onDuplicateLibrary={onDuplicateLibrary}
-      onDeleteLibrary={onDeleteLibrary}
-      onToggleMaterialInLibrary={onToggleMaterialInLibrary}
-      onMoveMaterial={onMoveMaterial}
-      onDuplicateMaterial={onDuplicateMaterial}
-      onDuplicate={onDuplicate}
-      onFindDupes={onFindDupes}
-      compareIds={compareIds} toggleCompare={toggleCompare}
-      showImagery={showImagery} density={density}
-    />
+      {mode === 'table' ? (
+        <LibraryTable
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          setLabelTemplates={setLabelTemplates}
+          onOpenLabelBuilder={onOpenLabelBuilder}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          setActiveLibraryId={setActiveLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          onToggleMaterialInLibrary={onToggleMaterialInLibrary}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onFindDupes={onFindDupes}
+        />
+      ) : (
+        <LibraryGallery
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          setLabelTemplates={setLabelTemplates}
+          onOpenLabelBuilder={onOpenLabelBuilder}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          setActiveLibraryId={setActiveLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          onToggleMaterialInLibrary={onToggleMaterialInLibrary}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onFindDupes={onFindDupes}
+          compareIds={compareIds} toggleCompare={toggleCompare}
+          showImagery={showImagery} density={density}
+        />
+      )}
+    </>
   );
 }
 
@@ -67,7 +73,6 @@ function LibraryGallery({
   mode, setMode,
   activeLibraryId, setActiveLibraryId,
   onEdit, onAdd, onDelete,
-  onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   onFindDupes,
   compareIds, toggleCompare, showImagery, density,
@@ -78,31 +83,6 @@ function LibraryGallery({
   const [openId, setOpenId] = React.useState(null);
   const [menuForId, setMenuForId] = React.useState(null);
   const [flashId, setFlashId] = React.useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
-    try { return localStorage.getItem('aml-gallery-sidebar') === 'collapsed'; }
-    catch { return false; }
-  });
-  function toggleSidebar() {
-    setSidebarCollapsed(v => {
-      const next = !v;
-      try { localStorage.setItem('aml-gallery-sidebar', next ? 'collapsed' : 'open'); } catch {}
-      return next;
-    });
-  }
-
-  // ⌘\ or Ctrl+\ toggles the libraries rail
-  React.useEffect(() => {
-    function onKey(e) {
-      const inInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
-      if (inInput) return;
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault();
-        toggleSidebar();
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   // Clean jump to a material by id — clears filters, switches library scope if needed,
   // opens the target row, scrolls to it and flashes it briefly.
@@ -167,67 +147,27 @@ function LibraryGallery({
     return Array.from(map.entries());
   }, [filtered, group]);
 
-  const activeLibrary = libraries.find(l => l.id === activeLibraryId);
-  const scopeLabel = activeLibraryId === 'all' ? 'All libraries' : (activeLibrary?.name || 'Library');
-
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: (sidebarCollapsed ? '40px' : '220px') + ' 1fr',
-      gap: sidebarCollapsed ? 28 : 40,
-      alignItems: 'start',
-      transition: 'grid-template-columns 0.22s ease, gap 0.22s ease',
-    }}>
-      <LibrarySidebar
-        libraries={libraries}
-        materials={materials}
-        activeLibraryId={activeLibraryId}
-        setActiveLibraryId={setActiveLibraryId}
-        onAddLibrary={onAddLibrary}
-        onRenameLibrary={onRenameLibrary}
-        onDuplicateLibrary={onDuplicateLibrary}
-        onDeleteLibrary={onDeleteLibrary}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={toggleSidebar}
-      />
-
-      <div style={{ minWidth: 0 }}>
-        <header style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
-            <div>
-              <Eyebrow>Volume I · Materials · {scopeLabel}</Eyebrow>
-              <h1 style={{
-                fontFamily: "'Newsreader', serif",
-                fontWeight: 300,
-                fontSize: 52,
-                letterSpacing: '-0.015em',
-                lineHeight: 1,
-                margin: '10px 0 6px',
-              }}>
-                {scopeLabel === 'All libraries' ? 'Material Library' : scopeLabel}
-              </h1>
-              <div style={{ ...ui.mono, fontSize: 11.5, color: 'var(--ink-3)', letterSpacing: '0.02em' }}>
-                {libraryScoped.length} entries · {[...new Set(libraryScoped.map(m => m.supplier))].filter(Boolean).length} suppliers
-                {activeLibrary?.description ? ' · ' + activeLibrary.description : ''}
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {compareIds.length >= 2 && (
-                <Tag tone="accent">Comparing {compareIds.length}</Tag>
-              )}
-              <ModeToggle mode={mode} setMode={setMode} />
-              <LabelFormatQuickPick
-                templates={labelTemplates}
-                setTemplates={setLabelTemplates}
-                onOpenBuilder={() => onOpenLabelBuilder('Global')} />
-              {onFindDupes && (
-                <TextButton onClick={onFindDupes}>Find dupes</TextButton>
-              )}
-              <TextButton onClick={onAdd} accent>＋ Add entry</TextButton>
-            </div>
-          </div>
-          <Rule heavy style={{ marginTop: 20 }} />
-        </header>
+    <div style={{ minWidth: 0 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 12,
+          marginBottom: 18,
+        }}>
+          {compareIds.length >= 2 && (
+            <Tag tone="accent">Comparing {compareIds.length}</Tag>
+          )}
+          <ModeToggle mode={mode} setMode={setMode} />
+          <LabelFormatQuickPick
+            templates={labelTemplates}
+            setTemplates={setLabelTemplates}
+            onOpenBuilder={() => onOpenLabelBuilder('Global')} />
+          {onFindDupes && (
+            <TextButton onClick={onFindDupes}>Find dupes</TextButton>
+          )}
+        </div>
 
         {compareIds.length >= 2 && (
           <CompareStrip
@@ -321,330 +261,11 @@ function LibraryGallery({
             ))}
           </section>
         ))}
-      </div>
     </div>
   );
 }
 
-// ───────── Sidebar ─────────
-
-function LibrarySidebar({ libraries, materials, activeLibraryId, setActiveLibraryId,
-  onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
-  collapsed, onToggleCollapsed }) {
-  const [adding, setAdding] = React.useState(false);
-  const [newName, setNewName] = React.useState('');
-  const [renamingId, setRenamingId] = React.useState(null);
-  const [renameVal, setRenameVal] = React.useState('');
-
-  function submitNew() {
-    if (newName.trim()) onAddLibrary(newName);
-    setNewName(''); setAdding(false);
-  }
-  function submitRename() {
-    if (renameVal.trim()) onRenameLibrary(renamingId, renameVal);
-    setRenamingId(null); setRenameVal('');
-  }
-
-  if (collapsed) {
-    return (
-      <CollapsedLibraryRail
-        libraries={libraries}
-        materials={materials}
-        activeLibraryId={activeLibraryId}
-        setActiveLibraryId={setActiveLibraryId}
-        onExpand={onToggleCollapsed}
-      />
-    );
-  }
-
-  return (
-    <aside style={{
-      position: 'sticky',
-      top: 80,
-      paddingRight: 8,
-      borderRight: '1px solid var(--rule)',
-      marginRight: -8,
-      minHeight: 300,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <Eyebrow>Libraries</Eyebrow>
-          <Mono size={10} color="var(--ink-4)">{libraries.length}</Mono>
-        </div>
-        <CollapseToggle collapsed={false} onClick={onToggleCollapsed} />
-      </div>
-
-      <LibraryItem
-        name="All libraries"
-        count={materials.length}
-        active={activeLibraryId === 'all'}
-        system
-        onClick={() => setActiveLibraryId('all')}
-      />
-      <div style={{ height: 10 }} />
-      {libraries.map(lib => {
-        const count = materials.filter(m => m.libraryIds.includes(lib.id)).length;
-        const isActive = activeLibraryId === lib.id;
-        const isRenaming = renamingId === lib.id;
-        return (
-          <div key={lib.id} style={{ marginBottom: 2 }}>
-            {isRenaming ? (
-              <input autoFocus value={renameVal}
-                onChange={e => setRenameVal(e.target.value)}
-                onBlur={submitRename}
-                onKeyDown={e => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') { setRenamingId(null); setRenameVal(''); } }}
-                style={{
-                  width: '100%',
-                  background: 'transparent',
-                  border: 'none',
-                  borderBottom: '1px solid var(--ink)',
-                  outline: 'none',
-                  fontFamily: "'Newsreader', serif",
-                  fontSize: 14,
-                  padding: '7px 8px',
-                  color: 'var(--ink)',
-                }} />
-            ) : (
-              <LibraryItem
-                name={lib.name}
-                count={count}
-                active={isActive}
-                system={lib.system}
-                onClick={() => setActiveLibraryId(lib.id)}
-                onRename={() => { setRenamingId(lib.id); setRenameVal(lib.name); }}
-                onDuplicate={() => onDuplicateLibrary(lib.id)}
-                onDelete={lib.system ? null : () => onDeleteLibrary(lib.id)}
-              />
-            )}
-          </div>
-        );
-      })}
-
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px dotted var(--rule-2)' }}>
-        {adding ? (
-          <input autoFocus value={newName}
-            onChange={e => setNewName(e.target.value)}
-            onBlur={() => { if (newName.trim()) submitNew(); else setAdding(false); }}
-            onKeyDown={e => { if (e.key === 'Enter') submitNew(); if (e.key === 'Escape') { setAdding(false); setNewName(''); } }}
-            placeholder="Library name"
-            style={{
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: '1px solid var(--ink)',
-              outline: 'none',
-              fontFamily: "'Newsreader', serif",
-              fontSize: 14,
-              padding: '7px 8px',
-              color: 'var(--ink)',
-            }} />
-        ) : (
-          <button type="button"
-            onClick={() => { setAdding(true); setNewName(''); }}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '4px 0',
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: 'var(--accent-ink)', fontWeight: 500,
-            }}>＋ New library</button>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function CollapseToggle({ collapsed, onClick }) {
-  const [hov, setHov] = React.useState(false);
-  return (
-    <button type="button" onClick={onClick}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      title={collapsed ? 'Expand libraries (⌘\\)' : 'Collapse libraries (⌘\\)'}
-      aria-label={collapsed ? 'Expand libraries' : 'Collapse libraries'}
-      style={{
-        background: 'transparent',
-        border: '1px solid ' + (hov ? 'var(--ink)' : 'var(--rule-2)'),
-        cursor: 'pointer',
-        width: 22, height: 22,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        color: hov ? 'var(--ink)' : 'var(--ink-3)',
-        transition: 'all 0.14s ease',
-        padding: 0,
-      }}>
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
-        stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"
-        style={{ transform: collapsed ? 'none' : 'rotate(180deg)', transition: 'transform 0.18s' }}>
-        <path d="M3.5 2 L6.5 5 L3.5 8" />
-      </svg>
-    </button>
-  );
-}
-
-function CollapsedLibraryRail({ libraries, materials, activeLibraryId, setActiveLibraryId, onExpand }) {
-  const activeLib = libraries.find(l => l.id === activeLibraryId);
-  const activeIsAll = activeLibraryId === 'all';
-  return (
-    <aside style={{
-      position: 'sticky', top: 80,
-      minHeight: 300,
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      gap: 14,
-      paddingTop: 2,
-    }}>
-      <CollapseToggle collapsed={true} onClick={onExpand} />
-
-      {/* vertical spine */}
-      <div style={{
-        width: 1, flex: 'none', height: 18,
-        background: 'var(--rule-2)',
-      }} />
-
-      {/* Tiny rail marks: active library gets a filled square; others are dots.
-          Click = switch; hover shows a flyout label. */}
-      <RailDot
-        label="All libraries"
-        count={materials.length}
-        active={activeIsAll}
-        system
-        onClick={() => setActiveLibraryId('all')}
-      />
-      <div style={{ height: 4 }} />
-      {libraries.map(lib => {
-        const count = materials.filter(m => m.libraryIds.includes(lib.id)).length;
-        return (
-          <RailDot
-            key={lib.id}
-            label={lib.name}
-            count={count}
-            active={activeLibraryId === lib.id}
-            system={lib.system}
-            onClick={() => setActiveLibraryId(lib.id)}
-          />
-        );
-      })}
-
-      <div style={{
-        width: 12, flex: 'none', height: 1,
-        background: 'var(--rule-2)',
-        marginTop: 8,
-      }} />
-
-      {/* Vertical "Libraries" label as quiet wayfinding */}
-      <div style={{
-        marginTop: 4,
-        writingMode: 'vertical-rl',
-        transform: 'rotate(180deg)',
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 9.5, letterSpacing: '0.22em',
-        textTransform: 'uppercase',
-        color: 'var(--ink-4)',
-      }}>
-        {activeIsAll ? 'All libraries' : (activeLib?.name || 'Libraries')}
-      </div>
-    </aside>
-  );
-}
-
-function RailDot({ label, count, active, system, onClick }) {
-  const [hov, setHov] = React.useState(false);
-  return (
-    <div style={{ position: 'relative' }}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
-      <button type="button" onClick={onClick}
-        aria-label={label}
-        style={{
-          background: active ? 'var(--ink)' : 'transparent',
-          border: '1px solid ' + (active ? 'var(--ink)' : (hov ? 'var(--ink-3)' : 'var(--rule-2)')),
-          width: active ? 14 : 10,
-          height: active ? 14 : 10,
-          borderRadius: system ? 0 : 999,
-          cursor: 'pointer',
-          padding: 0,
-          transition: 'all 0.14s ease',
-          display: 'block',
-        }} />
-      {hov && (
-        <div style={{
-          position: 'absolute',
-          left: 26, top: '50%', transform: 'translateY(-50%)',
-          background: 'var(--ink)',
-          color: 'var(--paper)',
-          padding: '4px 10px 5px',
-          whiteSpace: 'nowrap',
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 11, letterSpacing: '0.04em',
-          pointerEvents: 'none',
-          zIndex: 40,
-          display: 'flex', alignItems: 'baseline', gap: 8,
-        }}>
-          <span>{label}</span>
-          <span style={{ ...ui.mono, fontSize: 9, opacity: 0.65 }}>
-            {String(count).padStart(2, '0')}
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LibraryItem({ name, count, active, system, onClick, onRename, onDuplicate, onDelete }) {
-  const [hov, setHov] = React.useState(false);
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto',
-        alignItems: 'center',
-        gap: 6,
-        padding: '7px 8px',
-        cursor: 'pointer',
-        background: active ? 'var(--ink)' : (hov ? 'var(--tint)' : 'transparent'),
-        color: active ? 'var(--paper)' : 'var(--ink)',
-        borderLeft: '2px solid ' + (active ? 'var(--ink)' : 'transparent'),
-        transition: 'background 0.1s, color 0.1s',
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Serif size={14} style={{
-          display: 'block',
-          lineHeight: 1.2,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          color: active ? 'var(--paper)' : 'var(--ink)',
-        }}>{name}</Serif>
-        {hov && !active && (onRename || onDuplicate || onDelete) && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 2 }}
-            onClick={e => e.stopPropagation()}>
-            {onRename && <MiniAction onClick={onRename}>rename</MiniAction>}
-            {onDuplicate && <MiniAction onClick={onDuplicate}>duplicate</MiniAction>}
-            {onDelete && <MiniAction onClick={onDelete} danger>delete</MiniAction>}
-          </div>
-        )}
-      </div>
-      <Mono size={11} color={active ? 'var(--paper-2)' : 'var(--ink-4)'}
-        style={{ paddingLeft: 6 }}>
-        {String(count).padStart(2, '0')}
-      </Mono>
-    </div>
-  );
-}
-
-function MiniAction({ children, onClick, danger }) {
-  return (
-    <button type="button" onClick={onClick}
-      style={{
-        background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: danger ? 'var(--accent-ink)' : 'var(--ink-3)',
-        fontWeight: 500,
-      }}>{children}</button>
-  );
-}
+// (Sidebar / sidebar rail / library item code removed — see src/LibrarySwitcher.jsx)
 
 function rowGrid(showImagery) {
   return {

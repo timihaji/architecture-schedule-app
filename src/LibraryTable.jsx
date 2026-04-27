@@ -16,7 +16,6 @@ function LibraryTable(props) {
     mode, setMode,
     activeLibraryId, setActiveLibraryId,
     onEdit, onAdd, onDelete,
-    onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
     onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
     onFindDupes,
   } = props;
@@ -24,7 +23,6 @@ function LibraryTable(props) {
   // Keep labelTemplates accessible to column sort fns (they can't take args)
   window._labelTemplatesCache = labelTemplates;
 
-  const LibrarySidebarCompact = window.LibrarySidebarCompact;
   const LTTopBar = window.LTTopBar;
   const LTKindTabs = window.LTKindTabs;
   const LTFiltersBar = window.LTFiltersBar;
@@ -162,31 +160,16 @@ function LibraryTable(props) {
         }}
         onAdd={onAdd}
         searchRef={searchRef}
-        sidebarSlot={
-          <LibrarySidebarCompact
-            libraries={libraries}
-            materials={materials}
-            activeLibraryId={activeLibraryId}
-            setActiveLibraryId={setActiveLibraryId}
-            onAddLibrary={onAddLibrary}
-            onRenameLibrary={onRenameLibrary}
-            onDuplicateLibrary={onDuplicateLibrary}
-            onDeleteLibrary={onDeleteLibrary}
-          />
-        }
         topBar={
           <LTTopBar
             query={query} setQuery={setQuery} searchRef={searchRef}
             mode={mode} setMode={setMode}
             labelTemplates={labelTemplates} setLabelTemplates={setLabelTemplates}
             onOpenLabelBuilder={onOpenLabelBuilder}
-            onAdd={onAdd}
             density={density} setDensity={setDensity}
             onOpenColPicker={() => setColPickerOpen(true)}
             onOpenCheatsheet={() => setCheatsheetOpen(true)}
             onFindDupes={onFindDupes}
-            activeLibraryId={activeLibraryId}
-            libraries={libraries}
             count={kindScoped.length}
             total={materials.length}
           />
