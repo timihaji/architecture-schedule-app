@@ -170,6 +170,24 @@ Original task list (kept):
 
 **Preserves:** search · sort · multi-select · bulk operations · Cmd+K · cheatsheet · find duplicates · inline edit · keyboard nav · density tokens.
 
+### B4.1 — Register polish (back-patch, NEW in v1.1)
+
+Lands the v2 Register details that B4 deferred. Layered retrofit on
+DataTable; preserves every B4 feature.
+
+| Task | File | Notes |
+|---|---|---|
+| Lift `.reg-row` / `.reg-head` / `.reg-section` / `.reg-actions` / `.reg-edit-row` / `.lib-add-row` / `.cb` CSS verbatim | [index.html](../index.html) | From `design/handoff/v2/Library.html` lines 124–207 + 323–325. Watch the nested-comment trap (c57e447). |
+| Master-checkbox tri-state | [src/DataTable.jsx](../src/DataTable.jsx) (DtCheckbox) | Replace native `<input>` with `<div className="cb">` + tick/dash SVG. Click cycles allChecked → onClearSel; else onSelectAllVisible. |
+| Row hover / selected left accent bar | [src/DataTable.jsx](../src/DataTable.jsx) (DtRow) | Add `.reg-row` className, drop inline `borderBottom` and inline hover bg — CSS owns it. Keep `data-row-id`. |
+| Actions opacity gate | [src/LibraryColumns.jsx](../src/LibraryColumns.jsx) (ActionsCell) | Rename wrapper to `.reg-actions`. Drop the manually injected `injectRegRowStyles` block — index.html owns it. |
+| Column metadata | [src/LibraryColumns.jsx](../src/LibraryColumns.jsx) | Add `locked: true` on drag/select/swatch/label/actions; `defaultOn: true` on default-visible columns; derive `LIBRARY_DEFAULT_VISIBLE` from metadata. |
+| Row-level edit row | [src/DataTable.jsx](../src/DataTable.jsx) + [src/LibraryTable.jsx](../src/LibraryTable.jsx) | New `editingRowId` state at LibraryTable, plumbed through DataTable. New `DtEditRow` mounts as a sibling below DtRow when ids match. Fields: Name (span 2) / Brand / Supplier / SKU / Price; wires to `window.saveMaterialCell`. Per-cell inline edit untouched. |
+| Per-group `.lib-add-row` | [src/DataTable.jsx](../src/DataTable.jsx) (DtTable groupBy branch) | Inject button after each group when grouped; one button at end when not. Plumb `onAddRow(groupKey?)` to forward to existing `onAdd`. |
+| Group section header | [src/DataTable.jsx](../src/DataTable.jsx) (DtGroupHeader) | Replace markup with `.reg-section` / `.reg-section-title` / `.reg-section-rule` / `.reg-section-count`. Keep collapse-on-click. |
+
+**Preserves:** search · sort · multi-select (Shift/Ctrl/Cmd) · bulk operations · Cmd+K · cheatsheet · per-cell inline edit · keyboard nav (j/k/o/e/x/g/G/Esc/?/⌘K/⌘A) · density tokens · column show/hide/reorder/resize · find-duplicates · column-chooser locked-column behaviour.
+
 ### B5 — Sidebar removal
 
 **v1.1: shipped in commit `e382150`.**
@@ -498,6 +516,7 @@ Updated for v1.1 — new sub-phases (B6, B7, C2–C9, D1a–D1e) inherit their p
 | A2 Atoms | Opus 4.7 | high | Component API design — affects every downstream phase |
 | A3 Data migration | Opus 4.7 | max | Single highest-stakes piece |
 | B1–B5 Library (shipped) | Opus 4.7 | max / high | Already complete |
+| **B4.1 Register polish** (NEW back-patch) | Opus 4.7 | default | Layered retrofit on DataTable; judgment-heavy on master-checkbox state machine + row-edit form interaction with per-cell edit |
 | **B6 Layout C Split/Detail** (NEW) | Opus 4.7 | high | New layout, edit-in-place, accent system — judgment-heavy |
 | **B7 Bulk Action Bar** (back-patch) | Sonnet 4.6 | default | Chrome only — keyframes + classes |
 | C1 Mode-tab strip (shipped) | Opus 4.7 | high | Already complete |
@@ -533,6 +552,7 @@ poc/schedule-taxonomy (current branch)
   ├── A3 (data migration) ← commit (after staging dry-run + user sign-off)
   ├── B1-B5 (Library)     ← committed
   ├── B6-B7 (Layout C + Bulk bar — v1.1)  ← commit per sub-phase
+  ├── B4.1 (Register polish — v1.1)       ← commit
   ├── C1 (mode-tab strip) ← committed
   ├── C2-C9 (Add Product drawer — v1.1)   ← commit per sub-phase
   ├── D1a-D1e (Schedule Cards — v1.1)     ← commit per sub-phase
