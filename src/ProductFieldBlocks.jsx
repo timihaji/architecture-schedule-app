@@ -787,9 +787,83 @@ function PFB_Commercial({ draft, set }) {
   );
 }
 
+function PFB_Notes({ draft, set }) {
+  return (
+    <PFB_Section num="05" label="Notes">
+      <div style={{ marginBottom: 14 }}>
+        <label className="lbl-d">Specification</label>
+        <textarea
+          className="tarea-d"
+          rows={4}
+          value={draft.spec || ''}
+          onChange={e => set('spec', e.target.value)}
+          placeholder="Add specification notes…"
+        />
+      </div>
+
+      <div style={{ marginTop: 10, padding: '12px 0 4px',
+        borderTop: '1px dotted var(--rule-2)' }}>
+        <div style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 8.5, letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          color: 'var(--ink-3)',
+          marginBottom: 10,
+        }}>Submittal details</div>
+
+        <div className="row-2" style={{ marginBottom: 10 }}>
+          <div>
+            <label className="lbl-d">Manufacturer</label>
+            <input className="inp-d"
+              value={draft.mfr || ''}
+              onChange={e => set('mfr', e.target.value)}
+              placeholder="If different from supplier" />
+          </div>
+          <div>
+            <label className="lbl-d">Contact</label>
+            <input className="inp-d"
+              value={draft.contact || ''}
+              onChange={e => set('contact', e.target.value)}
+              placeholder="Name · phone / email" />
+          </div>
+        </div>
+
+        <div className="row-2" style={{ marginBottom: 10 }}>
+          <div>
+            <label className="lbl-d">Product URL</label>
+            <input className="inp-d mono"
+              value={draft.url || ''}
+              onChange={e => set('url', e.target.value)}
+              placeholder="supplier.com/product" />
+          </div>
+          <div>
+            <label className="lbl-d">Warranty</label>
+            <input className="inp-d"
+              value={draft.warranty || ''}
+              onChange={e => set('warranty', e.target.value)}
+              placeholder="e.g. 25yr structural / 5yr finish" />
+          </div>
+        </div>
+
+        <div>
+          <label className="lbl-d">Installation notes</label>
+          <textarea
+            className="tarea-d"
+            rows={3}
+            value={draft.installNotes || ''}
+            onChange={e => set('installNotes', e.target.value)}
+            placeholder="Adhesive, fixings, expansion gaps, sequence…"
+          />
+        </div>
+      </div>
+    </PFB_Section>
+  );
+}
+
 window.ProductFieldBlocks = {
   Identity: PFB_Identity,
   Visual: PFB_Visual,
   Specs: PFB_Specs,
   Commercial: PFB_Commercial,
+  Notes: PFB_Notes,
 };

@@ -1265,12 +1265,9 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Phase C2 — drawer chrome (right-sliding panel, .drw-bg + .drw-panel from
-  // design/handoff/v2/Library.html). Body sections (C3 Identity, C4 Visual,
-  // C5 Specs, C6 Commercial, C7 Notes) reorganise the existing field
-  // components in a follow-up phase; for now the body keeps the existing
-  // PaintFields / StandardFields / SubmittalFields layout inside .drw-body
-  // so end-to-end create/edit still works.
+  // Drawer chrome (right-sliding panel, .drw-bg + .drw-panel from
+  // design/handoff/v2/Library.html). Body sections — 01 Identity, 02 Visual,
+  // 03 Specs, 04 Commercial, 05 Notes — render via window.ProductFieldBlocks.
   return (
     <>
       <div className="drw-bg" onClick={onClose} />
@@ -1313,13 +1310,8 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
               <window.ProductFieldBlocks.Commercial
                 draft={draft} set={set} />
 
-              <div style={{ padding: '14px 0 4px' }}>
-                {(draft.kind === 'paint' || draft.category === 'Paint') ? (
-                  <PaintFields draft={draft} set={set} />
-                ) : (
-                  <StandardFields draft={draft} set={set} />
-                )}
-              </div>
+              <window.ProductFieldBlocks.Notes
+                draft={draft} set={set} />
             </>
           )}
 
@@ -1362,82 +1354,10 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
   );
 }
 
-// ───────── Standard (non-paint) material fields ─────────
-// (PaintSelect helper moved into src/ProductFieldBlocks.jsx in commit 3.)
-function StandardFields({ draft, set }) {
-  // Phase 1B: Identity (commit 1), Specs (commit 3), Commercial (commit 4)
-  // absorb everything else. Specification + Submittal land in Notes (commit 5).
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <EditorField label="Specification" full>
-        <textarea value={draft.spec} onChange={e => set('spec', e.target.value)}
-          rows={4}
-          style={{ ...fieldStyle(), padding: '8px 10px', resize: 'vertical',
-            fontFamily: "'Newsreader', serif", fontSize: 14, lineHeight: 1.45 }} />
-      </EditorField>
-
-      <SubmittalFields draft={draft} set={set} />
-    </div>
-  );
-}
-
-// Submittal-register fields — surfaced in ProjectSpecV2's "Register" view.
-// Read-only there; edited here in the material editor.
-function SubmittalFields({ draft, set }) {
-  return (
-    <div style={{ gridColumn: '1 / -1', marginTop: 4, paddingTop: 14,
-      borderTop: '1px dotted var(--rule-2)' }}>
-      <div style={{ ...ui.label, marginBottom: 10, color: 'var(--ink-3)' }}>
-        Submittal details
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <EditorField label="Manufacturer">
-          <input value={draft.mfr || ''} onChange={e => set('mfr', e.target.value)}
-            style={fieldStyle()} placeholder="If different from supplier" />
-        </EditorField>
-        <EditorField label="Contact">
-          <input value={draft.contact || ''} onChange={e => set('contact', e.target.value)}
-            style={fieldStyle()} placeholder="Name · phone / email" />
-        </EditorField>
-        <EditorField label="Product URL">
-          <input value={draft.url || ''} onChange={e => set('url', e.target.value)}
-            style={fieldStyle('mono')} placeholder="supplier.com/product" />
-        </EditorField>
-        <EditorField label="Warranty">
-          <input value={draft.warranty || ''} onChange={e => set('warranty', e.target.value)}
-            style={fieldStyle()} placeholder="e.g. 25yr structural / 5yr finish" />
-        </EditorField>
-        <EditorField label="Installation notes" full>
-          <textarea value={draft.installNotes || ''}
-            onChange={e => set('installNotes', e.target.value)}
-            rows={3}
-            style={{ ...fieldStyle(), padding: '8px 10px', resize: 'vertical',
-              fontFamily: "'Newsreader', serif", fontSize: 13.5, lineHeight: 1.5 }}
-            placeholder="Adhesive, fixings, expansion gaps, sequence…" />
-        </EditorField>
-      </div>
-    </div>
-  );
-}
-
-// ───────── Paint-specific fields ─────────
-// Phase 1B: Identity (commit 1) / Visual (commit 2) / Specs (commit 3) /
-// Commercial (commit 4) absorb everything paint. Specification + Submittal
-// land in Notes (commit 5), at which point this component goes away.
-function PaintFields({ draft, set }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <EditorField label="Specification" full>
-        <textarea value={draft.spec} onChange={e => set('spec', e.target.value)}
-          rows={3}
-          style={{ ...fieldStyle(), padding: '8px 10px', resize: 'vertical',
-            fontFamily: "'Newsreader', serif", fontSize: 14, lineHeight: 1.45 }} />
-      </EditorField>
-
-      <SubmittalFields draft={draft} set={set} />
-    </div>
-  );
-}
+// Phase 1B (commit 5): StandardFields / PaintFields / SubmittalFields are all
+// gone — every field they used to render now lives in ProductFieldBlocks
+// (Identity / Visual / Specs / Commercial / Notes). EditorField + fieldStyle
+// remain because SwatchEditor (below) still uses them.
 
 function EditorField({ label, children, full = false }) {
   return (
