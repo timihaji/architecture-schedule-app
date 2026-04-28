@@ -726,7 +726,7 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
         seen.add(m.id);
       });
     });
-    // Preserve library sidebar order
+    // Preserve library order
     return libraries
       .filter(l => byLib.has(l.id))
       .map(l => [l, byLib.get(l.id)]);

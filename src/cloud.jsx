@@ -11,7 +11,7 @@
 // What stays in localStorage (per-device ephemeral prefs — NOT migrated):
 //   • Supabase session (SDK-managed, unavoidable)
 //   • aml-table-density, aml-dt-* (table density / column widths)
-//   • aml-desktop-view, aml-gallery-sidebar, aml-kind-filter
+//   • aml-desktop-view, aml-kind-filter
 //   • aml-cs-*, aml-cs-mode, aml-cs-rowshape (schedule/gallery filters)
 //   • aml-spec-mode (spec view — List vs Register; per-device preference)
 //   • aml-spec-cols (legacy; migrated to appState.ui.specV2Cols on first load)

@@ -29,8 +29,8 @@
 //   • Supabase session (SDK-managed, unavoidable)
 //   • aml-table-density, aml-dt-* (table density / column widths)
 //   • aml-desktop-view (viewport mode toggle)
-//   • aml-gallery-sidebar, aml-kind-filter, aml-cs-*, aml-cs-mode,
-//     aml-cs-rowshape (gallery/schedule ephemeral filters)
+//   • aml-kind-filter, aml-cs-*, aml-cs-mode, aml-cs-rowshape
+//     (gallery/schedule ephemeral filters)
 // Everything else (settings, ui.*, collections, schedules, specs) is in cloud.
 
 (function () {
