@@ -633,6 +633,54 @@ Toolbar.Count = function ToolbarCount({ children, style = {} }) {
   );
 };
 
+// ─── Chip (D1c) ─────────────────────────────────────────────────────────────
+// Schedule Cards.html /* CHIP BASE */. Click cycles to next value in the list;
+// in edit mode, Chip's parent renders a <select> instead. Two domains:
+// state (new/existing/repair/match/demolish) and mode (prop/perf/open/pc/tba).
+// CSS classes (.chip, .s-*, .m-*, .dot) live in index.html so the colour palette
+// matches the design exactly. normState/normMode adapt legacy long-form values
+// from the v3→v4 migration into the short codes the design uses.
+
+const CHIP_STATES = ['new', 'existing', 'repair', 'match', 'demolish'];
+const CHIP_MODES  = ['prop', 'perf', 'open', 'pc', 'tba'];
+const CHIP_STATE_LABEL = { new: 'New', existing: 'Existing', repair: 'Repair', match: 'Match', demolish: 'Demolish' };
+const CHIP_MODE_LABEL  = { prop: 'Proprietary', perf: 'Performance', open: 'Open', pc: 'PC Sum', tba: 'TBA' };
+
+function normState(s) {
+  if (CHIP_STATES.includes(s)) return s;
+  if (s === 'demolished') return 'demolish';
+  return 'new';
+}
+
+function normMode(m) {
+  if (CHIP_MODES.includes(m)) return m;
+  if (m === 'proprietary') return 'prop';
+  if (m === 'performance') return 'perf';
+  if (m === 'generic') return 'open';
+  return 'tba';
+}
+
+function Chip({ type, value, onChange, showDot = true, title }) {
+  const list = type === 'state' ? CHIP_STATES : CHIP_MODES;
+  const labels = type === 'state' ? CHIP_STATE_LABEL : CHIP_MODE_LABEL;
+  const v = type === 'state' ? normState(value) : normMode(value);
+  const cls = type === 'state' ? `s-${v}` : `m-${v}`;
+  const cycle = (e) => {
+    e.stopPropagation();
+    if (!onChange) return;
+    const i = list.indexOf(v);
+    onChange(list[(i + 1) % list.length]);
+  };
+  return (
+    <button type="button" className={`chip ${cls}`} onClick={cycle}
+      title={title || (onChange ? 'Click to cycle' : labels[v])}
+      style={{ cursor: onChange ? 'pointer' : 'default' }}>
+      {showDot && <span className="dot" />}
+      {labels[v]}
+    </button>
+  );
+}
+
 Object.assign(window, {
   MetaMono,
   CodeChip,
@@ -649,4 +697,11 @@ Object.assign(window, {
   Plate,
   Modal,
   Toolbar,
+  Chip,
+  CHIP_STATES,
+  CHIP_MODES,
+  CHIP_STATE_LABEL,
+  CHIP_MODE_LABEL,
+  normState,
+  normMode,
 });

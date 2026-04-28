@@ -175,6 +175,21 @@
   .btn-sec-d { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 8px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; transition: border-color 0.1s, color 0.1s; }
   .btn-sec-d:hover { border-color: var(--ink-3); color: var(--ink-2); }
 
+  /* CHIP (D1c) — lifted from design/handoff/v2/Schedule Cards.html /* CHIP BASE */ */
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border: none; transition: opacity 0.1s; background: transparent; }
+  .chip:hover { opacity: 0.75; }
+  .chip .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .chip.s-new      { color: #3a6645; background: rgba(58,102,69,0.10); } .chip.s-new .dot      { background: #3a6645; }
+  .chip.s-existing { color: #6b6559; background: rgba(107,101,89,0.10); } .chip.s-existing .dot { background: #6b6559; }
+  .chip.s-repair   { color: #7a5e20; background: rgba(122,94,32,0.10); } .chip.s-repair .dot   { background: #7a5e20; }
+  .chip.s-match    { color: #2e5a7a; background: rgba(46,90,122,0.10); } .chip.s-match .dot    { background: #2e5a7a; }
+  .chip.s-demolish { color: #a04545; background: rgba(160,69,69,0.10); } .chip.s-demolish .dot { background: #a04545; }
+  .chip.m-prop { color: #3a3630; background: rgba(20,20,20,0.07); } .chip.m-prop .dot { background: #3a3630; }
+  .chip.m-perf { color: #3a6645; background: rgba(58,102,69,0.08); } .chip.m-perf .dot { background: #3a6645; }
+  .chip.m-open { color: #2e5a7a; background: rgba(46,90,122,0.08); } .chip.m-open .dot { background: #2e5a7a; }
+  .chip.m-pc   { color: #7a5e20; background: rgba(122,94,32,0.10); } .chip.m-pc .dot   { background: #7a5e20; }
+  .chip.m-tba  { color: #9a9385; background: rgba(154,147,133,0.10); } .chip.m-tba .dot  { background: #9a9385; }
+
   /* BULK ACTION BAR — lifted from design/handoff/v2/Library.html */
   .bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--ink); color: var(--paper); padding: 13px 56px; display: flex; align-items: center; gap: 16px; z-index: 100; animation: barUp 0.18s ease; }
   @keyframes barUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
