@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schedule — Card Design Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --paper: #f3efe7;
+  --paper-2: #eae5d9;
+  --ink: #141414;
+  --ink-2: #3a3630;
+  --ink-3: #6b6559;
+  --ink-4: #9a9385;
+  --rule: #d8d3c6;
+  --rule-2: #c6bfae;
+  --tint: rgba(20,20,20,0.03);
+  --tint-2: rgba(20,20,20,0.06);
+  --accent: #b85c3a;
+  --accent-ink: #8a4028;
+  --accent-soft: rgba(184,92,58,0.07);
+  --good: #6b8e4e;
+  --good-ink: #3a6645;
+  --good-soft: rgba(107,142,78,0.08);
+  --good-soft-bd: rgba(107,142,78,0.35);
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Inter Tight', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* NAV */
+.nav { border-bottom: 1px solid var(--ink); padding: 18px 56px 16px; display: flex; justify-content: space-between; align-items: baseline; background: var(--paper); position: sticky; top: 0; z-index: 50; }
+.nav-firm { display: flex; align-items: center; gap: 14px; }
+.nav-glyph { width: 20px; height: 20px; background: var(--ink); flex-shrink: 0; }
+.nav-name { font-family: var(--font-serif); font-size: 17px; font-weight: 400; }
+.nav-tabs { display: flex; gap: 28px; align-items: baseline; }
+.nav-tab { background: none; border: none; cursor: pointer; padding: 3px 0; font-family: var(--font-sans); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; border-bottom: 1px solid transparent; display: flex; align-items: baseline; gap: 7px; transition: color 0.15s; }
+.nav-tab .num { font-family: var(--font-mono); font-size: 9.5px; }
+.nav-tab.active { color: var(--ink); font-weight: 500; border-bottom-color: var(--ink); }
+.nav-tab.active .num { color: var(--ink-3); }
+.nav-gear { background: transparent; border: 1px solid var(--rule-2); padding: 4px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-left: 24px; }
+
+/* PAGE */
+.page { max-width: 1200px; margin: 0 auto; padding: 40px 56px 80px; }
+
+/* PAGE HEADER */
+.page-header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--ink); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.eyebrow { font-family: var(--font-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; }
+.page-title { font-family: var(--font-serif); font-size: 26px; font-weight: 400; line-height: 1.2; display: block; }
+.page-meta { display: flex; gap: 16px; align-items: baseline; margin-top: 8px; }
+.meta-mono { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; }
+.meta-for { font-family: var(--font-serif); font-size: 13.5px; color: var(--ink-3); font-style: italic; }
+.switcher { background: transparent; border: 1px solid var(--rule-2); padding: 5px 26px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+
+/* TOOLBAR */
+.toolbar { display: flex; align-items: center; gap: 9px; padding: 9px 0 16px; flex-wrap: wrap; }
+.search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 200px; max-width: 340px; border: 1px solid var(--rule-2); padding: 5px 10px; }
+.search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
+.vbar { width: 1px; height: 18px; background: var(--rule-2); }
+.vt { display: inline-flex; border: 1px solid var(--rule-2); }
+.vt button { background: transparent; color: var(--ink-4); border: none; padding: 4px 10px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: all 0.1s; }
+.vt button.on { background: var(--ink); color: var(--paper); }
+.filter-sel { background: transparent; border: 1px solid var(--rule-2); padding: 5px 24px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+.fields-btn { background: none; border: 1px solid var(--rule-2); padding: 4px 9px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
+.tb-grow { flex: 1; }
+.tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* SECTION */
+.sec { margin-bottom: 32px; }
+.sec-head { display: flex; gap: 12px; align-items: center; padding: 12px 0 9px; border-bottom: 2px solid var(--ink); }
+.sec-title { font-family: var(--font-serif); font-size: 18px; font-weight: 500; }
+.sec-sub { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; }
+.sec-count { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; }
+.sec-grow { flex: 1; }
+
+/* FIELD GRID */
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 20px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.field-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 3px; }
+.field-val { font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); }
+.field-val.mono { font-family: var(--font-mono); font-size: 10.5px; }
+
+/* EDIT INPUTS (variant D) */
+.edit-select, .edit-input {
+  width: 100%; background: var(--paper); border: 1px solid var(--rule-2);
+  padding: 5px 8px; font-family: var(--font-sans); font-size: 12px;
+  color: var(--ink); outline: none; appearance: none;
+  font-weight: 400; border-radius: 0;
+}
+.edit-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-color: var(--paper); padding-right: 24px; cursor: pointer; }
+.edit-select:focus, .edit-input:focus { border-color: var(--ink-3); background: #fff; }
+.edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
+textarea.edit-input { resize: vertical; min-height: 54px; line-height: 1.5; font-family: var(--font-serif); font-style: italic; font-size: 13px; }
+.edit-btn { background: none; border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); transition: all 0.1s; white-space: nowrap; }
+.edit-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+.edit-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.edit-fields { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 12px; animation: slideDown 0.18s ease; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.edit-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 16px; margin-bottom: 10px; }
+.edit-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 10px; }
+.status-dots { display: flex; gap: 5px; align-items: center; cursor: default; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; }
+/* Field grid D */
+.fgrid-d { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.fgrid-d .fcell { position: relative; }
+.fgrid-d .fcell-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px; }
+.fgrid-d .fcell-hide { background: none; border: none; cursor: pointer; color: var(--ink-4); font-size: 11px; padding: 0; line-height: 1; opacity: 0; transition: opacity 0.1s; }
+.fgrid-d.card-hov .fcell:hover .fcell-hide { opacity: 0; }
+.fgrid-d .fcell-val { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-2); }
+.fgrid-d .fcell-val.mono { font-family: var(--font-mono); font-size: 10.5px; }
+.fgrid-d .fcell-val.colored { font-weight: 500; }
+.fwide-d { padding-top: 7px; border-top: 1px solid var(--rule); margin-top: 6px; }
+/* Edit btn in field head */
+.fcell-editbtn { background: none; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; }
+.fcell-editbtn:hover { color: var(--ink-2); }
+/* Hidden tray */
+.hidden-tray { margin-top: 8px; padding: 7px 10px; background: var(--paper-2); border-top: 1px dashed var(--rule-2); }
+.hidden-tray-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
+.hidden-tray-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.hidden-show-btn { background: var(--paper); border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; color: var(--ink-3); letter-spacing: 0.04em; transition: border-color 0.1s; }
+.hidden-show-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+/* Trade chips Q5 */
+.trade-chip { display: inline-block; padding: 2px 6px; border: 1px solid var(--rule-2); font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; margin-top: 3px; }
+/* Q6 library row */
+.lib-scene { padding: 48px 0 0; }
+.lib-scene-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
+.lib-scene-q { margin: 0 0 20px; padding: 8px 12px; border-left: 2px solid var(--accent); background: rgba(184,92,58,0.04); font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-3); line-height: 1.55; }
+.lib-tabs-row { display: flex; gap: 0; border-bottom: 2px solid var(--ink); margin-bottom: 0; }
+.lib-tab-btn { background: none; border: none; cursor: pointer; padding: 8px 14px; font-family: var(--font-sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.lib-tab-btn.active { color: var(--good-ink); font-weight: 600; border-bottom-color: var(--good-ink); }
+.lib-row-d { display: grid; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--rule); cursor: pointer; transition: background 0.1s; }
+.lib-row-d:hover { background: var(--tint); }
+.lib-row-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); }
+.lib-row-sub { margin-top: 2px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+.lib-row-meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+.lib-variants { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+
+/* ADD ROW */
+.add-row { padding: 9px 0; border-bottom: 1px dotted var(--rule-2); }
+.add-row button { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; }
+.add-row button:hover { color: var(--ink-2); }
+
+/* CHIP BASE */
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border: none; transition: opacity 0.1s; }
+.chip:hover { opacity: 0.75; }
+.chip .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.chip.s-new      { color: #3a6645; background: rgba(58,102,69,0.10); } .chip.s-new .dot      { background: #3a6645; }
+.chip.s-existing { color: #6b6559; background: rgba(107,101,89,0.10); } .chip.s-existing .dot { background: #6b6559; }
+.chip.s-repair   { color: #7a5e20; background: rgba(122,94,32,0.10); } .chip.s-repair .dot   { background: #7a5e20; }
+.chip.s-match    { color: #2e5a7a; background: rgba(46,90,122,0.10); } .chip.s-match .dot    { background: #2e5a7a; }
+.chip.s-demolish { color: #a04545; background: rgba(160,69,69,0.10); } .chip.s-demolish .dot { background: #a04545; }
+.chip.m-prop { color: #3a3630; background: rgba(20,20,20,0.07); } .chip.m-prop .dot { background: #3a3630; }
+.chip.m-perf { color: #3a6645; background: rgba(58,102,69,0.08); } .chip.m-perf .dot { background: #3a6645; }
+.chip.m-open { color: #2e5a7a; background: rgba(46,90,122,0.08); } .chip.m-open .dot { background: #2e5a7a; }
+.chip.m-pc   { color: #7a5e20; background: rgba(122,94,32,0.10); } .chip.m-pc .dot   { background: #7a5e20; }
+.chip.m-tba  { color: #9a9385; background: rgba(154,147,133,0.10); } .chip.m-tba .dot  { background: #9a9385; }
+
+/* PICKER DRAWER */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(20,20,20,0.32); z-index: 200; display: flex; justify-content: flex-end; }
+.drawer { width: 560px; max-width: 92vw; background: var(--paper); border-left: 1px solid var(--ink); display: flex; flex-direction: column; height: 100vh; box-shadow: -16px 0 48px rgba(20,20,20,0.14); animation: drawerIn 0.22s ease; }
+@keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.drawer-head { padding: 20px 24px 14px; border-bottom: 1px solid var(--rule); }
+.drawer-head-row { display: flex; justify-content: space-between; align-items: flex-start; }
+.drawer-close { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 20px; padding: 2px; line-height: 1; }
+.drawer-close:hover { color: var(--ink); }
+.drawer-title { font-family: var(--font-serif); font-size: 22px; display: block; margin-top: 4px; line-height: 1.2; }
+.drawer-subtitle { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-3); margin-top: 3px; display: block; }
+.drawer-search { margin-top: 14px; display: flex; align-items: center; gap: 7px; border: 1px solid var(--rule-2); padding: 6px 10px; background: transparent; }
+.drawer-search:focus-within { border-color: var(--ink-3); }
+.drawer-search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); }
+.drawer-search input::placeholder { color: var(--ink-4); }
+.drawer-body { flex: 1; overflow-y: auto; }
+
+/* Section header inside drawer */
+.dsec-head { padding: 10px 24px 8px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 2; }
+.dsec-head.types { background: rgba(107,142,78,0.07); }
+.dsec-head.products { background: rgba(184,92,58,0.05); }
+.dsec-eyebrow { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; }
+.dsec-head.types .dsec-eyebrow { color: var(--good-ink); }
+.dsec-head.products .dsec-eyebrow { color: var(--accent-ink); }
+.dsec-explain { font-family: var(--font-sans); font-size: 10px; color: var(--ink-4); font-style: italic; }
+.dsec-count { font-family: var(--font-mono); font-size: 10px; }
+.dsec-head.types .dsec-count { color: var(--good-ink); }
+.dsec-head.products .dsec-count { color: var(--accent-ink); }
+
+/* Type picker row — larger, more informative */
+.prow-type { display: flex; align-items: stretch; width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--rule); cursor: pointer; text-align: left; transition: background 0.1s; }
+.prow-type:hover { background: rgba(107,142,78,0.04); }
+.prow-type.selected { background: rgba(107,142,78,0.07); }
+.prow-type-badge { width: 64px; flex-shrink: 0; background: rgba(107,142,78,0.09); border-right: 1px solid rgba(107,142,78,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 14px 0; }
+.prow-type-code { font-family: var(--font-serif); font-style: italic; font-size: 18px; font-weight: 300; color: var(--good-ink); line-height: 1; }
+.prow-type-body { flex: 1; padding: 13px 16px; }
+.prow-type-name { font-family: var(--font-serif); font-size: 15px; color: var(--ink); margin-bottom: 4px; line-height: 1.3; }
+.prow-type-slots { display: flex; gap: 0; margin-bottom: 6px; }
+.prow-type-slot { height: 4px; flex: 1; }
+.prow-type-slot:first-child { border-radius: 2px 0 0 2px; }
+.prow-type-slot:last-child { border-radius: 0 2px 2px 0; }
+.prow-type-meta { display: flex; gap: 12px; align-items: baseline; }
+.prow-type-slots-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good-ink); }
+.prow-type-trades { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-4); }
+.prow-type-check { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--good-ink); }
+
+/* Product picker row */
+.prow-product { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 24px; background: transparent; border: none; border-bottom: 1px solid var(--rule); cursor: pointer; text-align: left; transition: background 0.1s; }
+.prow-product:hover { background: var(--tint); }
+.prow-product.selected { background: rgba(107,142,78,0.05); }
+.prow-product-thumb { width: 40px; height: 40px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+.prow-product-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); }
+.prow-product-meta { display: flex; gap: 8px; align-items: baseline; margin-top: 2px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+.prow-product-check { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--good-ink); }
+
+/* Empty state */
+.picker-empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--rule); }
+.picker-empty-msg { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--ink-4); }
+.picker-empty-sub { font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+
+.drawer-foot { padding: 14px 24px; border-top: 1px solid var(--ink); background: var(--paper-2); display: flex; gap: 9px; align-items: center; }
+.drawer-add { background: transparent; padding: 6px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+.drawer-add.acc { border: 1px solid var(--accent); color: var(--accent-ink); }
+.drawer-add.gd  { border: 1px solid var(--good); color: var(--good-ink); }
+.drawer-confirm { margin-left: auto; background: var(--ink); color: var(--paper); border: none; padding: 7px 16px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+</style>
+</head>
+<body>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+
+const { useState, useCallback } = React;
+
+/* ─── DATA ─── */
+const STATES = ['new','existing','repair','match','demolish'];
+const MODES  = ['prop','perf','open','pc','tba'];
+const STATE_LABEL = { new:'New', existing:'Existing', repair:'Repair', match:'Match', demolish:'Demolish' };
+const MODE_LABEL  = { prop:'Proprietary', perf:'Performance', open:'Open', pc:'PC Sum', tba:'TBA' };
+
+const INIT_CARDS = [
+  { id:'k1', section:'Kitchen', sectionSub:'18 m²', sectionCount:4, kind:'product',
+    element:'Tapware', name:'Yokato Wall Sink Mixer', brand:'Brodware', supplier:'Brodware Sydney',
+    sku:'BWY-SK-BB', trade:'Plumbing', swatchColor:'#a08660', swatchBrand:'Brodware',
+    state:'new', mode:'prop', hiddenFields:[],
+    fields:[{l:'Supplier',v:'Brodware Sydney'},{l:'Price',v:'$1,240.00 / ea',mono:true}] },
+  { id:'lr1', section:'Living Room', sectionSub:'32 m²', sectionCount:3, kind:'type',
+    element:'Wall', name:'Internal acoustic partition', code:'W-01', slots:5,
+    trades:['Plasterer','Metalwork','Carpentry','Painter'], state:'new', mode:'perf', hiddenFields:[],
+    slotColors:['#c8b89a','#7a8c6e','#e0d8cc','#d0c0a8','#9aaa8a'], fields:[] },
+  { id:'lr2', section:'Living Room', sectionSub:'32 m²', sectionCount:3, kind:'product',
+    element:'Floor', name:'European Oak Engineered 220mm', brand:'Royal Oak', supplier:'Royal Oak Floors',
+    sku:'ROF-EO-220', trade:'Carpentry', swatchColor:'#b3946a', swatchBrand:'Royal Oak',
+    state:'new', mode:'prop', hiddenFields:[], fields:[] },
+  { id:'b1', section:'Main Bathroom', sectionSub:'7 m²', sectionCount:2, kind:'type',
+    element:'Bathroom (set)', name:'Standard apartment bathroom', code:'BR-01', slots:4,
+    trades:['Plumbing'], state:'existing', mode:'prop', hiddenFields:[],
+    slotColors:['#a08660','#cdcfd2','#1a1a1a','#8a6c3a'], fields:[] },
+  { id:'b2', section:'Main Bathroom', sectionSub:'7 m²', sectionCount:2, kind:'empty',
+    element:'Door', state:'repair', mode:'tba', hiddenFields:[],
+    notes:'Strip and re-finish in shellac to match sample on site. Reuse original brass furniture.' },
+];
+
+const PICKER_PRODUCTS = [
+  { id:'p1', name:'Yokato Wall Sink Mixer', brand:'Brodware', color:'#a08660', kind:'product' },
+  { id:'p2', name:'Icon Basin Mixer', brand:'Astra Walker', color:'#cdcfd2', kind:'product' },
+  { id:'p3', name:'Suba Shower Mixer', brand:'Sussex', color:'#8a6c3a', kind:'product' },
+  { id:'p4', name:'Paini Cox Kitchen Mixer', brand:'Paini', color:'#1a1a1a', kind:'product' },
+];
+
+/* ─── CHIP ─── */
+function Chip({ type, value, onChange, showDot=true }) {
+  const list = type === 'state' ? STATES : MODES;
+  const labels = type === 'state' ? STATE_LABEL : MODE_LABEL;
+  const cls = type === 'state' ? `s-${value}` : `m-${value}`;
+  const cycle = () => {
+    const i = list.indexOf(value);
+    onChange(list[(i+1) % list.length]);
+  };
+  return (
+    <button className={`chip ${cls}`} onClick={cycle} title="Click to cycle">
+      {showDot && <span className="dot"></span>}
+      {labels[value]}
+    </button>
+  );
+}
+
+/* ─── ELEMENT PILL (base, used by variant A) ─── */
+function ElementPill({ el, unset }) {
+  return (
+    <span style={{ display:'inline-block', padding:'2px 7px',
+      border: unset ? '1px solid var(--rule-2)' : '1px solid var(--accent)',
+      background: unset ? 'transparent' : 'var(--accent-soft)',
+      color: unset ? 'var(--ink-4)' : 'var(--accent-ink)',
+      fontFamily:'var(--font-sans)', fontSize:'9.5px',
+      letterSpacing:'0.07em', textTransform:'uppercase', fontWeight:500 }}>
+      {el}
+    </span>
+  );
+}
+
+/* ─── FIELD GRID ─── */
+function FieldGrid({ card, variant, showGrid }) {
+  if (!showGrid) return null;
+  const baseFields = [
+    { l:'Element', v: card.element },
+    { l:'State', chip: true, type:'state', val: card.state },
+    { l:'Spec mode', chip: true, type:'mode', val: card.mode },
+    ...(card.fields || []),
+  ];
+  return (
+    <div className="field-grid">
+      {baseFields.map((f, i) => (
+        <div key={i}>
+          <div className="field-label">{f.l}</div>
+          {f.chip
+            ? <Chip type={f.type} value={f.val} onChange={()=>{}} showDot={variant !== 'C'} />
+            : <div className={`field-val${f.mono?' mono':''}`}>{f.v}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── SLOT THUMBNAIL GRID (for type badge variant B) ─── */
+function SlotGrid({ colors, code }) {
+  const cols = colors.slice(0,4);
+  return (
+    <div style={{ position:'relative', width:'100%', height:'100%', display:'grid',
+      gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr', gap:0 }}>
+      {cols.map((c,i) => <div key={i} style={{ background:c }}></div>)}
+      {cols.length < 4 && <div style={{ background:'var(--paper-2)' }}></div>}
+      {/* Code badge overlaid */}
+      <div style={{ position:'absolute', bottom:10, right:10,
+        background:'var(--paper)', border:'1px solid var(--good-soft-bd)',
+        padding:'3px 8px', fontFamily:'var(--font-mono)', fontSize:'11px',
+        fontWeight:500, color:'var(--good-ink)', letterSpacing:'0.02em' }}>
+        {code}
+      </div>
+    </div>
+  );
+}
+
+/* ─── VARIANT A: "Column Element" ─── */
+function CardVariantA({ card, density, showGrid, onSwatchClick, onStateChange, onModeChange }) {
+  const pad = density === 'compact' ? 10 : density === 'open' ? 18 : 14;
+  const swatchH = density === 'compact' ? 140 : density === 'open' ? 200 : 168;
+
+  const SwatchCol = () => {
+    if (card.kind === 'empty') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', position:'relative', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:'var(--tint)',
+          border:'1px dashed var(--rule-2)', display:'flex', alignItems:'center', justifyContent:'center',
+          flexDirection:'column', gap:6 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.3"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:'8.5px', letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--ink-4)', textAlign:'center', padding:'0 14px', lineHeight:1.5 }}>Pick Product or Type</span>
+        </div>
+        {/* Element strip */}
+        <div style={{ borderTop:'1px solid var(--rule-2)', padding:'5px 10px',
+          fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.12em',
+          textTransform:'uppercase', color:'var(--accent-ink)', fontWeight:500, background:'var(--accent-soft)' }}>
+          {card.element}
+        </div>
+      </div>
+    );
+    if (card.kind === 'type') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:'rgba(107,142,78,0.06)',
+          borderLeft:'3px solid var(--good)', display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center', gap:6, position:'relative', overflow:'hidden' }}>
+          {/* Layer lines suggestion at bottom */}
+          <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', flexDirection:'column', gap:2, padding:'0 0 8px 0' }}>
+            {[0.35,0.25,0.18,0.12].map((op,i) => (
+              <div key={i} style={{ height:3, background:`rgba(107,142,78,${op})`, margin:'0 12px' }}></div>
+            ))}
+          </div>
+          <div style={{ fontFamily:'var(--font-serif)', fontStyle:'italic', fontSize:32, fontWeight:300, color:'var(--good-ink)', lineHeight:1 }}>{card.code}</div>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:'8.5px', letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--good-ink)', opacity:0.65 }}>{card.slots} layers</div>
+        </div>
+        <div style={{ borderTop:'1px solid rgba(107,142,78,0.25)', padding:'5px 10px',
+          fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.12em',
+          textTransform:'uppercase', color:'var(--good-ink)', fontWeight:500, background:'var(--good-soft)' }}>
+          {card.element}
+        </div>
+      </div>
+    );
+    return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer', position:'relative' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:card.swatchColor,
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:'8px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)' }}>{card.swatchBrand}</span>
+        </div>
+        {/* Element strip at bottom */}
+        <div style={{ borderTop:'1px solid rgba(0,0,0,0.12)', padding:'5px 10px',
+          fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.12em',
+          textTransform:'uppercase', color:'var(--accent-ink)', fontWeight:500, background:'rgba(0,0,0,0.06)' }}>
+          {card.element}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'178px 1fr', borderBottom:'1px solid var(--rule)', transition:'background 0.12s' }}
+      onMouseEnter={e => e.currentTarget.style.background='var(--tint)'}
+      onMouseLeave={e => e.currentTarget.style.background=''}>
+      <SwatchCol />
+      <div style={{ padding:`${pad}px 22px`, position:'relative' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8, gap:10 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+              {card.kind === 'empty'
+                ? <span style={{ fontFamily:'var(--font-serif)', fontSize:17, color:'var(--ink-4)', fontStyle:'italic' }}>— pick a Product or Type —</span>
+                : <span style={{ fontFamily:'var(--font-serif)', fontSize:17, color:'var(--ink)', cursor:'pointer' }}>{card.name}</span>}
+              {card.code && <span style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--good-ink)', fontWeight:500, letterSpacing:'0.03em' }}>{card.code}</span>}
+            </div>
+            <div style={{ display:'flex', gap:10, alignItems:'baseline', flexWrap:'wrap' }}>
+              {card.sku && <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5, color:'var(--ink-4)', letterSpacing:'0.08em' }}>{card.sku}</span>}
+              {card.supplier && <span style={{ fontFamily:'var(--font-sans)', fontSize:12, color:'var(--ink-3)' }}>{card.supplier}</span>}
+              {card.trade && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:500, color:'var(--ink-4)' }}>{card.trade}</span>}
+              {card.trades && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--ink-4)', fontWeight:500 }}>{card.trades.slice(0,2).join(' · ')}{card.trades.length > 2 ? ` +${card.trades.length-2}` : ''}</span>}
+            </div>
+          </div>
+          {/* Chips — lighter style in A: no dot, just colored text bg */}
+          <div style={{ display:'flex', gap:5, alignItems:'center', flexShrink:0 }}>
+            <Chip type="state" value={card.state} onChange={onStateChange} showDot={false} />
+            <Chip type="mode"  value={card.mode}  onChange={onModeChange}  showDot={false} />
+          </div>
+        </div>
+        {card.notes && (
+          <div style={{ borderTop:'1px solid var(--rule)', paddingTop:8 }}>
+            <div className="field-label">Notes</div>
+            <div style={{ fontFamily:'var(--font-serif)', fontSize:13, color:'var(--ink-3)', fontStyle:'italic', lineHeight:1.55 }}>{card.notes}</div>
+          </div>
+        )}
+        <FieldGrid card={card} variant="A" showGrid={showGrid} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── VARIANT B: "Marginalia" ─── */
+function CardVariantB({ card, density, showGrid, onSwatchClick, onStateChange, onModeChange }) {
+  const pad = density === 'compact' ? 10 : density === 'open' ? 18 : 14;
+  const swatchH = density === 'compact' ? 140 : density === 'open' ? 200 : 168;
+
+  const elementColor = card.kind === 'type' ? 'var(--good-ink)' : card.kind === 'empty' ? 'var(--ink-4)' : 'var(--accent-ink)';
+  const elementBorder = card.kind === 'type' ? '2px solid var(--good)' : card.kind === 'empty' ? '2px solid var(--rule-2)' : '2px solid var(--accent)';
+
+  const SwatchContent = () => {
+    if (card.kind === 'type') return (
+      <div style={{ width:'100%', height:swatchH, cursor:'pointer', position:'relative', overflow:'hidden' }} onClick={onSwatchClick}>
+        <SlotGrid colors={card.slotColors} code={card.code} />
+      </div>
+    );
+    if (card.kind === 'empty') return (
+      <div style={{ width:'100%', height:swatchH, background:'var(--tint)', border:'1px dashed var(--rule-2)',
+        display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }} onClick={onSwatchClick}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.3"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </div>
+    );
+    return (
+      <div style={{ width:'100%', height:swatchH, background:card.swatchColor, cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'center' }} onClick={onSwatchClick}>
+        <span style={{ fontFamily:'var(--font-mono)', fontSize:'8px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.3)' }}>{card.swatchBrand}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'178px 1fr', borderBottom:'1px solid var(--rule)', transition:'background 0.12s', position:'relative' }}
+      onMouseEnter={e => e.currentTarget.style.background='var(--tint)'}
+      onMouseLeave={e => e.currentTarget.style.background=''}>
+      {/* Left border element label */}
+      <div style={{ position:'absolute', left:0, top:0, bottom:0, width:3, background: card.kind==='type' ? 'var(--good)' : card.kind==='empty' ? 'var(--rule-2)' : 'var(--accent)' }}></div>
+      <div style={{ borderRight:'1px solid var(--rule)', paddingLeft:3 }}>
+        <SwatchContent />
+        {/* Rotated element label */}
+        <div style={{ padding:'6px 0 6px 8px', borderTop:'1px solid var(--rule)' }}>
+          <span style={{ fontFamily:'var(--font-sans)', fontSize:'8px', letterSpacing:'0.14em',
+            textTransform:'uppercase', fontWeight:500, color: elementColor }}>
+            {card.element}
+          </span>
+        </div>
+      </div>
+      <div style={{ padding:`${pad}px 22px` }}>
+        <div style={{ marginBottom:6 }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+            {card.kind === 'empty'
+              ? <span style={{ fontFamily:'var(--font-serif)', fontSize:17, color:'var(--ink-4)', fontStyle:'italic' }}>— pick a Product or Type —</span>
+              : <span style={{ fontFamily:'var(--font-serif)', fontSize:17, color:'var(--ink)' }}>{card.name}</span>}
+            {card.code && <span style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--good-ink)', fontWeight:500 }}>{card.code}</span>}
+          </div>
+          <div style={{ display:'flex', gap:10, alignItems:'baseline', marginBottom:7, flexWrap:'wrap' }}>
+            {card.sku && <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5, color:'var(--ink-4)' }}>{card.sku}</span>}
+            {card.supplier && <span style={{ fontFamily:'var(--font-sans)', fontSize:12, color:'var(--ink-3)' }}>{card.supplier}</span>}
+            {card.trade && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--ink-4)', fontWeight:500 }}>{card.trade}</span>}
+            {card.trades && (
+              <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--ink-4)', fontWeight:500 }}>
+                {card.trades.join(' · ')}
+              </span>
+            )}
+          </div>
+          {/* Chips below meta */}
+          <div style={{ display:'flex', gap:5, alignItems:'center', flexWrap:'wrap' }}>
+            <Chip type="state" value={card.state} onChange={onStateChange} />
+            <Chip type="mode"  value={card.mode}  onChange={onModeChange} />
+          </div>
+        </div>
+        {card.notes && (
+          <div style={{ borderTop:'1px solid var(--rule)', paddingTop:8, marginTop:4 }}>
+            <div className="field-label">Notes</div>
+            <div style={{ fontFamily:'var(--font-serif)', fontSize:13, color:'var(--ink-3)', fontStyle:'italic', lineHeight:1.55 }}>{card.notes}</div>
+          </div>
+        )}
+        <FieldGrid card={card} variant="B" showGrid={showGrid} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── VARIANT C: "Editorial" ─── */
+function CardVariantC({ card, density, showGrid, onSwatchClick, onStateChange, onModeChange }) {
+  const pad = density === 'compact' ? 10 : density === 'open' ? 20 : 15;
+  const swatchH = density === 'compact' ? 140 : density === 'open' ? 200 : 168;
+
+  const SwatchCol = () => {
+    if (card.kind === 'type') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer',
+        display:'flex', flexDirection:'column' }} onClick={onSwatchClick}>
+        <div style={{ flex:1, minHeight:swatchH, background:'rgba(107,142,78,0.10)',
+          borderTop:'2px solid var(--good)', borderBottom:'2px solid var(--good)',
+          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, margin:'0', padding:'24px 0' }}>
+          <div style={{ fontFamily:'var(--font-serif)', fontStyle:'italic', fontWeight:300, fontSize:44, color:'var(--good-ink)', lineHeight:1, letterSpacing:'-0.01em' }}>{card.code}</div>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:'8px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--good-ink)', opacity:0.55 }}>—&thinsp;{card.slots} layers&thinsp;—</div>
+        </div>
+      </div>
+    );
+    if (card.kind === 'empty') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:'var(--paper-2)',
+          display:'flex', alignItems:'center', justifyContent:'center', border:'none' }}>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:'8.5px', letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--ink-4)', textAlign:'center', padding:'0 14px', lineHeight:1.6 }}>
+            Click to<br/>pick
+          </span>
+        </div>
+      </div>
+    );
+    return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:card.swatchColor,
+          display:'flex', alignItems:'flex-end', justifyContent:'flex-start', padding:'10px 12px' }}>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:'7.5px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)' }}>{card.swatchBrand}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const stateLabel = STATE_LABEL[card.state];
+  const modeLabel  = MODE_LABEL[card.mode];
+  const chipInkMap = { new:'#3a6645', existing:'#6b6559', repair:'#7a5e20', match:'#2e5a7a', demolish:'#a04545' };
+  const modeInkMap = { prop:'#3a3630', perf:'#3a6645', open:'#2e5a7a', pc:'#7a5e20', tba:'#9a9385' };
+  const stateColor = chipInkMap[card.state] || 'var(--ink-3)';
+  const modeColor  = modeInkMap[card.mode]  || 'var(--ink-3)';
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'178px 1fr', borderBottom:'1px solid var(--rule)', transition:'background 0.12s' }}
+      onMouseEnter={e => e.currentTarget.style.background='var(--tint)'}
+      onMouseLeave={e => e.currentTarget.style.background=''}>
+      <SwatchCol />
+      <div style={{ padding:`${pad}px 28px` }}>
+        {/* Element as quiet eyebrow */}
+        <div style={{ fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase',
+          color: card.kind==='type' ? 'var(--good-ink)' : card.kind==='empty' ? 'var(--ink-4)' : 'var(--accent-ink)',
+          marginBottom:5, fontWeight:500 }}>
+          {card.element}
+        </div>
+        <div style={{ display:'flex', alignItems:'baseline', gap:0, marginBottom:4, flexWrap:'wrap' }}>
+          {card.kind === 'empty'
+            ? <span style={{ fontFamily:'var(--font-serif)', fontSize:18, color:'var(--ink-4)', fontStyle:'italic' }}>— pick a Product or Type —</span>
+            : <span style={{ fontFamily:'var(--font-serif)', fontSize:18, color:'var(--ink)' }}>{card.name}</span>}
+          {/* Inline chips as text */}
+          <span style={{ fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.08em', color:'var(--ink-4)', margin:'0 8px', alignSelf:'center' }}>·</span>
+          <button onClick={onStateChange.bind(null, STATES[(STATES.indexOf(card.state)+1)%STATES.length])} style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'var(--font-sans)', fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:500, color: stateColor }}>
+            {stateLabel}
+          </button>
+          <span style={{ fontFamily:'var(--font-sans)', fontSize:'8.5px', color:'var(--ink-4)', margin:'0 5px', alignSelf:'center' }}>·</span>
+          <button onClick={onModeChange.bind(null, MODES[(MODES.indexOf(card.mode)+1)%MODES.length])} style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'var(--font-sans)', fontSize:'9px', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:500, color: modeColor }}>
+            {modeLabel}
+          </button>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'baseline', color:'var(--ink-4)', flexWrap:'wrap' }}>
+          {card.sku && <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5 }}>{card.sku}</span>}
+          {card.supplier && <span style={{ fontFamily:'var(--font-sans)', fontSize:12, color:'var(--ink-3)' }}>{card.supplier}</span>}
+          {card.trade && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--ink-4)', fontWeight:400 }}>{card.trade}</span>}
+          {card.trades && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--ink-4)' }}>{card.trades.join(' · ')}</span>}
+        </div>
+        {card.notes && (
+          <div style={{ borderTop:'1px solid var(--rule)', paddingTop:8, marginTop:10 }}>
+            <div style={{ fontFamily:'var(--font-serif)', fontSize:13, color:'var(--ink-3)', fontStyle:'italic', lineHeight:1.6 }}>{card.notes}</div>
+          </div>
+        )}
+        <FieldGrid card={card} variant="C" showGrid={showGrid} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── VARIANT D helpers ─── */
+function CardDFieldCell({ f, isEditing, cardHovered, isHovered, onEnter, onLeave, onHide, onShow, isHidden }) {
+  const stateColors = { new:'#3a6645', existing:'#6b6559', repair:'#7a5e20', match:'#2e5a7a', demolish:'#a04545' };
+  const modeColors  = { prop:'#3a3630', perf:'#3a6645', open:'#2e5a7a', pc:'#7a5e20', tba:'#9a9385' };
+
+  const renderValue = () => {
+    if (isEditing && !f.readonly) {
+      if (f.type === 'select') return (
+        <select className="edit-select" value={f.rawVal}
+          onChange={e => f.onChange(e.target.value)}
+          style={{ color: f.color, fontWeight: 500 }}>
+          {f.options.map(o => <option key={o} value={o}>{f.labelMap[o]}</option>)}
+        </select>
+      );
+      if (f.type === 'textarea') return (
+        <textarea className="edit-input" rows={2} value={f.rawVal || ''}
+          onChange={e => f.onChange(e.target.value)}
+          placeholder="Add a note…" />
+      );
+      return <input className={`edit-input${f.mono ? ' mono' : ''}`} value={f.rawVal || ''} onChange={e => f.onChange(e.target.value)} />;
+    }
+    if (f.type === 'textarea') return (
+      <div style={{ fontFamily:'var(--font-serif)', fontSize:13, color:'var(--ink-3)', fontStyle:'italic', lineHeight:1.6 }}>{f.val}</div>
+    );
+    return <div className={`fcell-val${f.mono ? ' mono' : ''}${f.color ? ' colored' : ''}`} style={{ color: f.color || undefined }}>{f.val}</div>;
+  };
+
+  return (
+    <div className="fcell" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+      <div className="fcell-head">
+        <div className="field-label">{f.label}</div>
+        {isEditing
+          ? <button className="fcell-editbtn" onClick={onHide}>Hide ×</button>
+          : (cardHovered && isHovered && <button className="fcell-hide" onClick={onHide}>×</button>)
+        }
+      </div>
+      {renderValue()}
+    </div>
+  );
+}
+
+/* ─── VARIANT D: "Editorial + Edit" ─── */
+function CardVariantD({ card, density, onSwatchClick, onStateChange, onModeChange, onFieldChange, onHiddenFieldsChange, onDelete, isEditing, onEdit, onSave, q5trade }) {
+  const pad = density === 'compact' ? 10 : density === 'open' ? 20 : 15;
+  const swatchH = density === 'compact' ? 140 : density === 'open' ? 200 : 168;
+  const [hovered, setHovered] = useState(false);
+  const [hoveredField, setHoveredField] = useState(null);
+
+  const stateColors = { new:'#3a6645', existing:'#6b6559', repair:'#7a5e20', match:'#2e5a7a', demolish:'#a04545' };
+  const modeColors  = { prop:'#3a3630', perf:'#3a6645', open:'#2e5a7a', pc:'#7a5e20', tba:'#9a9385' };
+  const elementColor = card.kind === 'type' ? 'var(--good-ink)' : card.kind === 'empty' ? 'var(--ink-4)' : 'var(--accent-ink)';
+  const hidden = card.hiddenFields || [];
+
+  const allFields = [
+    { key:'element', label:'Element', val:card.element, rawVal:card.element, type:'select',
+      options:['Tapware','Floor','Wall','Door','Window','Ceiling','Bathroom (set)','Balustrade','Light','Garden bed','Mechanical'],
+      labelMap: Object.fromEntries(['Tapware','Floor','Wall','Door','Window','Ceiling','Bathroom (set)','Balustrade','Light','Garden bed','Mechanical'].map(x=>[x,x])),
+      onChange: v => onFieldChange('element', v) },
+    { key:'state', label:'State', val:STATE_LABEL[card.state], rawVal:card.state, color:stateColors[card.state], type:'select', options:STATES, labelMap:STATE_LABEL, onChange: onStateChange },
+    { key:'mode', label:'Spec Mode', val:MODE_LABEL[card.mode], rawVal:card.mode, color:modeColors[card.mode], type:'select', options:MODES, labelMap:MODE_LABEL, onChange: onModeChange },
+    card.supplier != null ? { key:'supplier', label:'Supplier', val:card.supplier, rawVal:card.supplier, type:'text', onChange: v => onFieldChange('supplier', v) } : null,
+    card.sku != null ? { key:'sku', label:'SKU', val:card.sku, rawVal:card.sku, type:'text', mono:true, onChange: v => onFieldChange('sku', v) } : null,
+    (card.trade || card.trades) ? { key:'trade', label:'Trade', val:card.trade || (card.trades||[]).join(' · '), rawVal:'', type:'text', readonly:true } : null,
+    { key:'notes', label:'Notes', val:card.notes||'', rawVal:card.notes||'', type:'textarea', wide:true, onChange: v => onFieldChange('notes', v) },
+  ].filter(Boolean);
+
+  const visFields  = allFields.filter(f => !hidden.includes(f.key) && (f.val || isEditing));
+  const hidFields  = allFields.filter(f => hidden.includes(f.key));
+  const gridFields = visFields.filter(f => !f.wide);
+  const wideFields = visFields.filter(f => f.wide && (f.val || isEditing));
+
+  const hideField = key => onHiddenFieldsChange([...hidden, key]);
+  const showField = key => onHiddenFieldsChange(hidden.filter(k => k !== key));
+
+  const TradeDisplay = () => {
+    const trades = card.trades;
+    if (!trades || q5trade === 'suppress') return null;
+    if (q5trade === 'chips') return (
+      <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginTop:3 }}>
+        {trades.map(t => <span key={t} className="trade-chip">{t}</span>)}
+      </div>
+    );
+    const extra = trades.length - 1;
+    return <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--ink-4)' }}>{trades[0]}{extra > 0 ? ` +${extra}` : ''}</span>;
+  };
+
+  const renderFieldVal = (f) => {
+    if (isEditing && !f.readonly) {
+      if (f.type === 'select') return (
+        <select className="edit-select" value={f.rawVal} onChange={e => f.onChange(e.target.value)} style={{ color:f.color, fontWeight: f.color ? 500 : 400 }}>
+          {f.options.map(o => <option key={o} value={o}>{f.labelMap ? f.labelMap[o] : o}</option>)}
+        </select>
+      );
+      if (f.type === 'textarea') return (
+        <textarea className="edit-input" rows={2} value={f.rawVal||''} onChange={e => f.onChange(e.target.value)} placeholder="Add a note…" />
+      );
+      return <input className={`edit-input${f.mono?' mono':''}`} value={f.rawVal||''} onChange={e => f.onChange(e.target.value)} />;
+    }
+    if (f.type === 'textarea') return f.val
+      ? <div style={{ fontFamily:'var(--font-serif)', fontSize:13, color:'var(--ink-3)', fontStyle:'italic', lineHeight:1.6 }}>{f.val}</div>
+      : null;
+    return <div className={`fcell-val${f.mono?' mono':''}${f.color?' colored':''}`} style={{ color:f.color||undefined }}>{f.val}</div>;
+  };
+
+  const SwatchCol = () => {
+    if (card.kind === 'type') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', minHeight:swatchH, background:'rgba(107,142,78,0.10)', borderTop:'1px solid var(--good)', borderBottom:'1px solid var(--good)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, padding:'24px 0' }}>
+          <div style={{ fontFamily:'var(--font-serif)', fontStyle:'italic', fontWeight:300, fontSize:44, color:'var(--good-ink)', lineHeight:1 }}>{card.code}</div>
+          <div style={{ fontFamily:'var(--font-mono)', fontSize:'8px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--good-ink)', opacity:0.55 }}>— {card.slots} layers —</div>
+        </div>
+      </div>
+    );
+    if (card.kind === 'empty') return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:'var(--paper-2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </div>
+      </div>
+    );
+    return (
+      <div style={{ width:178, borderRight:'1px solid var(--rule)', cursor:'pointer' }} onClick={onSwatchClick}>
+        <div style={{ width:'100%', height:swatchH, background:card.swatchColor, display:'flex', alignItems:'flex-end', padding:'10px 12px' }}>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:'7.5px', letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(255,255,255,0.35)' }}>{card.swatchBrand}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'178px 1fr', borderBottom:'1px solid var(--rule)', transition:'background 0.12s', background: isEditing ? 'rgba(20,20,20,0.012)' : hovered ? 'var(--tint)' : '' }}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => { setHovered(false); setHoveredField(null); }}>
+      <SwatchCol />
+      <div style={{ padding:`${pad}px 28px` }}>
+        <div style={{ fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase', color:elementColor, marginBottom:4, fontWeight:500 }}>{card.element}</div>
+
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:4 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            {card.kind === 'empty'
+              ? <span style={{ fontFamily:'var(--font-serif)', fontSize:18, color:'var(--ink-4)', fontStyle:'italic' }}>— pick a Product or Type —</span>
+              : <span style={{ fontFamily:'var(--font-serif)', fontSize:18, color:'var(--ink)', lineHeight:1.25, display:'block' }}>
+                  {card.name}
+                  {card.code && <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--good-ink)', fontWeight:500, marginLeft:10, letterSpacing:'0.02em', verticalAlign:'middle' }}>{card.code}</span>}
+                </span>
+            }
+            <div style={{ display:'flex', gap:10, alignItems:'baseline', marginTop:3, flexWrap:'wrap' }}>
+              {card.sku      && !hidden.includes('sku')     && <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5, color:'var(--ink-4)' }}>{card.sku}</span>}
+              {card.supplier && !hidden.includes('supplier') && <span style={{ fontFamily:'var(--font-sans)', fontSize:11.5, color:'var(--ink-3)' }}>{card.supplier}</span>}
+              {card.trade    && !hidden.includes('trade')   && <span style={{ fontFamily:'var(--font-sans)', fontSize:9, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--ink-4)' }}>{card.trade}</span>}
+            </div>
+            <TradeDisplay />
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, paddingTop:2 }}>
+            {!isEditing && (
+              <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                <span style={{ display:'inline-block', padding:'2px 6px', background:`${stateColors[card.state]}18`, fontFamily:'var(--font-sans)', fontSize:'9px', letterSpacing:'0.07em', textTransform:'uppercase', fontWeight:500, color:stateColors[card.state], whiteSpace:'nowrap' }}>{STATE_LABEL[card.state]}</span>
+                <span style={{ display:'inline-block', padding:'2px 6px', background:`${modeColors[card.mode]}14`, fontFamily:'var(--font-sans)', fontSize:'9px', letterSpacing:'0.07em', textTransform:'uppercase', fontWeight:500, color:modeColors[card.mode], whiteSpace:'nowrap' }}>{MODE_LABEL[card.mode]}</span>
+              </div>
+            )}
+            {(hovered || isEditing) && (
+              <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+                {isEditing && (
+                  <button onClick={() => onDelete(card.id)}
+                    style={{ background:'none', border:'1px solid rgba(160,69,69,0.3)', padding:'3px 8px', cursor:'pointer', fontFamily:'var(--font-sans)', fontSize:'9px', letterSpacing:'0.08em', textTransform:'uppercase', color:'#a04545' }}>
+                    Remove
+                  </button>
+                )}
+                <button className={`edit-btn${isEditing?' active':''}`} onClick={isEditing ? onSave : onEdit}>
+                  {isEditing ? 'Done' : 'Edit'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {gridFields.length > 0 && (
+          <div className={`fgrid-d${hovered?' card-hov':''}`}>
+            {gridFields.map(f => (
+              <div key={f.key} className="fcell"
+                onMouseEnter={() => setHoveredField(f.key)}
+                onMouseLeave={() => setHoveredField(null)}>
+                <div className="fcell-head">
+                  <div className="field-label">{f.label}</div>
+                  {isEditing && <button className="fcell-editbtn" onClick={() => hideField(f.key)}>Hide ×</button>}
+                </div>
+                {renderFieldVal(f)}
+              </div>
+            ))}
+          </div>
+        )}
+        {wideFields.map(f => (
+          <div key={f.key} className="fwide-d"
+            onMouseEnter={() => setHoveredField(f.key)}
+            onMouseLeave={() => setHoveredField(null)}>
+            <div className="fcell-head" style={{ marginBottom:3 }}>
+              <div className="field-label">{f.label}</div>
+              {isEditing && <button className="fcell-editbtn" onClick={() => hideField(f.key)}>Hide ×</button>}
+            </div>
+            {renderFieldVal(f)}
+          </div>
+        ))}
+
+        {isEditing && hidFields.length > 0 && (
+          <div className="hidden-tray">
+            <div className="hidden-tray-label">Hidden fields</div>
+            <div className="hidden-tray-btns">
+              {hidFields.map(f => (
+                <button key={f.key} className="hidden-show-btn" onClick={() => showField(f.key)}>+ {f.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── PICKER DATA ─── */
+const PICKER_TYPES_BY_ELEMENT = {
+  'Wall': [
+    { id:'t-w01', code:'W-01', name:'Internal acoustic partition', slots:5, trades:['Plasterer','Metalwork','Carpentry','Painter'], slotColors:['#c8b89a','#7a8c6e','#e0d8cc','#d0c0a8','#9aaa8a'] },
+    { id:'t-w02', code:'W-02', name:'Inter-tenancy fire wall — Rw 50 / FRL 60/60/60', slots:5, trades:['Plasterer','Metalwork'], slotColors:['#d4cfc8','#8a8a8a','#c8c0b8','#a8a0a0','#e8e4e0'] },
+  ],
+  'Bathroom (set)': [
+    { id:'t-br01', code:'BR-01', name:'Standard apartment bathroom', slots:4, trades:['Plumbing'], slotColors:['#a08660','#cdcfd2','#1a1a1a','#8a6c3a'] },
+  ],
+};
+
+/* ─── PICKER DRAWER ─── */
+function PickerDrawer({ element, onClose, onPick }) {
+  const [sel, setSel] = useState(null);
+  const [q, setQ] = useState('');
+
+  const matchingTypes = (PICKER_TYPES_BY_ELEMENT[element] || [])
+    .filter(t => !q || t.name.toLowerCase().includes(q.toLowerCase()) || t.code.toLowerCase().includes(q.toLowerCase()));
+
+  const matchingProducts = PICKER_PRODUCTS
+    .filter(p => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.brand.toLowerCase().includes(q.toLowerCase()));
+
+  const hasTypes = matchingTypes.length > 0;
+
+  return (
+    <div className="drawer-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="drawer">
+
+        {/* HEAD */}
+        <div className="drawer-head">
+          <div className="drawer-head-row">
+            <div>
+              <div className="eyebrow" style={{ color:'var(--accent-ink)', marginBottom:2 }}>Specify · {element}</div>
+              <span className="drawer-title">Pick from Library</span>
+              <span className="drawer-subtitle">
+                {hasTypes ? 'Assembly types appear first — one pick brings all their products.' : 'No assembly types for this element yet.'}
+              </span>
+            </div>
+            <button className="drawer-close" onClick={onClose}>×</button>
+          </div>
+          <div className="drawer-search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color:'var(--ink-4)', flexShrink:0 }}>
+              <circle cx="10.5" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="15.2" y1="15.2" x2="20" y2="20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <input autoFocus placeholder={`Search ${element.toLowerCase()} types and products…`}
+              value={q} onChange={e => setQ(e.target.value)} />
+            {q && <button onClick={() => setQ('')} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--ink-4)', fontSize:14, padding:'0 2px', lineHeight:1 }}>×</button>}
+          </div>
+        </div>
+
+        {/* BODY */}
+        <div className="drawer-body">
+
+          {/* TYPES SECTION */}
+          {(hasTypes || !q) && (
+            <>
+              <div className="dsec-head types">
+                <div>
+                  <div className="dsec-eyebrow">Assembly Types</div>
+                  {hasTypes && <div className="dsec-explain">One pick · multiple products · shared across project</div>}
+                </div>
+                <span className="dsec-count">{matchingTypes.length}</span>
+              </div>
+
+              {matchingTypes.length === 0 && (
+                <div className="picker-empty">
+                  <div className="picker-empty-msg">No {element.toLowerCase()} types in library yet.</div>
+                  <div className="picker-empty-sub">Create one with + Add new Type below — it'll be reusable across all projects.</div>
+                </div>
+              )}
+
+              {matchingTypes.map(t => {
+                const isSel = sel === t.id;
+                return (
+                  <button key={t.id} className={`prow-type${isSel ? ' selected' : ''}`}
+                    onClick={() => setSel(isSel ? null : t.id)}>
+                    {/* Left badge */}
+                    <div className="prow-type-badge">
+                      <div className="prow-type-code">{t.code}</div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:'7.5px', letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--good-ink)', opacity:0.6 }}>{t.slots} slots</div>
+                    </div>
+                    {/* Body */}
+                    <div className="prow-type-body">
+                      <div className="prow-type-name">{t.name}</div>
+                      {/* Slot color strip */}
+                      <div className="prow-type-slots" style={{ marginBottom:6 }}>
+                        {t.slotColors.map((c, i) => (
+                          <div key={i} className="prow-type-slot" style={{ background: c }} title={`Layer ${i+1}`}></div>
+                        ))}
+                      </div>
+                      <div className="prow-type-meta">
+                        <span className="prow-type-slots-label">{t.slots} layers</span>
+                        <span className="prow-type-trades">{t.trades.join(' · ')}</span>
+                      </div>
+                    </div>
+                    {/* Check */}
+                    <div className="prow-type-check">
+                      {isSel && <span>✓</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </>
+          )}
+
+          {/* PRODUCTS SECTION */}
+          <div className="dsec-head products" style={{ marginTop: hasTypes ? 0 : 0 }}>
+            <div>
+              <div className="dsec-eyebrow">Single Products</div>
+              <div className="dsec-explain">One item · one trade · specify per room</div>
+            </div>
+            <span className="dsec-count">{matchingProducts.length}</span>
+          </div>
+
+          {matchingProducts.map(p => {
+            const isSel = sel === p.id;
+            return (
+              <button key={p.id} className={`prow-product${isSel ? ' selected' : ''}`}
+                onClick={() => setSel(isSel ? null : p.id)}>
+                <div className="prow-product-thumb" style={{ background: p.color }}></div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div className="prow-product-name">{p.name}</div>
+                  <div className="prow-product-meta">
+                    <span>{p.brand}</span>
+                  </div>
+                </div>
+                <div className="prow-product-check">
+                  {isSel && <span>✓</span>}
+                </div>
+              </button>
+            );
+          })}
+
+        </div>
+
+        {/* FOOT */}
+        <div className="drawer-foot">
+          <button className="drawer-add acc">+ Add new Product</button>
+          <button className="drawer-add gd">+ Add new Type</button>
+          {sel && (
+            <button className="drawer-confirm" onClick={() => { onPick(sel); onClose(); }}>
+              Confirm →
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── SECTION GROUP ─── */
+function SectionGroup({ title, sub, count, cards, variant, density, showGrid, onSwatchClick, onCardChange, editingId, onEdit, onSave, onHiddenFieldsChange, onDelete, q5trade }) {
+  const CardComp = variant === 'A' ? CardVariantA : variant === 'B' ? CardVariantB : variant === 'C' ? CardVariantC : CardVariantD;
+  return (
+    <div className="sec">
+      <div className="sec-head">
+        <span className="sec-title">{title}</span>
+        <span className="sec-sub">{sub}</span>
+        <span className="sec-count">{count} items</span>
+        <span className="sec-grow"></span>
+        <button className="fields-btn">Fields ▾</button>
+      </div>
+      {cards.map(card => (
+        variant === 'D'
+          ? <CardVariantD key={card.id} card={card} density={density}
+              onSwatchClick={() => onSwatchClick(card)}
+              onStateChange={v => onCardChange(card.id, 'state', v)}
+              onModeChange={v => onCardChange(card.id, 'mode', v)}
+              onFieldChange={(f, v) => onCardChange(card.id, f, v)}
+              onHiddenFieldsChange={v => onHiddenFieldsChange(card.id, v)}
+              onDelete={onDelete}
+              isEditing={card.id === editingId}
+              onEdit={() => onEdit(card.id)}
+              onSave={onSave}
+              q5trade={q5trade} />
+          : <CardComp key={card.id} card={card} density={density} showGrid={showGrid}
+              onSwatchClick={() => onSwatchClick(card)}
+              onStateChange={v => onCardChange(card.id, 'state', v)}
+              onModeChange={v => onCardChange(card.id, 'mode', v)} />
+      ))}
+      <div className="add-row"><button>+ Add to {title}</button></div>
+    </div>
+  );
+}
+
+/* ─── APP ─── */
+function App() {
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "variant": "D",
+    "density": "open",
+    "showGrid": true,
+    "q5trade": "chips",
+    "q6thumb": "serif"
+  }/*EDITMODE-END*/;
+
+  const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const { TweaksPanel, TweakSection, TweakRadio, TweakToggle } = window;
+  const variant  = t.variant;
+  const density  = t.density;
+  const showGrid = t.showGrid;
+
+  const [cards, setCards] = useState(INIT_CARDS);
+  const [picker, setPicker] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const onHiddenFieldsChange = (id, val) => onCardChange(id, 'hiddenFields', val);
+  const onDelete = (id) => setCards(prev => prev.filter(c => c.id !== id)); // {card}
+
+  const sections = ['Kitchen','Living Room','Main Bathroom'];
+  const grouped = sections.map(s => ({ title: s, cards: cards.filter(c => c.section === s) }));
+
+  const onCardChange = (id, field, val) => setCards(prev => prev.map(c => c.id === id ? {...c, [field]: val} : c));
+
+  const variantLabel = { A:'A — Column element', B:'B — Marginalia', C:'C — Editorial', D:'D — Editorial + Edit mode' };
+
+  return (
+    <>
+      {/* NAV */}
+      <nav className="nav">
+        <div className="nav-firm">
+          <div className="nav-glyph"></div>
+          <div className="nav-name">Hollis &amp; Arne — Studio Archive</div>
+        </div>
+        <div style={{ display:'flex', alignItems:'baseline', gap:28 }}>
+          <div className="nav-tabs">
+            {[['I','Library','Library.html'],['II','Projects',null],['III','Cost Schedule',null],['IV','Schedule','Schedule Cards.html']].map(([n,l,href]) => (
+              href
+                ? <a key={l} href={href} className={`nav-tab${l==='Schedule'?' active':''}`} style={{ textDecoration:'none' }}>
+                    <span className="num">{n}</span>{l}
+                  </a>
+                : <button key={l} className="nav-tab"><span className="num">{n}</span>{l}</button>
+            ))}
+          </div>
+          <div className="vbar"></div>
+          <button className="nav-gear">⚙ V</button>
+        </div>
+      </nav>
+
+      <div className="page">
+        {/* PAGE HEADER */}
+        <div className="page-header">
+          <div>
+            <div className="eyebrow">IV · Project Schedule</div>
+            <span className="page-title">Castlecrag House</span>
+            <div className="page-meta">
+              <span className="meta-mono">CC-24</span>
+              <span className="meta-for">for Lim &amp; Robertson</span>
+              <span className="meta-mono">Construction Documentation</span>
+            </div>
+          </div>
+          <select className="switcher">
+            <option>Castlecrag House</option>
+            <option>Bondi 4-Pack Apartments</option>
+            <option>Surry Hills Café Fitout</option>
+          </select>
+        </div>
+
+        {/* TOOLBAR */}
+        <div className="toolbar">
+          <div className="search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ color:'var(--ink-3)', flexShrink:0 }}>
+              <circle cx="10.5" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="15.2" y1="15.2" x2="20" y2="20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <input placeholder="Search schedule, products, types…" />
+          </div>
+          <div className="vbar"></div>
+          <div className="vt">
+            <button className="on">Room</button>
+            <button>Element</button>
+            <button>Trade</button>
+          </div>
+          <div className="vbar"></div>
+          <select className="filter-sel"><option>All elements</option></select>
+          <select className="filter-sel"><option>All states</option></select>
+          <button className="fields-btn">Default fields</button>
+          <span className="tb-grow"></span>
+          <span className="tb-count">{cards.length} items</span>
+        </div>
+
+        {/* VARIANT LABEL */}
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16, padding:'8px 0', borderBottom:'1px dashed var(--rule)' }}>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--ink-4)' }}>Card variant</span>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--ink-2)', fontWeight:500 }}>{variantLabel[variant]}</span>
+          <span style={{ fontFamily:'var(--font-sans)', fontSize:10.5, color:'var(--ink-4)', fontStyle:'italic' }}>— use Tweaks panel to switch</span>
+        </div>
+
+        {/* SCHEDULE */}
+        {grouped.map(({ title, cards: grpCards }) => (
+          <SectionGroup key={title} title={title}
+            sub={grpCards[0]?.sectionSub} count={grpCards[0]?.sectionCount}
+            cards={grpCards} variant={variant} density={density} showGrid={showGrid}
+            onSwatchClick={card => setPicker(card)}
+            onCardChange={onCardChange}
+            editingId={editingId}
+            onEdit={id => setEditingId(id)}
+            onSave={() => setEditingId(null)}
+            onHiddenFieldsChange={onHiddenFieldsChange}
+            onDelete={onDelete}
+            q5trade={t.q5trade || 'truncate'} />
+        ))}
+
+        {/* Q6 — Library Types tab thumbnail options */}
+        {variant === 'D' && (
+          <div className="lib-scene">
+            <div className="lib-scene-label">Q6 · Library Types tab — thumbnail options</div>
+            <div className="lib-scene-q">The Products tab uses a 36×36 swatch. What should the Types tab use as its row thumbnail? Switch between options using Tweaks → Q6.</div>
+            <div className="lib-tabs-row">
+              <button className="lib-tab-btn">Products</button>
+              <button className="lib-tab-btn active">Types</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'80px 1fr 160px 60px', gap:14, padding:'8px 0 6px', borderBottom:'2px solid var(--ink)' }}>
+              {['','Name','Trades','Slots'].map((h,i) => <div key={i} style={{ fontFamily:'var(--font-sans)', fontSize:'8.5px', letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--ink-4)' }}>{h}</div>)}
+            </div>
+            {[
+              { code:'W-01', name:'Internal acoustic partition', trades:['Plasterer','Metalwork','Carpentry','Painter'], slots:5, colors:['#c8b89a','#7a8c6e','#e0d8cc','#d0c0a8','#9aaa8a'] },
+              { code:'W-02', name:'Inter-tenancy fire wall — Rw 50 / FRL 60/60/60', trades:['Plasterer','Metalwork'], slots:5, colors:['#d4cfc8','#8a8a8a','#c8c0b8','#a8a0a0','#e8e4e0'] },
+              { code:'BR-01', name:'Standard apartment bathroom', trades:['Plumbing'], slots:4, colors:['#a08660','#cdcfd2','#1a1a1a','#8a6c3a'] },
+            ].map(row => {
+              const q = t.q6thumb;
+              let thumb;
+              if (q === 'badge') thumb = (
+                <div style={{ width:60, height:36, background:'rgba(107,142,78,0.08)', border:'1px dashed rgba(107,142,78,0.35)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-mono)', fontSize:10, fontWeight:500, color:'var(--good-ink)' }}>{row.code}</div>
+              );
+              else if (q === 'small') thumb = (
+                <div style={{ width:36, height:36, background:'rgba(107,142,78,0.10)', border:'1px solid rgba(107,142,78,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'var(--font-mono)', fontSize:9.5, fontWeight:500, color:'var(--good-ink)' }}>{row.code}</div>
+              );
+              else if (q === 'strip') thumb = (
+                <div style={{ width:60, height:36, position:'relative', overflow:'hidden', border:'1px solid var(--rule)' }}>
+                  <div style={{ display:'flex', height:'100%' }}>{row.colors.map((c,i) => <div key={i} style={{ flex:1, background:c }}></div>)}</div>
+                  <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(243,239,231,0.72)' }}>
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:9.5, fontWeight:500, color:'var(--good-ink)' }}>{row.code}</span>
+                  </div>
+                </div>
+              );
+              else thumb = (
+                <div style={{ width:60, height:36, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <span style={{ fontFamily:'var(--font-serif)', fontStyle:'italic', fontWeight:300, fontSize:22, color:'var(--good-ink)', lineHeight:1 }}>{row.code}</span>
+                </div>
+              );
+              return (
+                <div key={row.code} className="lib-row-d" style={{ gridTemplateColumns:'80px 1fr 160px 60px' }}>
+                  {thumb}
+                  <div><div className="lib-row-name">{row.name}</div></div>
+                  <div className="lib-row-meta">{row.trades.join(' · ')}</div>
+                  <div className="lib-row-meta" style={{ textAlign:'right' }}>{row.slots}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* TWEAKS */}
+      <TweaksPanel>
+        <TweakSection label="Card variant" />
+        <TweakRadio label="Variant" value={variant}
+          options={[{value:'A',label:'A'},{value:'B',label:'B'},{value:'C',label:'C'},{value:'D',label:'D ★'}]}
+          onChange={v => setTweak('variant', v)} />
+        <TweakSection label="Density" />
+        <TweakRadio label="Density" value={density}
+          options={[{value:'compact',label:'Compact'},{value:'regular',label:'Regular'},{value:'open',label:'Open'}]}
+          onChange={v => setTweak('density', v)} />
+        <TweakSection label="Field grid" />
+        <TweakToggle label="Show fields below cards" value={showGrid} onChange={v => setTweak('showGrid', v)} />
+        <TweakSection label="Q5 — Trade on type rows" />
+        <TweakRadio label="Treatment" value={t.q5trade}
+          options={[{value:'truncate',label:'Truncate'},{value:'chips',label:'Chips'},{value:'suppress',label:'None'}]}
+          onChange={v => setTweak('q5trade', v)} />
+        <TweakSection label="Q6 — Library type thumbnail" />
+        <TweakRadio label="Style" value={t.q6thumb}
+          options={[{value:'badge',label:'Badge'},{value:'small',label:'Small'},{value:'strip',label:'Strip'},{value:'serif',label:'Serif'}]}
+          onChange={v => setTweak('q6thumb', v)} />
+      </TweaksPanel>
+
+      {/* PICKER DRAWER */}
+      {picker && (
+        <PickerDrawer element={picker.element} onClose={() => setPicker(null)} onPick={id => { console.log('picked', id); }} />
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<div id="root"></div>
+</body>
+</html>
