@@ -333,29 +333,23 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
 }
 
 // ───────── Bulk action bar ─────────
+// Phase B7: tokenised chrome (.bulk-bar) — fixed at viewport bottom with
+// barUp slide-in on mount. Caller MUST unmount when selected.size === 0
+// so the slide-in animation re-fires on the next selection. Buttons map
+// to existing handlers; only chrome and animation change.
 function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMaterial, onDuplicate, onDelete }) {
   const [moveOpen, setMoveOpen] = React.useState(false);
   const ids = Array.from(selected);
   return (
-    <div style={{
-      position: 'sticky', bottom: 0,
-      padding: '10px 16px',
-      borderTop: '1px solid var(--ink)',
-      background: 'var(--ink)', color: 'var(--paper)',
-      display: 'flex', alignItems: 'center', gap: 14,
-      zIndex: 3,
-    }}>
-      <Mono size={11} color="var(--paper)" style={{ letterSpacing: '0.08em' }}>
-        {ids.length} selected
-      </Mono>
-      <div style={{ flex: 1 }} />
+    <div className="bulk-bar">
+      <span className="bulk-count">{ids.length} selected</span>
       <div style={{ position: 'relative' }}>
-        <button type="button" onClick={() => setMoveOpen(v => !v)} style={bulkBtn}>
+        <button type="button" className="bulk-act" onClick={() => setMoveOpen(v => !v)}>
           Move to library…
         </button>
         {moveOpen && (
           <div style={{
-            position: 'absolute', bottom: 'calc(100% + 8px)', right: 0,
+            position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
             background: 'var(--paper)', color: 'var(--ink)',
             border: '1px solid var(--ink)',
             minWidth: 200, zIndex: 2,
@@ -380,11 +374,11 @@ function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMate
           </div>
         )}
       </div>
-      <button type="button" onClick={() => {
+      <button type="button" className="bulk-act" onClick={() => {
         ids.forEach(id => (onDuplicate || onDuplicateMaterial)(id));
         clear();
-      }} style={bulkBtn}>Duplicate</button>
-      <button type="button" onClick={() => {
+      }}>Duplicate</button>
+      <button type="button" className="bulk-act" onClick={() => {
         const csv = window.buildCSVFromIds(ids);
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -392,24 +386,14 @@ function LTBulkBar({ selected, clear, libraries, onMoveMaterial, onDuplicateMate
         a.href = url; a.download = 'materials.csv';
         a.click();
         URL.revokeObjectURL(url);
-      }} style={bulkBtn}>Export CSV</button>
-      <button type="button" onClick={() => {
+      }}>Export CSV</button>
+      <button type="button" className="bulk-act danger" onClick={() => {
         if (confirm(`Delete ${ids.length} material${ids.length > 1 ? 's' : ''}?`)) onDelete(ids);
-      }} style={{ ...bulkBtn, color: '#ffb2a1', borderColor: '#ffb2a1' }}>Delete</button>
-      <button type="button" onClick={clear} style={bulkBtn}>Cancel</button>
+      }}>Remove</button>
+      <button type="button" className="bulk-clear" onClick={clear}>Clear</button>
     </div>
   );
 }
-
-const bulkBtn = {
-  background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.2)',
-  color: 'var(--paper)',
-  padding: '5px 12px',
-  fontFamily: "'Inter Tight', sans-serif",
-  fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase',
-  cursor: 'pointer', fontWeight: 500,
-};
 
 // ───────── Command palette (⌘K) ─────────
 function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, onAction }) {

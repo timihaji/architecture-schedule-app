@@ -77,6 +77,19 @@ function Library({
           showImagery={showImagery} density={density}
         />
       )}
+      {/* Bulk action bar (B7). Mount/unmount on selection so barUp animates
+          the slide-in fresh each time. */}
+      {selected.size > 0 && (
+        <window.LTBulkBar
+          selected={selected}
+          clear={() => setSelected(new Set())}
+          libraries={libraries}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onDelete={(ids) => { ids.forEach(id => onDelete(id, true)); setSelected(new Set()); }}
+        />
+      )}
     </>
   );
 }

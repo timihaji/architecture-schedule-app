@@ -104,6 +104,17 @@
   .edit-input { width: 100%; background: var(--paper); border: 1px solid var(--rule-2); padding: 5px 8px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
   .edit-input:focus { border-color: var(--ink-3); }
   .edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
+
+  /* ── BULK ACTION BAR — Library.html /* BULK ACTION BAR */ block ── */
+  .bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--ink); color: var(--paper); padding: 13px 56px; display: flex; align-items: center; gap: 16px; z-index: 100; animation: barUp 0.18s ease; }
+  @keyframes barUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .bulk-count { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: rgba(243,239,231,0.7); }
+  .bulk-act { background: transparent; border: 1px solid rgba(243,239,231,0.25); padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--paper); font-weight: 500; }
+  .bulk-act:hover { background: rgba(243,239,231,0.08); }
+  .bulk-act.danger { border-color: rgba(160,69,69,0.5); color: #e8a0a0; }
+  .bulk-act.danger:hover { background: rgba(160,69,69,0.12); }
+  .bulk-clear { margin-left: auto; background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(243,239,231,0.5); }
+  .bulk-clear:hover { color: var(--paper); }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>

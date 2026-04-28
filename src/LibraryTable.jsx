@@ -204,17 +204,9 @@ function LibraryTable(props) {
             materials={libraryScoped}
           />
         }
-        bulkBar={
-          <LTBulkBar
-            selected={selected}
-            clear={() => setSelected(new Set())}
-            libraries={libraries}
-            onMoveMaterial={onMoveMaterial}
-            onDuplicateMaterial={onDuplicateMaterial}
-            onDuplicate={onDuplicate}
-            onDelete={(ids) => { ids.forEach(id => onDelete(id, true)); setSelected(new Set()); }}
-          />
-        }
+        // Bulk bar moved to Library.jsx (B7) so it overlays the viewport
+        // regardless of layout (Register / Gallery / Split).
+        bulkBar={null}
         sidePanel={
           openMaterial && (
             <LTSidePanel
