@@ -345,12 +345,14 @@ function SegmentedToggle({
 // render greyed with a "v2" tag and a tooltip explaining unavailability.
 // Disabled tabs are non-clickable and excluded from the tab order.
 function ModeTabStrip({ mode, setMode, items, style = {} }) {
+  // C1 delta — order matches v2 README "Add / Edit Drawer": Manual first, then
+  // ingestion modes (URL/PDF/CSV deferred to v2), Duplicate last.
   const list = items || [
     { id: 'manual',    label: 'Manual' },
-    { id: 'duplicate', label: 'Duplicate' },
     { id: 'url',       label: 'URL', v2: true },
     { id: 'pdf',       label: 'PDF', v2: true },
     { id: 'csv',       label: 'CSV', v2: true },
+    { id: 'duplicate', label: 'Duplicate' },
   ];
   return (
     <div

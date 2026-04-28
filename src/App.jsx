@@ -819,6 +819,15 @@ function App() {
           onOpenLabelBuilder={(tab) => { setLabelBuilderTab(tab || 'Global'); setLabelBuilderOpen(true); }}
           onClose={() => setEditingMaterial(null)}
           onSave={saveMaterial}
+          // Phase C2 — Save & add another: persist current draft, then re-init
+          // editor with a fresh template of the same kind so the drawer stays
+          // open. Only meaningful for new materials.
+          onSaveAndAddAnother={editingMaterial._isNew ? (m) => {
+            saveMaterial(m);
+            // saveMaterial unmounts the editor (sets editingMaterial=null);
+            // schedule a fresh createNewItem for the same kind on the next tick.
+            setTimeout(() => createNewItem(m.kind || 'material'), 0);
+          } : undefined}
           requireCodeOnSave={!!(settings.dupePolicy || window.DUPE_PRESET_A).requireCodeOnSave}
         />
       )}
@@ -1206,17 +1215,22 @@ function Footer({ settings }) {
 
 // ───────────────────── Material editor ─────────────────────
 
-function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, requireCodeOnSave }) {
+function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave }) {
   const [draft, setDraft] = React.useState(material);
   const [codeError, setCodeError] = React.useState(false);
   // Phase C1 — intake-mode tabs. Manual is the only functional mode in v1;
-  // Duplicate is selectable but its body lands in C3. URL/PDF/CSV are disabled.
+  // Duplicate is selectable but its body lands in C9. URL/PDF/CSV are disabled.
+  // C1 delta — gate behind material._isNew so tabs only render when CREATING.
   const [mode, setMode] = React.useState('manual');
   function set(k, v) { setDraft(d => ({ ...d, [k]: v })); if (k === 'code') setCodeError(false); }
   function setSwatch(k, v) { setDraft(d => ({ ...d, swatch: { ...d.swatch, [k]: v } })); }
   function handleSave() {
     if (requireCodeOnSave && !draft.code?.trim()) { setCodeError(true); return; }
     onSave(draft);
+  }
+  function handleSaveAndAddAnother() {
+    if (requireCodeOnSave && !draft.code?.trim()) { setCodeError(true); return; }
+    if (onSaveAndAddAnother) onSaveAndAddAnother(draft);
   }
 
   // Flip swatch kind when category changes in/out of Paint
@@ -1245,98 +1259,97 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Phase C2 — drawer chrome (right-sliding panel, .drw-bg + .drw-panel from
+  // design/handoff/v2/Library.html). Body sections (C3 Identity, C4 Visual,
+  // C5 Specs, C6 Commercial, C7 Notes) reorganise the existing field
+  // components in a follow-up phase; for now the body keeps the existing
+  // PaintFields / StandardFields / SubmittalFields layout inside .drw-body
+  // so end-to-end create/edit still works.
   return (
-    <div onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(20,20,20,0.55)',
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 30,
-      }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--ink)',
-          width: 'min(780px, 100%)',
-          maxHeight: '92vh',
-          overflowY: 'auto',
-        }}>
-        <div style={{ padding: '22px 28px 16px', borderBottom: '1px solid var(--rule)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <div>
-            <Eyebrow style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>01</Eyebrow>
-            <Serif size={24} style={{ marginTop: 4, display: 'block' }}>
-              {material._isNew ? 'Add product' : 'Edit product'}
+    <>
+      <div className="drw-bg" onClick={onClose} />
+      <div className="drw-panel" role="dialog"
+        aria-label={material._isNew ? 'Add product' : 'Edit product'}
+        onClick={e => e.stopPropagation()}>
+        <div className="drw-head">
+          <Eyebrow style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.12em' }}>
+            I · Library / {material._isNew ? 'Add' : 'Edit'}
+          </Eyebrow>
+          <div className="drw-head-row" style={{ marginTop: 4 }}>
+            <Serif size={22} style={{ display: 'block' }}>
+              {material._isNew ? 'Add Product' : 'Edit Product'}
             </Serif>
+            <button type="button" className="drw-close" onClick={onClose} aria-label="Close">×</button>
           </div>
-          <TextButton onClick={onClose}>Close ×</TextButton>
         </div>
 
-        {window.ModeTabStrip && (
+        {/* Mode tab strip — C1 delta #2: only render when creating. */}
+        {material._isNew && window.ModeTabStrip && (
           <window.ModeTabStrip mode={mode} setMode={setMode} />
         )}
 
-        {mode === 'manual' && (
-          <>
-            <CustomNameBar draft={draft} set={set}
-              labelTemplates={labelTemplates}
-              onOpenLabelBuilder={onOpenLabelBuilder} />
+        <div className="drw-body">
+          {mode === 'manual' && (
+            <>
+              <CustomNameBar draft={draft} set={set}
+                labelTemplates={labelTemplates}
+                onOpenLabelBuilder={onOpenLabelBuilder} />
 
-            <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 28 }}>
-              <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
-                seed={parseInt((draft.id || '').slice(2)) || 1}
-                category={draft.category}
-                sheen={draft.sheen}
-                linkedPaint={draft.paintable && draft.paintedWithId
-                  ? materials.find(x => x.id === draft.paintedWithId) : null}
-                inheritPaintTone={!!draft.inheritPaintTone}
-                setInheritPaintTone={v => set('inheritPaintTone', v)} />
+              <div style={{ padding: '14px 0 4px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
+                <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
+                  seed={parseInt((draft.id || '').slice(2)) || 1}
+                  category={draft.category}
+                  sheen={draft.sheen}
+                  linkedPaint={draft.paintable && draft.paintedWithId
+                    ? materials.find(x => x.id === draft.paintedWithId) : null}
+                  inheritPaintTone={!!draft.inheritPaintTone}
+                  setInheritPaintTone={v => set('inheritPaintTone', v)} />
 
-              {(draft.kind === 'paint' || draft.category === 'Paint') ? (
-                <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
-              ) : (
-                <StandardFields draft={draft} set={set} materials={materials} />
-              )}
-            </div>
+                {(draft.kind === 'paint' || draft.category === 'Paint') ? (
+                  <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
+                ) : (
+                  <StandardFields draft={draft} set={set} materials={materials} />
+                )}
+              </div>
+            </>
+          )}
 
-            <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-              display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
-              {codeError && (
-                <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-sans)', marginRight: 'auto' }}>
-                  A code is required before saving.
-                </span>
-              )}
-              <TextButton onClick={onClose}>Cancel</TextButton>
-              <TextButton onClick={handleSave} accent>
-                {material._isNew ? 'Add to library' : 'Save changes'}
-              </TextButton>
-            </div>
-          </>
-        )}
-
-        {mode === 'duplicate' && (
-          <>
+          {mode === 'duplicate' && (
             <div style={{
-              padding: '60px 28px',
+              padding: '60px 4px',
               textAlign: 'center',
               fontFamily: 'var(--font-serif)',
               fontStyle: 'italic',
               color: 'var(--ink-4)',
               fontSize: 14,
             }}>
-              Duplicate mode lands in Phase C3.
+              Duplicate mode body lands in Phase C9.
             </div>
-            <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-              display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
-              <TextButton onClick={onClose}>Cancel</TextButton>
-            </div>
-          </>
-        )}
+          )}
+        </div>
+
+        <div className="drw-foot">
+          {codeError && (
+            <span style={{ fontSize: 11, color: 'var(--accent)',
+              fontFamily: 'var(--font-sans)', marginRight: 'auto' }}>
+              A code is required before saving.
+            </span>
+          )}
+          <button type="button" className="btn-sec-d" onClick={onClose}>Cancel</button>
+          {material._isNew && mode === 'manual' && onSaveAndAddAnother && (
+            <button type="button" className="btn-sec-d" onClick={handleSaveAndAddAnother}>
+              Save &amp; add another
+            </button>
+          )}
+          <span style={{ flex: 1 }} />
+          {mode === 'manual' && (
+            <button type="button" className="btn-pri-d" onClick={handleSave}>
+              {material._isNew ? 'Save Product' : 'Save changes'}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
