@@ -175,6 +175,60 @@
   .btn-sec-d { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 8px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; transition: border-color 0.1s, color 0.1s; }
   .btn-sec-d:hover { border-color: var(--ink-3); color: var(--ink-2); }
 
+  /* SCHEDULE CARD (D1b) — lifted from design/handoff/v2/Schedule Cards.html
+     /* EDIT inputs (variant D) */, .fgrid-d, .hidden-tray, .trade-chip blocks. */
+  .sched-card { display: grid; grid-template-columns: 178px 1fr; border-bottom: 1px solid var(--rule); transition: background 0.12s; }
+  .sched-card.editing { background: rgba(20,20,20,0.012); }
+  .sched-card:hover:not(.editing) { background: var(--tint); }
+  .sched-card-swatch { width: 178px; border-right: 1px solid var(--rule); cursor: pointer; }
+  .sched-card-swatch.product { display: flex; align-items: flex-end; padding: 10px 12px; }
+  .sched-card-swatch.type { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px 0; background: rgba(107,142,78,0.10); border-top: 1px solid var(--good); border-bottom: 1px solid var(--good); }
+  .sched-card-swatch.empty { display: flex; align-items: center; justify-content: center; background: var(--paper-2); }
+  .sched-card-swatch-brand { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.35); }
+  .sched-card-body { padding: 15px 28px; min-width: 0; }
+  .sched-card-eyebrow { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 4px; font-weight: 500; }
+  .sched-card-eyebrow.product { color: var(--accent-ink); }
+  .sched-card-eyebrow.type { color: var(--good-ink); }
+  .sched-card-eyebrow.empty { color: var(--ink-4); }
+  .sched-card-name { font-family: var(--font-serif); font-size: 18px; color: var(--ink); line-height: 1.25; display: block; }
+  .sched-card-name.empty { color: var(--ink-4); font-style: italic; }
+  .sched-card-code { font-family: var(--font-mono); font-size: 11px; color: var(--good-ink); font-weight: 500; margin-left: 10px; letter-spacing: 0.02em; vertical-align: middle; }
+  .sched-card-meta { display: flex; gap: 10px; align-items: baseline; margin-top: 3px; flex-wrap: wrap; }
+  .sched-card-sku { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); }
+  .sched-card-supplier { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-3); }
+  .sched-card-trade { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
+  .trade-chip { display: inline-block; padding: 2px 6px; border: 1px solid var(--rule-2); font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; margin-top: 3px; }
+  .sched-state-chip { display: inline-block; padding: 2px 6px; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; }
+  .sched-edit-btn { background: none; border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); transition: all 0.1s; white-space: nowrap; }
+  .sched-edit-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .sched-edit-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .sched-remove-btn { background: none; border: 1px solid rgba(160,69,69,0.3); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #a04545; }
+  .sched-remove-btn:hover { background: rgba(160,69,69,0.06); }
+  .fgrid-d { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+  .fgrid-d .fcell { position: relative; }
+  .fgrid-d .fcell-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px; gap: 6px; }
+  .fgrid-d .field-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); }
+  .fgrid-d .fcell-hide { background: none; border: none; cursor: pointer; color: var(--ink-4); font-size: 12px; padding: 0; line-height: 1; opacity: 0; transition: opacity 0.1s; }
+  .fgrid-d.card-hov .fcell:hover .fcell-hide { opacity: 1; }
+  .fgrid-d .fcell-val { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-2); }
+  .fgrid-d .fcell-val.mono { font-family: var(--font-mono); font-size: 10.5px; }
+  .fgrid-d .fcell-val.colored { font-weight: 500; }
+  .fwide-d { padding-top: 7px; border-top: 1px solid var(--rule); margin-top: 6px; }
+  .fwide-d .fcell-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px; gap: 6px; }
+  .fwide-d .field-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); }
+  .fcell-editbtn { background: none; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; }
+  .fcell-editbtn:hover { color: var(--ink-2); }
+  .sched-edit-input, .sched-edit-select { width: 100%; background: var(--paper); border: 1px solid var(--rule-2); padding: 5px 8px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; appearance: none; font-weight: 400; border-radius: 0; }
+  .sched-edit-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-color: var(--paper); padding-right: 24px; cursor: pointer; }
+  .sched-edit-select:focus, .sched-edit-input:focus { border-color: var(--ink-3); background: #fff; }
+  .sched-edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
+  textarea.sched-edit-input { resize: vertical; min-height: 54px; line-height: 1.5; font-family: var(--font-serif); font-style: italic; font-size: 13px; }
+  .hidden-tray { margin-top: 8px; padding: 7px 10px; background: var(--paper-2); border-top: 1px dashed var(--rule-2); }
+  .hidden-tray-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
+  .hidden-tray-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .hidden-show-btn { background: var(--paper); border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; color: var(--ink-3); letter-spacing: 0.04em; transition: border-color 0.1s; }
+  .hidden-show-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+
   /* CHIP (D1c) — lifted from design/handoff/v2/Schedule Cards.html /* CHIP BASE */ */
   .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border: none; transition: opacity 0.1s; background: transparent; }
   .chip:hover { opacity: 0.75; }
