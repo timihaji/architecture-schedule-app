@@ -196,7 +196,7 @@ function LibraryLayoutC({
                           className="split-name"
                           style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}
                         >
-                          {window.formatLabel ? window.formatLabel(item, labelTemplates) : item.name}
+                          {item.name}
                         </span>
                       </div>
                       <div className="split-sub">{item.category || item.type}</div>
@@ -241,7 +241,7 @@ function LibraryLayoutC({
                     <span style={{ marginRight: 10, display: 'inline-block' }}>
                       <window.CodeChip size="gallery">{active.code}</window.CodeChip>
                     </span>
-                    {window.formatLabel ? window.formatLabel(active, labelTemplates) : active.name}
+                    {active.name}
                   </h2>
                   <div className="detail-brand">
                     {(isPaint ? (active.brand || active.supplier) : active.supplier) || '—'}

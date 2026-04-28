@@ -74,7 +74,7 @@
     background: var(--stripe);
   }
 
-  /* ── LAYOUT C: SPLIT — Library.html /* ── LAYOUT C: SPLIT ── */ block ── */
+  /* LAYOUT C: SPLIT — lifted from design/handoff/v2/Library.html */
   .split { display: grid; grid-template-columns: 340px 1fr; gap: 0; border: 1px solid var(--rule); min-height: 600px; }
   .split-list { border-right: 1px solid var(--rule); overflow-y: auto; max-height: 700px; }
   .split-group-label { padding: 10px 12px 4px; font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); border-bottom: 1px solid var(--rule); font-weight: 500; position: sticky; top: 0; background: var(--paper); z-index: 1; }
@@ -105,7 +105,7 @@
   .edit-input:focus { border-color: var(--ink-3); }
   .edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
 
-  /* ── BULK ACTION BAR — Library.html /* BULK ACTION BAR */ block ── */
+  /* BULK ACTION BAR — lifted from design/handoff/v2/Library.html */
   .bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--ink); color: var(--paper); padding: 13px 56px; display: flex; align-items: center; gap: 16px; z-index: 100; animation: barUp 0.18s ease; }
   @keyframes barUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .bulk-count { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: rgba(243,239,231,0.7); }
