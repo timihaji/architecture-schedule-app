@@ -1301,11 +1301,14 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
               <window.ProductFieldBlocks.Visual
                 draft={draft} set={set} setSwatch={setSwatch} materials={materials} />
 
+              <window.ProductFieldBlocks.Specs
+                draft={draft} set={set} materials={materials} />
+
               <div style={{ padding: '14px 0 4px' }}>
                 {(draft.kind === 'paint' || draft.category === 'Paint') ? (
                   <PaintFields draft={draft} set={set} />
                 ) : (
-                  <StandardFields draft={draft} set={set} materials={materials} />
+                  <StandardFields draft={draft} set={set} />
                 )}
               </div>
             </>
@@ -1351,134 +1354,13 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
 }
 
 // ───────── Standard (non-paint) material fields ─────────
-function PaintSelect({ value, onChange, options, placeholder = '— unspecified —' }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    if (!open) return;
-    function onDown(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
-  const selected = options.find(o => o.id === value);
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button"
-        onClick={() => setOpen(o => !o)}
-        style={{
-          ...fieldStyle(),
-          display: 'flex', alignItems: 'center', gap: 8,
-          textAlign: 'left', cursor: 'pointer',
-          background: 'var(--paper)',
-        }}>
-        {selected ? (
-          <>
-            <span style={{
-              width: 14, height: 14, flexShrink: 0,
-              background: selected.tone || '#ddd',
-              outline: '1px solid rgba(20,20,20,0.15)',
-              display: 'inline-block',
-            }} />
-            <span style={{ flex: 1, fontSize: 13, color: 'var(--ink)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {selected.label}
-            </span>
-          </>
-        ) : (
-          <span style={{ flex: 1, fontSize: 13, color: 'var(--ink-4)' }}>{placeholder}</span>
-        )}
-        <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)' }}>▾</span>
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: 'var(--paper)',
-          border: '1px solid var(--ink)',
-          maxHeight: 260, overflowY: 'auto',
-          zIndex: 20,
-          boxShadow: '0 6px 18px rgba(0,0,0,0.08)',
-        }}>
-          <button type="button"
-            onClick={() => { onChange(null); setOpen(false); }}
-            style={{
-              width: '100%', padding: '8px 10px', textAlign: 'left',
-              background: value == null ? 'var(--tint)' : 'var(--paper)',
-              border: 'none', borderBottom: '1px dotted var(--rule-2)', cursor: 'pointer',
-              fontSize: 12, color: 'var(--ink-4)', fontStyle: 'italic',
-              fontFamily: "'Newsreader', serif",
-            }}>{placeholder}</button>
-          {options.map(o => (
-            <button key={o.id} type="button"
-              onClick={() => { onChange(o.id); setOpen(false); }}
-              style={{
-                width: '100%', padding: '7px 10px',
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: o.id === value ? 'var(--tint)' : 'var(--paper)',
-                border: 'none', borderBottom: '1px dotted var(--rule-2)', cursor: 'pointer',
-                textAlign: 'left',
-              }}>
-              <span style={{
-                width: 16, height: 16, flexShrink: 0,
-                background: o.tone || '#ddd',
-                outline: '1px solid rgba(20,20,20,0.15)',
-              }} />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 12.5, color: 'var(--ink)',
-                  fontFamily: "'Inter Tight', sans-serif",
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  display: 'block' }}>
-                  {o.label}
-                </span>
-                {o.meta && (
-                  <span style={{ ...ui.mono, fontSize: 9.5, color: 'var(--ink-4)',
-                    letterSpacing: '0.06em' }}>{o.meta}</span>
-                )}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StandardFields({ draft, set, materials }) {
-  const isFinish = !draft.kind || draft.kind === 'material';
-  const isAppliance = draft.kind === 'appliance' || draft.kind === 'fitting';
-  const isLighting = draft.kind === 'light' || draft.kind === 'ffe-lighting';
-  const isFFE = draft.kind && draft.kind.startsWith('ffe-');
-
-  // Paint-able: only show when the substrate could be painted
-  const paintChoices = materials.filter(m => m.kind === 'paint' || m.category === 'Paint');
-  const linkedPaint = draft.paintable && draft.paintedWithId
-    ? paintChoices.find(p => p.id === draft.paintedWithId)
-    : null;
-  const inheritedFinish = linkedPaint
-    ? `${linkedPaint.sheen || ''} · ${linkedPaint.brand || ''} ${linkedPaint.colourName || linkedPaint.name}`.trim()
-    : null;
-
-  // Auto-inherit finish & tone when a paint is linked (unless the user has overridden)
-  React.useEffect(() => {
-    if (linkedPaint && !draft.finishOverride) {
-      if (draft.finish !== inheritedFinish) set('finish', inheritedFinish);
-    }
-  }, [linkedPaint?.id, linkedPaint?.sheen, linkedPaint?.colourName, draft.finishOverride]);
-
-  React.useEffect(() => {
-    if (linkedPaint && draft.inheritPaintTone) {
-      const paintTone = linkedPaint.swatch?.tone;
-      if (paintTone && draft.swatch?.tone !== paintTone) {
-        set('swatch', { ...draft.swatch, tone: paintTone });
-      }
-    }
-  }, [linkedPaint?.swatch?.tone, draft.inheritPaintTone]);
-
+// (PaintSelect helper moved into src/ProductFieldBlocks.jsx in commit 3.)
+function StandardFields({ draft, set }) {
+  // Phase 1B: Identity (commit 1) and Specs (commit 3) absorb most of the
+  // legacy fields. What's left here flows into Commercial (commit 4) and
+  // Notes (commit 5).
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* Phase 1B (commit 1): Name / Code / Category / Trade / Species / Model /
-          Supplier are now rendered by ProductFieldBlocks.Identity above this
-          grid. Specs / Commercial / Notes will absorb the rest in commits 3-5. */}
       <EditorField label="Supplier code">
         <input value={draft.supplier_code || ''} onChange={e => set('supplier_code', e.target.value)}
           style={fieldStyle('mono')} placeholder="Supplier's SKU / product no." />
@@ -1486,156 +1368,13 @@ function StandardFields({ draft, set, materials }) {
       <EditorField label="Origin">
         <input value={draft.origin} onChange={e => set('origin', e.target.value)} style={fieldStyle()} />
       </EditorField>
-      <div style={{ gridColumn: 'auto' }}>
-        <div style={{ ...ui.label, marginBottom: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span>Finish</span>
-          {linkedPaint && (
-            <button type="button"
-              onClick={() => set('finishOverride', !draft.finishOverride)}
-              style={{
-                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                fontFamily: "'Inter Tight', sans-serif",
-                fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: draft.finishOverride ? 'var(--accent-ink)' : 'var(--ink-4)',
-                fontWeight: 500,
-              }}>
-              {draft.finishOverride ? 'Override ✓' : 'Override'}
-            </button>
-          )}
-        </div>
-        {linkedPaint && !draft.finishOverride ? (
-          <div style={{
-            ...fieldStyle(),
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--tint)',
-            borderStyle: 'dashed',
-            color: 'var(--ink-2)',
-            cursor: 'not-allowed',
-          }}>
-            <div style={{
-              width: 14, height: 14, flexShrink: 0,
-              background: linkedPaint.swatch?.tone || '#ddd',
-              outline: '1px solid rgba(20,20,20,0.15)',
-            }} />
-            <span style={{ fontSize: 13 }}>{inheritedFinish}</span>
-            <span style={{ marginLeft: 'auto', ...ui.mono, fontSize: 9, color: 'var(--ink-4)', letterSpacing: '0.08em' }}>
-              INHERITED
-            </span>
-          </div>
-        ) : (
-          <input value={draft.finish} onChange={e => set('finish', e.target.value)} style={fieldStyle()} />
-        )}
-      </div>
-      {isFinish && (
-        <EditorField label="Thickness">
-          <input value={draft.thickness} onChange={e => set('thickness', e.target.value)} style={fieldStyle('mono')} />
-        </EditorField>
-      )}
-      <EditorField label="Dimensions">
-        <input value={draft.dimensions} onChange={e => set('dimensions', e.target.value)} style={fieldStyle('mono')}
-          placeholder={isAppliance ? 'W × H × D mm' : isFFE ? 'W × H × D mm' : '2400 × 1200'} />
-      </EditorField>
-      {isAppliance && (
-        <>
-          <EditorField label="Rough-in">
-            <input value={draft.roughIn || ''} onChange={e => set('roughIn', e.target.value)} style={fieldStyle('mono')}
-              placeholder="e.g. 600w × 900h cutout" />
-          </EditorField>
-          <EditorField label="Power / services">
-            <input value={draft.power || ''} onChange={e => set('power', e.target.value)} style={fieldStyle('mono')}
-              placeholder="e.g. 15A GPO, cold + hot water" />
-          </EditorField>
-        </>
-      )}
-      {isLighting && (
-        <>
-          <EditorField label="Lamp">
-            <input value={draft.lamp || ''} onChange={e => set('lamp', e.target.value)} style={fieldStyle()}
-              placeholder="e.g. GU10 LED, integrated" />
-          </EditorField>
-          <EditorField label="Wattage">
-            <input value={draft.wattage || ''} onChange={e => set('wattage', e.target.value)} style={fieldStyle('mono')}
-              placeholder="e.g. 9W" />
-          </EditorField>
-          <EditorField label="Colour temp">
-            <input value={draft.kelvin || ''} onChange={e => set('kelvin', e.target.value)} style={fieldStyle('mono')}
-              placeholder="e.g. 2700K" />
-          </EditorField>
-          <EditorField label="Dimmable">
-            <select value={draft.dimmable || ''} onChange={e => set('dimmable', e.target.value)} style={fieldStyle()}>
-              <option value="">—</option>
-              <option>Yes — phase-cut</option>
-              <option>Yes — DALI</option>
-              <option>Yes — 0-10V</option>
-              <option>No</option>
-            </select>
-          </EditorField>
-        </>
-      )}
-      {isFFE && (
-        <EditorField label="Fabric">
-          <input value={draft.fabric || ''} onChange={e => set('fabric', e.target.value)} style={fieldStyle()}
-            placeholder="e.g. Warwick Fabric · COM" />
-        </EditorField>
-      )}
       <EditorField label="Lead time">
         <input value={draft.leadTime} onChange={e => set('leadTime', e.target.value)} style={fieldStyle('mono')} />
       </EditorField>
       <EditorField label="Unit cost">
-        <input type="number" value={draft.unitCost} onChange={e => set('unitCost', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
+        <input type="number" value={draft.unitCost}
+          onChange={e => set('unitCost', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
       </EditorField>
-      <EditorField label="Unit">
-        <select value={draft.unit} onChange={e => set('unit', e.target.value)} style={fieldStyle('mono')}>
-          {['m²', 'l/m', 'each', 'sheet', 'ea', 'set', 'item'].map(u => <option key={u} value={u}>{u}</option>)}
-        </select>
-      </EditorField>
-
-      {/* Paintable: opt-in flag + linked paint — finishes only */}
-      {isFinish && (
-      <div style={{ gridColumn: '1 / -1', marginTop: 4, padding: '12px 0 2px',
-        borderTop: '1px dotted var(--rule-2)' }}>
-        <label style={{
-          display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-        }}>
-          <input type="checkbox" checked={!!draft.paintable}
-            onChange={e => set('paintable', e.target.checked)}
-            style={{ accentColor: 'var(--accent)', margin: 0 }} />
-          <span style={{ ...ui.label, letterSpacing: '0.08em', color: 'var(--ink-2)' }}>
-            This material is paintable — expose a paint finish
-          </span>
-        </label>
-        {draft.paintable && (
-          <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <EditorField label="Painted with">
-              <PaintSelect
-                value={draft.paintedWithId || null}
-                onChange={v => set('paintedWithId', v)}
-                options={paintChoices.map(p => ({
-                  id: p.id,
-                  tone: p.swatch?.tone,
-                  label: `${p.brand || p.supplier} · ${p.colourName || p.name}`,
-                  meta: [p.code, p.sheen].filter(Boolean).join(' · '),
-                }))} />
-            </EditorField>
-            {linkedPaint && (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', paddingTop: 20 }}>
-                <div style={{
-                  width: 28, height: 28, flexShrink: 0,
-                  background: linkedPaint.swatch?.tone || '#ddd',
-                  outline: '1px solid rgba(20,20,20,0.15)',
-                }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ ...ui.mono, fontSize: 10, color: 'var(--ink-4)' }}>{linkedPaint.code}</div>
-                  <div style={{ ...ui.serif, fontSize: 13, color: 'var(--ink)' }}>
-                    {linkedPaint.brand} {linkedPaint.colourName}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      )}
 
       <EditorField label="Specification" full>
         <textarea value={draft.spec} onChange={e => set('spec', e.target.value)}
@@ -1702,51 +1441,10 @@ function PaintFields({ draft, set }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* Phase 1B: Name / Code / Category / Brand / Colour code / Sheen /
-          System are rendered by ProductFieldBlocks.Identity (commit 1).
-          Colour (hex) is rendered by ProductFieldBlocks.Visual (commit 2).
-          The rest of the paint extras flow into Specs (commit 3) and
-          Commercial (commit 4). */}
-      <EditorField label="Base type">
-        <select value={draft.baseType || ''} onChange={e => set('baseType', e.target.value)} style={fieldStyle()}>
-          <option value="">—</option>
-          <option value="Water-based">Water-based</option>
-          <option value="Enamel">Enamel</option>
-          <option value="Oil">Oil</option>
-        </select>
-      </EditorField>
-      <EditorField label="Finishes (use)" full>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {['Interior Walls', 'Ceilings', 'Doors', 'Trim', 'Exterior'].map(f => {
-            const arr = Array.isArray(draft.finishes) ? draft.finishes : [];
-            const on = arr.includes(f);
-            return (
-              <button key={f} type="button"
-                onClick={() => {
-                  const next = on ? arr.filter(x => x !== f) : [...arr, f];
-                  set('finishes', next);
-                }}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 11,
-                  fontFamily: "'Inter Tight', sans-serif",
-                  border: '1px solid ' + (on ? 'var(--ink)' : 'var(--rule-2)'),
-                  background: on ? 'var(--tint)' : 'var(--paper)',
-                  color: on ? 'var(--ink)' : 'var(--ink-3)',
-                  cursor: 'pointer',
-                }}>{f}</button>
-            );
-          })}
-        </div>
-      </EditorField>
-      <EditorField label="Coats">
-        <input type="number" min="1" max="5" value={draft.coats || 2}
-          onChange={e => set('coats', parseInt(e.target.value) || 1)} style={fieldStyle('mono')} />
-      </EditorField>
-      <EditorField label="Substrates">
-        <input value={draft.substrates || ''} onChange={e => set('substrates', e.target.value)}
-          style={fieldStyle()} placeholder="Plasterboard, primed MDF…" />
-      </EditorField>
+      {/* Phase 1B: Identity (commit 1) covers Name / Code / Category / Brand /
+          Colour code / Sheen / System. Visual (commit 2) covers Colour (hex).
+          Specs (commit 3) covers Base type / Coats / Finishes-use / Substrates.
+          What's left here flows into Commercial (commit 4) and Notes (commit 5). */}
       <EditorField label="Lead time">
         <input value={draft.leadTime} onChange={e => set('leadTime', e.target.value)} style={fieldStyle('mono')} />
       </EditorField>
