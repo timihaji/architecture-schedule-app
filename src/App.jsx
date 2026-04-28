@@ -1295,6 +1295,9 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
                 labelTemplates={labelTemplates}
                 onOpenLabelBuilder={onOpenLabelBuilder} />
 
+              <window.ProductFieldBlocks.Identity
+                draft={draft} set={set} codeError={codeError} />
+
               <div style={{ padding: '14px 0 4px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
                 <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
                   seed={parseInt((draft.id || '').slice(2)) || 1}
@@ -1479,41 +1482,9 @@ function StandardFields({ draft, set, materials }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <EditorField label="Name" full>
-        <input value={draft.name} onChange={e => set('name', e.target.value)} style={fieldStyle()} />
-      </EditorField>
-      <EditorField label="Code">
-        <input value={draft.code} onChange={e => set('code', e.target.value)} style={fieldStyle('mono')} />
-      </EditorField>
-      {isFinish && (
-        <EditorField label="Category">
-          <select value={draft.category} onChange={e => set('category', e.target.value)} style={fieldStyle()}>
-            {window.CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </EditorField>
-      )}
-      <EditorField label="Trade">
-        <input value={draft.trade || ''} onChange={e => set('trade', e.target.value)} style={fieldStyle()}
-          placeholder="e.g. Joinery, Plumbing, Electrical"
-          list="aml-trades" />
-        <datalist id="aml-trades">
-          {(window.TRADES || []).map(t => <option key={t} value={t} />)}
-        </datalist>
-      </EditorField>
-      {isFinish && (
-        <EditorField label="Species">
-          <input value={draft.species || ''} onChange={e => set('species', e.target.value)} style={fieldStyle()} placeholder="optional — latin name" />
-        </EditorField>
-      )}
-      {(isAppliance || isLighting || isFFE) && (
-        <EditorField label="Model">
-          <input value={draft.model || ''} onChange={e => set('model', e.target.value)} style={fieldStyle('mono')}
-            placeholder="Model no. / SKU" />
-        </EditorField>
-      )}
-      <EditorField label="Supplier">
-        <input value={draft.supplier} onChange={e => set('supplier', e.target.value)} style={fieldStyle()} />
-      </EditorField>
+      {/* Phase 1B (commit 1): Name / Code / Category / Trade / Species / Model /
+          Supplier are now rendered by ProductFieldBlocks.Identity above this
+          grid. Specs / Commercial / Notes will absorb the rest in commits 3-5. */}
       <EditorField label="Supplier code">
         <input value={draft.supplier_code || ''} onChange={e => set('supplier_code', e.target.value)}
           style={fieldStyle('mono')} placeholder="Supplier's SKU / product no." />
@@ -1740,30 +1711,10 @@ function PaintFields({ draft, set, setSwatch }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <EditorField label="Name" full>
-        <input value={draft.name} onChange={e => set('name', e.target.value)}
-          style={fieldStyle()} placeholder="Colour name, e.g. Natural White" />
-      </EditorField>
-      <EditorField label="Code">
-        <input value={draft.code} onChange={e => set('code', e.target.value)} style={fieldStyle('mono')} />
-      </EditorField>
-      <EditorField label="Category">
-        <select value={draft.category} onChange={e => set('category', e.target.value)} style={fieldStyle()}>
-          {window.CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </EditorField>
-      <EditorField label="Brand">
-        <input list="paint-brands" value={draft.brand || ''}
-          onChange={e => { set('brand', e.target.value); set('supplier', e.target.value); }}
-          style={fieldStyle()} placeholder="Dulux, Porter's, Bauwerk…" />
-        <datalist id="paint-brands">
-          {(window.PAINT_BRANDS || []).map(b => <option key={b} value={b} />)}
-        </datalist>
-      </EditorField>
-      <EditorField label="Colour code">
-        <input value={draft.colourCode || ''} onChange={e => set('colourCode', e.target.value)}
-          style={fieldStyle('mono')} placeholder="e.g. SW1F2, H168W" />
-      </EditorField>
+      {/* Phase 1B (commit 1): Name / Code / Category / Brand / Colour code /
+          Sheen / System are now rendered by ProductFieldBlocks.Identity.
+          Colour (hex) moves to Visual in commit 2; the rest of these paint
+          extras flow into Specs (commit 3) and Commercial (commit 4). */}
       <EditorField label="Colour (hex)">
         <div style={{ display: 'flex', gap: 6 }}>
           <input type="color" value={hex}
@@ -1773,18 +1724,6 @@ function PaintFields({ draft, set, setSwatch }) {
             onChange={e => { setSwatch('kind', 'paint'); setSwatch('tone', e.target.value); }}
             style={fieldStyle('mono')} />
         </div>
-      </EditorField>
-      <EditorField label="Sheen">
-        <select value={draft.sheen || ''}
-          onChange={e => { set('sheen', e.target.value); set('finish', e.target.value); setSwatch('sheen', e.target.value); }}
-          style={fieldStyle()}>
-          <option value="">—</option>
-          {(window.PAINT_SHEENS || []).map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </EditorField>
-      <EditorField label="System">
-        <input value={draft.system || ''} onChange={e => set('system', e.target.value)}
-          style={fieldStyle()} placeholder="e.g. Wash & Wear Interior" />
       </EditorField>
       <EditorField label="Base type">
         <select value={draft.baseType || ''} onChange={e => set('baseType', e.target.value)} style={fieldStyle()}>
