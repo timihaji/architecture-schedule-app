@@ -360,6 +360,53 @@
   .bulk-act.danger:hover { background: rgba(160,69,69,0.12); }
   .bulk-clear { margin-left: auto; background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(243,239,231,0.5); }
   .bulk-clear:hover { color: var(--paper); }
+
+  /* COST SCHEDULE V2 (D2) — single-column projection of schedule rows. Reuses
+     .sched-sec / .sched-sec-head from D1a; adds row-grid + row-cell styles for
+     the cost readout (drag, swatch, code, name, productType, qty, cost, subtotal,
+     actions). Keep prose comments only — no nested block-comments. */
+  .cs-row { display: grid; grid-template-columns: 18px 32px 70px minmax(140px, 1.6fr) minmax(110px, 1fr) 130px 90px 56px; gap: 12px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--rule); cursor: default; transition: background 0.1s, box-shadow 0.1s; position: relative; }
+  .cs-row:hover { background: var(--tint); box-shadow: inset 2px 0 0 var(--ink-3); }
+  .cs-row.cs-clip-src { box-shadow: inset 0 0 0 1px var(--accent); }
+  .cs-row-head { display: grid; grid-template-columns: 18px 32px 70px minmax(140px, 1.6fr) minmax(110px, 1fr) 130px 90px 56px; gap: 12px; padding: 6px 4px; border-bottom: 1px solid var(--ink); }
+  .cs-row-head > span { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+  .cs-row-head .right { text-align: right; }
+  .cs-row-drag { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); cursor: grab; user-select: none; line-height: 1; opacity: 0; transition: opacity 0.1s; text-align: center; }
+  .cs-row:hover .cs-row-drag { opacity: 1; }
+  .cs-row.dragging { opacity: 0.4; }
+  .cs-row.drop-above { box-shadow: inset 0 2px 0 var(--ink); }
+  .cs-row.drop-below { box-shadow: inset 0 -2px 0 var(--ink); }
+  .cs-swatch { width: 32px; height: 32px; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; flex-shrink: 0; transition: border-color 0.1s; }
+  .cs-swatch:hover { border-color: var(--ink-3); }
+  .cs-swatch.empty { background: var(--paper-2); display: flex; align-items: center; justify-content: center; color: var(--ink-4); font-size: 18px; line-height: 1; }
+  .cs-cell-code { font-family: var(--font-mono); font-size: 11px; color: var(--accent-ink); font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cs-cell-code.empty { color: var(--ink-4); font-style: italic; font-family: var(--font-serif); font-weight: 400; letter-spacing: 0; }
+  .cs-cell-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cs-cell-name.empty { color: var(--ink-4); font-style: italic; }
+  .cs-cell-name-sub { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-4); margin-top: 2px; }
+  .cs-cell-ptype { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); text-transform: lowercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cs-cell-qty { display: flex; align-items: center; gap: 4px; }
+  .cs-cell-qty input { width: 56px; background: transparent; border: none; border-bottom: 1px dotted var(--rule-2); padding: 2px 0; font-family: var(--font-mono); font-size: 11px; color: var(--ink); outline: none; text-align: right; }
+  .cs-cell-qty input:focus { border-bottom-color: var(--ink-3); }
+  .cs-cell-qty .unit { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }
+  .cs-cell-qty .cost { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); margin-left: 6px; }
+  .cs-cell-subtotal { font-family: var(--font-mono); font-size: 12px; color: var(--ink); text-align: right; font-weight: 500; }
+  .cs-cell-subtotal.empty { color: var(--ink-4); font-weight: 400; }
+  .cs-row-actions { display: flex; gap: 4px; justify-content: flex-end; opacity: 0; transition: opacity 0.1s; }
+  .cs-row:hover .cs-row-actions { opacity: 1; }
+  .cs-row-actions button { background: none; border: none; cursor: pointer; padding: 2px 4px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); line-height: 1; }
+  .cs-row-actions button:hover { color: var(--ink-2); }
+  .cs-row-actions button.del:hover { color: #a04545; }
+  .cs-sec-subtotal { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); letter-spacing: 0.06em; }
+  .cs-grand { display: flex; justify-content: space-between; align-items: baseline; padding: 18px 4px 8px; margin-top: 16px; border-top: 2px solid var(--ink); }
+  .cs-grand-label { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+  .cs-grand-value { font-family: var(--font-mono); font-size: 16px; color: var(--ink); font-weight: 500; }
+  .cs-clip-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 22px rgba(20,20,20,0.22); z-index: 60; font-family: var(--font-sans); font-size: 12px; max-width: 520px; }
+  .cs-clip-toast .lbl { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; }
+  .cs-clip-toast .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; font-weight: 500; }
+  .cs-clip-toast .hint { opacity: 0.7; font-size: 11px; }
+  .cs-clip-toast button { background: none; border: none; color: var(--paper); cursor: pointer; opacity: 0.6; padding: 0 0 0 6px; font-size: 16px; line-height: 1; }
+  .cs-clip-toast button:hover { opacity: 1; }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>

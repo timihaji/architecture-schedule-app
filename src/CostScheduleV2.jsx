@@ -1,836 +1,454 @@
-// Cost Schedule 2.0 — simplified component/category model + inline insertion.
+// Cost Schedule v2 — Phase D2 re-pointing.
 //
-// Key changes vs v1:
-//   1. Hover-between-rows → + handle appears in the left gutter for mid-list insertion.
-//   2. Left-gutter row controls (drag-handle, "…" menu) on row hover; no more far-right ×.
-//   3. Categories are derived from the per-row field; no separate "Add category" button.
-//      Each category has its own + Add component button in its header.
-//   4. Qty is structured as Count (optional) × Size — no freeform formulas. Blank count = 1.
-//      Totals use `(count || 1) × size × unit cost`.
-//   5. Shares storage with v1 (aml-schedule-<projectId>) so switching versions preserves work.
+// Reads schedule rows (post-A3: { id, specRef:{kind,id}, element, roomId, qty,
+// unit, ... }) from window.useProjectSchedule and projects them on cost.
+// Single source of truth shared with SchedulePage (IV) — Cost Schedule (III)
+// is the cost projection.
+//
+// Group key = product's productType.group (e.g. "Finishes", "FF&E"). Rows whose
+// specRef is empty/unresolved drop into "Unspecified". Per-group subtotals + a
+// grand total. Cell clipboard (C copy / V paste / Esc clear) carries the row's
+// specRef. HTML5 drag-and-drop reorders within the rows[] array.
 
-function CostScheduleV2({ materials, projects, libraries, labelTemplates,
-  activeProjectId, setActiveProjectId, onUpdateProject, density }) {
-  // Resolve shared components lazily — they're attached to window by sibling scripts.
-  const MaterialPicker = window.MaterialPicker;
-  const LibraryScopeRow = window.LibraryScopeRow;
-  const CategoryGroup = window.CategoryGroup;
-  const componentQty = window.componentQty;
-  const DnDProvider = window.DnDProvider;
-  const ScheduleGrid = window.ScheduleGrid;
-  const project = React.useMemo(() => {
-    if (activeProjectId) {
-      const p = projects.find(x => x.id === activeProjectId);
-      if (p) return p;
-    }
-    return projects[0];
-  }, [projects, activeProjectId]);
+(function () {
+  const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
-  if (!project) {
-    return (
-      <div style={{ padding: '80px 0', textAlign: 'center' }}>
-        <Eyebrow>No project selected</Eyebrow>
-        <div style={{ marginTop: 20, ...ui.mono, color: 'var(--ink-3)', fontSize: 13 }}>
-          Create a project in Volume II to begin costing.
+  function fmtCurrency(n) {
+    if (n == null || !Number.isFinite(n)) return '—';
+    const v = Math.round(n * 100) / 100;
+    return '$' + v.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+
+  function productTypeMeta(id) {
+    if (!id) return null;
+    const tx = window.DEFAULT_TAXONOMIES?.productTypes;
+    return tx?.find(t => t.id === id) || null;
+  }
+
+  function categoryFor(material) {
+    if (!material) return 'Unspecified';
+    const meta = productTypeMeta(material.productType);
+    return (meta && meta.group) || material.category || 'Unspecified';
+  }
+
+  function CostScheduleV2({ materials, projects, libraries, labelTemplates,
+    activeProjectId, setActiveProjectId, onUpdateProject, density }) {
+
+    const project = useMemo(() => {
+      if (activeProjectId) {
+        const p = projects.find(x => x.id === activeProjectId);
+        if (p) return p;
+      }
+      return projects[0];
+    }, [projects, activeProjectId]);
+
+    if (!project) {
+      return (
+        <div className="sched-empty" style={{ padding: '120px 0' }}>
+          <div className="sched-empty-eyebrow">No project selected</div>
+          <div className="sched-empty-msg">Create a project in Volume II to begin costing.</div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Phase 4: schedule loaded asynchronously from cloud (Supabase row in
-  // `schedules` table). The same row backs both v1 and v2 — switching
-  // versions preserves work.
-  const fallback = React.useCallback(
-    () => window.buildScheduleFallbackV2(project),
-    [project.id]
-  );
-  const transform = React.useCallback(window.transformScheduleV2, []);
-  const { data: schedule, set: setSchedule, status: scheduleStatus } =
-    window.useProjectSchedule(project.id, fallback, transform);
+    const fallback = useCallback(() => ({
+      schemaVersion: 4, title: 'Schedule', options: [], components: [],
+      cells: {}, rows: [],
+    }), []);
+    const transform = useCallback(x => x, []);
+    const { data: schedule, set: setSchedule, status: scheduleStatus } =
+      window.useProjectSchedule(project.id, fallback, transform);
 
-  const [pickerFor, setPickerFor] = React.useState(null);
-  const [editingOptionId, setEditingOptionId] = React.useState(null);
-  const [editingTitle, setEditingTitle] = React.useState(false);
-  const [justInsertedId, setJustInsertedId] = React.useState(null);
-  const [menuForCompId, setMenuForCompId] = React.useState(null);
-  const [viewMode, setViewMode] = React.useState(() => {
-    try { return localStorage.getItem('aml-cs-mode') || 'gallery'; } catch { return 'gallery'; }
-  });
+    // Library scoping (preserved from v1 cost schedule).
+    const projectLibIds = project.libraryIds || [];
+    const scopedMaterials = useMemo(() => {
+      if (projectLibIds.length === 0) return materials;
+      return materials.filter(m => (m.libraryIds || []).some(lid => projectLibIds.includes(lid)));
+    }, [materials, projectLibIds.join('|')]);
 
-  // Cell clipboard — C to copy hovered cell's material, V to paste into hovered cell.
-  const [clipboard, setClipboard] = React.useState(null);  // { materialId, optionId, componentId }
-  const [hoverKey, setHoverKey] = React.useState(null);    // "optId:compId"
-  function setViewModePersist(v) {
-    setViewMode(v);
-    try { localStorage.setItem('aml-cs-mode', v); } catch {}
-  }
+    // PickerDrawer state.
+    //   { mode: 'single' | 'multi', rowId?, group?, eyebrow, title, subtitle }
+    const [picker, setPicker] = useState(null);
+    // Cell clipboard — holds a row's specRef. Hover sets the focused row id.
+    const [clipboard, setClipboard] = useState(null);  // { specRef, fromRowId }
+    const [hoverRowId, setHoverRowId] = useState(null);
+    // Drag state for HTML5 native drag-and-drop reorder.
+    const [dragRowId, setDragRowId] = useState(null);
+    const [dragOver, setDragOver] = useState(null);  // { rowId, edge: 'top'|'bottom' }
 
-  React.useEffect(() => {
-    setEditingOptionId(null);
-    setEditingTitle(false);
-  }, [project.id]);
+    const rows = (schedule && Array.isArray(schedule.rows)) ? schedule.rows : [];
 
-  // Global C / V / Esc handler for cell clipboard.
-  React.useEffect(() => {
-    function onKey(e) {
-      if (!schedule) return;  // schedule still loading from cloud
-      const ae = document.activeElement;
-      const tag = ae?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ae?.isContentEditable) return;
-      if (pickerFor) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+    function setRows(updater) {
+      setSchedule(prev => {
+        const base = prev || { schemaVersion: 4, title: 'Schedule', options: [], components: [], cells: {}, rows: [] };
+        const next = typeof updater === 'function' ? updater(base.rows || []) : updater;
+        return { ...base, rows: next };
+      });
+    }
+    function updateRow(id, patch) {
+      setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+    }
+    function deleteRow(id) {
+      setRows(prev => prev.filter(r => r.id !== id));
+    }
+    function newRowId() { return 'sr-' + Math.random().toString(36).slice(2, 10); }
 
-      const k = e.key.toLowerCase();
-      if (k === 'c') {
-        if (!hoverKey) return;
-        const cell = schedule.cells[hoverKey];
-        if (!cell?.materialId) return;
-        const [optionId, componentId] = hoverKey.split(':');
-        setClipboard({ materialId: cell.materialId, optionId, componentId });
-        e.preventDefault();
-      } else if (k === 'v') {
-        if (!clipboard || !hoverKey) return;
-        const [optionId, componentId] = hoverKey.split(':');
-        update(s => ({
-          ...s,
-          cells: { ...s.cells, [hoverKey]: { materialId: clipboard.materialId } },
-        }));
-        const el = document.querySelector(
-          '[data-cs-cell="' + hoverKey + '"], [data-row-id="' + hoverKey + '"]'
-        );
-        if (el) {
-          const prevOutline = el.style.outline;
-          const prevOffset = el.style.outlineOffset;
-          el.style.outline = '2px solid var(--accent)';
-          el.style.outlineOffset = '-2px';
-          setTimeout(() => {
-            el.style.outline = prevOutline;
-            el.style.outlineOffset = prevOffset;
-          }, 260);
+    // Resolve each row to its material + category.
+    const resolved = useMemo(() => {
+      return rows.map(r => {
+        const matKind = r.specRef && r.specRef.kind;
+        const m = (matKind === 'product' && r.specRef.id)
+          ? materials.find(x => x.id === r.specRef.id)
+          : null;
+        const ptypeMeta = m ? productTypeMeta(m.productType) : null;
+        const category = m ? categoryFor(m) : (matKind === 'type' ? 'Assemblies' : 'Unspecified');
+        const qty = (r.qty != null && r.qty !== '') ? parseFloat(r.qty) : null;
+        const subtotal = (m && m.unitCost != null && qty != null && Number.isFinite(qty))
+          ? qty * Number(m.unitCost) : null;
+        return { row: r, material: m, ptypeMeta, category, qty, subtotal };
+      });
+    }, [rows, materials]);
+
+    // Group, preserving first-appearance order.
+    const grouped = useMemo(() => {
+      const map = new Map();
+      resolved.forEach((entry, idx) => {
+        if (!map.has(entry.category)) map.set(entry.category, []);
+        map.get(entry.category).push({ ...entry, globalIndex: idx });
+      });
+      return Array.from(map.entries()).map(([category, entries]) => ({
+        category,
+        entries,
+        subtotal: entries.reduce((s, e) => s + (e.subtotal || 0), 0),
+      }));
+    }, [resolved]);
+
+    const grandTotal = grouped.reduce((s, g) => s + g.subtotal, 0);
+
+    // Global C / V / Esc handler for cell clipboard.
+    useEffect(() => {
+      function onKey(e) {
+        if (!schedule) return;
+        const ae = document.activeElement;
+        const tag = ae?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ae?.isContentEditable) return;
+        if (picker) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+        const k = e.key.toLowerCase();
+        if (k === 'c') {
+          if (!hoverRowId) return;
+          const r = rows.find(x => x.id === hoverRowId);
+          if (!r || !r.specRef || !r.specRef.id) return;
+          setClipboard({ specRef: r.specRef, fromRowId: r.id });
+          e.preventDefault();
+        } else if (k === 'v') {
+          if (!clipboard || !hoverRowId) return;
+          updateRow(hoverRowId, { specRef: clipboard.specRef });
+          e.preventDefault();
+        } else if (e.key === 'Escape' && clipboard) {
+          setClipboard(null);
+          e.preventDefault();
         }
-        e.preventDefault();
-      } else if (e.key === 'Escape' && clipboard) {
-        setClipboard(null);
-        e.preventDefault();
+      }
+      window.addEventListener('keydown', onKey);
+      return () => window.removeEventListener('keydown', onKey);
+    }, [hoverRowId, clipboard, picker, schedule, rows]);
+
+    // ─── PickerDrawer wiring ───
+    function openPickerForSwap(rowId) {
+      setPicker({
+        mode: 'single', rowId,
+        eyebrow: 'Swap product',
+        title: 'Pick from Library',
+        subtitle: 'Replace the product on this cost row.',
+      });
+    }
+    function openPickerForGroup(category) {
+      setPicker({
+        mode: 'multi', group: category,
+        eyebrow: `Add to · ${category}`,
+        title: 'Add components',
+        subtitle: `Each pick becomes a new ${category} row.`,
+      });
+    }
+    function onPickerConfirm(idOrIds) {
+      if (!picker) return;
+      if (picker.mode === 'single') {
+        updateRow(picker.rowId, { specRef: { kind: 'product', id: idOrIds } });
+        setPicker(null);
+        return;
+      }
+      const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+      const newRows = ids.map(pid => {
+        const m = materials.find(x => x.id === pid);
+        const ptypeMeta = m ? productTypeMeta(m.productType) : null;
+        const trade = m ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null)) : null;
+        return {
+          id: newRowId(),
+          specRef: { kind: 'product', id: pid },
+          element: null,
+          roomId: (project.rooms && project.rooms[0] && project.rooms[0].id) || null,
+          state: 'new',
+          specMode: 'prop',
+          isInstance: false,
+          qty: null,
+          unit: (ptypeMeta && ptypeMeta.defaultUnit) || (m && m.unit) || null,
+          revision: null, approvalComment: null, note: null,
+          hiddenFields: [], source: 'cost-schedule',
+          trade,
+        };
+      });
+      setRows(prev => [...prev, ...newRows]);
+      setPicker(null);
+    }
+
+    // ─── Drag-and-drop reorder (HTML5 native) ───
+    function onDragStart(e, rowId) {
+      setDragRowId(rowId);
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', rowId); } catch {}
+    }
+    function onDragOver(e, rowId) {
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = 'move'; } catch {}
+      const rect = e.currentTarget.getBoundingClientRect();
+      const edge = (e.clientY - rect.top) < rect.height / 2 ? 'top' : 'bottom';
+      if (!dragOver || dragOver.rowId !== rowId || dragOver.edge !== edge) {
+        setDragOver({ rowId, edge });
       }
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [hoverKey, clipboard, pickerFor, schedule]);
-
-  // Reflect the clipboard source cell with a dashed outline.
-  React.useEffect(() => {
-    if (!clipboard) return;
-    const key = clipboard.optionId + ':' + clipboard.componentId;
-    const el = document.querySelector(
-      '[data-cs-cell="' + key + '"], [data-row-id="' + key + '"]'
-    );
-    if (!el) return;
-    const prevOutline = el.style.outline;
-    const prevOffset = el.style.outlineOffset;
-    el.style.outline = '1px dashed var(--accent)';
-    el.style.outlineOffset = '-1px';
-    return () => {
-      el.style.outline = prevOutline;
-      el.style.outlineOffset = prevOffset;
-    };
-  }, [clipboard, viewMode]);
-
-
-  const update = (fn) => setSchedule(s => fn(s));
-
-  // ───── Library scoping
-  const projectLibIds = project.libraryIds || [];
-  const scopedMaterials = React.useMemo(() => {
-    if (projectLibIds.length === 0) return materials;
-    return materials.filter(m => (m.libraryIds || []).some(lid => projectLibIds.includes(lid)));
-  }, [materials, projectLibIds.join('|')]);
-  const setProjectLibraries = (ids) => onUpdateProject({ ...project, libraryIds: ids });
-
-  // ───── Component ops
-  function newComponent(category, componentTypeId) {
-    const rule = componentTypeId && window.componentTypeById
-      ? window.componentTypeById(componentTypeId) : null;
-    return {
-      id: 'c-' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3),
-      name: '', count: null, size: '',
-      unit: (rule && rule.defaultUnit) || 'm²',
-      category: category || 'Uncategorised',
-      componentType: componentTypeId || null,
-    };
-  }
-  function insertComponentAt(index, category, componentTypeId) {
-    const c = newComponent(category, componentTypeId);
-    update(s => {
-      const next = s.components.slice();
-      next.splice(index, 0, c);
-      return { ...s, components: next };
-    });
-    setJustInsertedId(c.id);
-    return c.id;
-  }
-  function appendComponentToCategory(category, componentTypeId) {
-    // Find the last row in that category; insert right after it.
-    const last = [...schedule.components].map((c, i) => ({ c, i }))
-      .filter(x => (x.c.category || 'Uncategorised') === category).pop();
-    const index = last ? last.i + 1 : schedule.components.length;
-    return insertComponentAt(index, category, componentTypeId);
-  }
-  // Set componentType on a row. Non-destructive unit auto-fill: only overwrite
-  // when current unit is 'm²' (the default) or empty.
-  function setComponentType(compId, typeId) {
-    update(s => ({
-      ...s,
-      components: s.components.map(c => {
-        if (c.id !== compId) return c;
-        const next = { ...c, componentType: typeId || null };
-        const rule = typeId && window.componentTypeById ? window.componentTypeById(typeId) : null;
-        if (rule && rule.defaultUnit && (!c.unit || c.unit === 'm²')) {
-          next.unit = rule.defaultUnit;
-        }
-        return next;
-      }),
-    }));
-  }
-  function setComp(id, field, value) {
-    update(s => ({
-      ...s,
-      components: s.components.map(c => c.id === id ? { ...c, [field]: value } : c),
-    }));
-  }
-  function removeComponent(id) {
-    update(s => ({
-      ...s,
-      components: s.components.filter(c => c.id !== id),
-      cells: Object.fromEntries(Object.entries(s.cells).filter(([k]) => !k.endsWith(':' + id))),
-    }));
-  }
-  function duplicateComponent(id) {
-    update(s => {
-      const idx = s.components.findIndex(c => c.id === id);
-      if (idx < 0) return s;
-      const src = s.components[idx];
-      const copy = { ...src, id: 'c-' + Date.now() + '-d', name: src.name + ' (copy)' };
-      const nextComponents = s.components.slice();
-      nextComponents.splice(idx + 1, 0, copy);
-      // Also duplicate the cell assignments
-      const nextCells = { ...s.cells };
-      s.options.forEach(o => {
-        const src = s.cells[o.id + ':' + id];
-        if (src) nextCells[o.id + ':' + copy.id] = { ...src };
-      });
-      return { ...s, components: nextComponents, cells: nextCells };
-    });
-  }
-  function moveComponent(fromIdx, toIdx) {
-    if (fromIdx === toIdx) return;
-    update(s => {
-      const arr = s.components.slice();
-      const [moved] = arr.splice(fromIdx, 1);
-      // If we're moving a row between categories, adopt the target's category.
-      const boundaryCategory = arr[toIdx]?.category
-        ?? arr[toIdx - 1]?.category
-        ?? moved.category;
-      const rewritten = { ...moved, category: boundaryCategory };
-      arr.splice(toIdx, 0, rewritten);
-      return { ...s, components: arr };
-    });
-  }
-
-  // DnD: the drop target's `data` has shape
-  //   { kind: 'row-between', category, beforeIndex } for between-row zones
-  //   { kind: 'row-before-cat', category } for "insert at start of this category"
-  //   { kind: 'cat-between', beforeCategory } for category reordering
-  function handleDrop(kind, id, over) {
-    if (kind === 'row') {
-      const fromIdx = schedule.components.findIndex(c => c.id === id);
-      if (fromIdx < 0) return;
-      const targetCat = over.category;
-      let toIdx = typeof over.beforeIndex === 'number'
-        ? over.beforeIndex
-        : schedule.components.length;
-      // Adjust for self-removal shift.
-      if (fromIdx < toIdx) toIdx -= 1;
-      update(s => {
-        const arr = s.components.slice();
+    function onDrop(e, targetRowId) {
+      e.preventDefault();
+      const fromId = dragRowId;
+      const edge = dragOver && dragOver.edge;
+      setDragRowId(null);
+      setDragOver(null);
+      if (!fromId || fromId === targetRowId) return;
+      setRows(prev => {
+        const arr = prev.slice();
+        const fromIdx = arr.findIndex(r => r.id === fromId);
+        if (fromIdx < 0) return prev;
         const [moved] = arr.splice(fromIdx, 1);
-        const withCat = { ...moved, category: targetCat || moved.category };
-        const clamped = Math.max(0, Math.min(toIdx, arr.length));
-        arr.splice(clamped, 0, withCat);
-        return { ...s, components: arr };
-      });
-    } else if (kind === 'category') {
-      // Reorder a whole category group within the components array.
-      const currentOrder = Array.from(new Set(
-        schedule.components.map(c => c.category || 'Uncategorised')));
-      const fromOrderIdx = currentOrder.indexOf(id);
-      if (fromOrderIdx < 0) return;
-      let beforeCat = over.beforeCategory; // null = drop at the end
-      const nextOrder = currentOrder.slice();
-      nextOrder.splice(fromOrderIdx, 1);
-      let toOrderIdx = beforeCat ? nextOrder.indexOf(beforeCat) : nextOrder.length;
-      if (toOrderIdx < 0) toOrderIdx = nextOrder.length;
-      nextOrder.splice(toOrderIdx, 0, id);
-      // Rebuild components in the new category order, preserving intra-group order.
-      update(s => {
-        const byCat = new Map();
-        s.components.forEach(c => {
-          const k = c.category || 'Uncategorised';
-          if (!byCat.has(k)) byCat.set(k, []);
-          byCat.get(k).push(c);
-        });
-        const reordered = nextOrder.flatMap(cat => byCat.get(cat) || []);
-        return { ...s, components: reordered };
+        let toIdx = arr.findIndex(r => r.id === targetRowId);
+        if (toIdx < 0) toIdx = arr.length;
+        if (edge === 'bottom') toIdx += 1;
+        arr.splice(toIdx, 0, moved);
+        return arr;
       });
     }
-  }
+    function onDragEnd() { setDragRowId(null); setDragOver(null); }
 
-  // Menu "Move" actions — structured alternatives to drag.
-  function moveRowUp(id) {
-    update(s => {
-      const idx = s.components.findIndex(c => c.id === id);
-      if (idx <= 0) return s;
-      const arr = s.components.slice();
-      const [m] = arr.splice(idx, 1);
-      arr.splice(idx - 1, 0, m);
-      return { ...s, components: arr };
-    });
-  }
-  function moveRowDown(id) {
-    update(s => {
-      const idx = s.components.findIndex(c => c.id === id);
-      if (idx < 0 || idx >= s.components.length - 1) return s;
-      const arr = s.components.slice();
-      const [m] = arr.splice(idx, 1);
-      arr.splice(idx + 1, 0, m);
-      return { ...s, components: arr };
-    });
-  }
-  function moveRowToCategoryEdge(id, edge) {
-    update(s => {
-      const idx = s.components.findIndex(c => c.id === id);
-      if (idx < 0) return s;
-      const comp = s.components[idx];
-      const cat = comp.category || 'Uncategorised';
-      const arr = s.components.slice();
-      arr.splice(idx, 1);
-      const firstInCat = arr.findIndex(c => (c.category || 'Uncategorised') === cat);
-      let target;
-      if (firstInCat < 0) {
-        target = Math.min(idx, arr.length);
-      } else {
-        let lastInCat = firstInCat;
-        for (let i = firstInCat; i < arr.length; i++) {
-          if ((arr[i].category || 'Uncategorised') === cat) lastInCat = i;
-        }
-        target = edge === 'top' ? firstInCat : lastInCat + 1;
-      }
-      arr.splice(target, 0, comp);
-      return { ...s, components: arr };
-    });
-  }
-  function changeComponentCategory(id, newCategory) {
-    const clean = (newCategory || '').trim() || 'Uncategorised';
-    update(s => ({
-      ...s,
-      components: s.components.map(c => c.id === id ? { ...c, category: clean } : c),
-    }));
-  }
-  function renameCategory(oldName, newName) {
-    const clean = (newName || '').trim();
-    if (!clean || clean === oldName) return;
-    update(s => ({
-      ...s,
-      components: s.components.map(c =>
-        (c.category || 'Uncategorised') === oldName ? { ...c, category: clean } : c),
-    }));
-  }
-  function removeCategory(name) {
-    const affected = schedule.components.filter(c => (c.category || 'Uncategorised') === name);
-    if (affected.length > 0) {
-      const msg = affected.length === 1
-        ? `Delete category "${name}" and its 1 row?`
-        : `Delete category "${name}" and its ${affected.length} rows?`;
-      if (!window.confirm(msg)) return;
+    // ─── Loading / error gates ───
+    if (scheduleStatus === 'loading' || !schedule) {
+      return (
+        <div className="sched-empty" style={{ padding: '80px 0' }}>
+          <div className="sched-empty-eyebrow">Loading schedule…</div>
+        </div>
+      );
     }
-    const removedIds = new Set(affected.map(c => c.id));
-    update(s => ({
-      ...s,
-      components: s.components.filter(c => !removedIds.has(c.id)),
-      cells: Object.fromEntries(
-        Object.entries(s.cells).filter(([k]) => {
-          const compId = k.split(':')[1];
-          return !removedIds.has(compId);
-        })
-      ),
-    }));
-  }
-  function duplicateCategory(name) {
-    update(s => {
-      const srcRows = s.components.filter(c => (c.category || 'Uncategorised') === name);
-      if (srcRows.length === 0) return s;
-      // Find a fresh name
-      const existing = new Set(s.components.map(c => c.category || 'Uncategorised'));
-      let newName = name + ' (copy)';
-      let n = 2;
-      while (existing.has(newName)) { newName = `${name} (copy ${n++})`; }
-      const ts = Date.now();
-      const idMap = {};
-      const cloned = srcRows.map((c, i) => {
-        const nid = 'c-' + ts + '-d' + i;
-        idMap[c.id] = nid;
-        return { ...c, id: nid, category: newName };
-      });
-      // Insert cloned rows right after the last row of the source category
-      const lastSrcIdx = Math.max(...srcRows.map(c => s.components.indexOf(c)));
-      const nextComponents = s.components.slice();
-      nextComponents.splice(lastSrcIdx + 1, 0, ...cloned);
-      // Duplicate cell assignments for each cloned component
-      const nextCells = { ...s.cells };
-      s.options.forEach(o => {
-        srcRows.forEach(c => {
-          const src = s.cells[o.id + ':' + c.id];
-          if (src) nextCells[o.id + ':' + idMap[c.id]] = { ...src };
-        });
-      });
-      return { ...s, components: nextComponents, cells: nextCells };
-    });
-  }
-
-  // ───── Cells
-  function setCellMaterial(optionId, componentId, materialId) {
-    update(s => ({
-      ...s,
-      cells: { ...s.cells, [optionId + ':' + componentId]: materialId ? { materialId } : null },
-    }));
-    setPickerFor(null);
-  }
-  function cellTotal(optionId, component) {
-    const cell = schedule.cells[optionId + ':' + component.id];
-    if (!cell || !cell.materialId) return null;
-    const m = materials.find(x => x.id === cell.materialId);
-    if (!m) return null;
-    const q = componentQty(component);
-    if (q === null) return null;
-    return q * m.unitCost;
-  }
-  function optionTotal(optionId) {
-    return schedule.components.reduce((s, c) => {
-      const t = cellTotal(optionId, c);
-      return t !== null ? s + t : s;
-    }, 0);
-  }
-  // Guarded — schedule may still be null during load (the loading-gate
-  // early return below catches that case after all hooks have run).
-  const optionTotals = schedule ? schedule.options.map(o => optionTotal(o.id)) : [];
-  const validTotals = optionTotals.filter(t => t > 0);
-  const lowest = validTotals.length ? Math.min(...validTotals) : 0;
-
-  // ───── Options
-  function addOption() {
-    const id = 'o-' + Date.now();
-    update(s => ({ ...s, options: [...s.options, { id, name: 'Option ' + (s.options.length + 1) }] }));
-  }
-  function renameOption(id, name) {
-    update(s => ({ ...s, options: s.options.map(o => o.id === id ? { ...o, name } : o) }));
-  }
-  function removeOption(id) {
-    if (schedule.options.length <= 1) return;
-    if (!window.confirm('Remove this option column?')) return;
-    update(s => ({
-      ...s,
-      options: s.options.filter(o => o.id !== id),
-      cells: Object.fromEntries(Object.entries(s.cells).filter(([k]) => !k.startsWith(id + ':'))),
-    }));
-  }
-  function reorderOption(id, dir) {
-    update(s => {
-      const idx = s.options.findIndex(o => o.id === id);
-      const newIdx = idx + dir;
-      if (newIdx < 0 || newIdx >= s.options.length) return s;
-      const opts = [...s.options];
-      [opts[idx], opts[newIdx]] = [opts[newIdx], opts[idx]];
-      return { ...s, options: opts };
-    });
-  }
-  function duplicateOption(sourceId) {
-    const source = schedule.options.find(o => o.id === sourceId);
-    const id = 'o-' + Date.now();
-    update(s => {
-      const newCells = { ...s.cells };
-      Object.keys(s.cells).forEach(k => {
-        if (k.startsWith(sourceId + ':')) {
-          const compId = k.split(':')[1];
-          newCells[id + ':' + compId] = s.cells[k];
-        }
-      });
-      return {
-        ...s,
-        options: [...s.options, { id, name: source.name + ' (copy)' }],
-        cells: newCells,
-      };
-    });
-  }
-
-  // ───── Group components by category, in the order they first appear
-  // Guards null schedule so the hook count stays stable across loading→ready
-  // transitions (the loading gate sits below all hooks per Rules of Hooks).
-  const grouped = React.useMemo(() => {
-    if (!schedule) return [];
-    const map = new Map(); // preserves insertion order
-    schedule.components.forEach((c, idx) => {
-      const key = c.category || 'Uncategorised';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push({ component: c, globalIndex: idx });
-    });
-    return Array.from(map.entries());
-  }, [schedule]);
-
-  // Existing category names for the picker in the menu
-  const categoryNames = React.useMemo(() => {
-    if (!schedule) return [];
-    return Array.from(new Set(schedule.components.map(c => c.category || 'Uncategorised')));
-  }, [schedule]);
-
-  // Loading / error gates — must come AFTER all hooks so React's hook count
-  // stays stable across renders.
-  if (scheduleStatus === 'loading' || !schedule) {
-    return <ScheduleSkeletonV2 />;
-  }
-  if (scheduleStatus === 'error') {
-    return <ScheduleErrorStateV2 />;
-  }
-
-  const gridColumns = `72px minmax(220px, 2fr) 64px 96px repeat(${schedule.options.length}, minmax(180px, 1.4fr))`;
-
-  function handleMouseOver(e) {
-    const el = e.target.closest('[data-cs-cell]');
-    if (el) { setHoverKey(el.getAttribute('data-cs-cell')); return; }
-    if (viewMode === 'table') {
-      const rowEl = e.target.closest('[data-row-id]');
-      const id = rowEl?.getAttribute('data-row-id');
-      if (id && id.includes(':')) { setHoverKey(id); return; }
+    if (scheduleStatus === 'error') {
+      return (
+        <div className="sched-empty" style={{ padding: '80px 0' }}>
+          <div className="sched-empty-eyebrow">Couldn't load schedule</div>
+          <button type="button" className="sched-add-btn" onClick={() => location.reload()}>Reload</button>
+        </div>
+      );
     }
-  }
 
-  const clipboardMaterial = clipboard
-    ? materials.find(m => m.id === clipboard.materialId)
-    : null;
+    const clipboardMaterial = clipboard
+      ? materials.find(m => m.id === clipboard.specRef.id)
+      : null;
 
-  return (
-    <div onMouseOver={handleMouseOver}
-      onMouseLeave={() => setHoverKey(null)}>
-      <Header
-        project={project}
-        projects={projects}
-        schedule={schedule}
-        editingTitle={editingTitle}
-        setEditingTitle={setEditingTitle}
-        onTitleChange={(v) => update(s => ({ ...s, title: v }))}
-        setActiveProjectId={setActiveProjectId}
-        viewMode={viewMode} setViewMode={setViewModePersist}
-      />
-
-      <ToolbarV2 addOption={addOption} />
-
-      <LibraryScopeRow
-        libraries={libraries}
-        selectedIds={projectLibIds}
-        materials={materials}
-        scopedCount={scopedMaterials.length}
-        onChange={setProjectLibraries}
-      />
-
-      {viewMode === 'table' ? (
-        <window.CostScheduleTable
-          schedule={schedule}
-          materials={scopedMaterials}
-          libraries={libraries}
-          labelTemplates={labelTemplates}
-          setComp={setComp}
-          setComponentType={setComponentType}
-          setCellMaterial={setCellMaterial}
-          removeComponent={removeComponent}
-          duplicateComponent={duplicateComponent}
-          changeComponentCategory={changeComponentCategory}
-          cellTotal={cellTotal}
-          onOpenPicker={(optionId, componentId) => setPickerFor({ optionId, componentId })}
-          appendComponentToCategory={appendComponentToCategory}
-          moveRowUp={moveRowUp}
-          moveRowDown={moveRowDown}
-          renameOption={renameOption}
-          reorderOption={reorderOption}
-          removeOption={removeOption}
-        />
-      ) : (
-      <div style={{ overflowX: 'auto' }}>
-        <DnDProvider onMove={handleDrop}>
-          <ScheduleGrid
-            gridColumns={gridColumns}
-            schedule={schedule}
-            grouped={grouped}
-            materials={materials}
-            labelTemplates={labelTemplates}
-            categoryNames={categoryNames}
-            justInsertedId={justInsertedId}
-            menuForCompId={menuForCompId}
-            setMenuForCompId={setMenuForCompId}
-            editingOptionId={editingOptionId}
-            setEditingOptionId={setEditingOptionId}
-            optionTotals={optionTotals}
-            lowest={lowest}
-            renameOption={renameOption}
-            duplicateOption={duplicateOption}
-            removeOption={removeOption}
-            setComp={setComp}
-            setComponentType={setComponentType}
-            removeComponent={removeComponent}
-            duplicateComponent={duplicateComponent}
-            changeComponentCategory={changeComponentCategory}
-            moveComponent={moveComponent}
-            moveRowUp={moveRowUp}
-            moveRowDown={moveRowDown}
-            moveRowToCategoryEdge={moveRowToCategoryEdge}
-            setPickerFor={setPickerFor}
-            cellTotal={cellTotal}
-            insertComponentAt={insertComponentAt}
-            appendComponentToCategory={appendComponentToCategory}
-            renameCategory={renameCategory}
-            removeCategory={removeCategory}
-            duplicateCategory={duplicateCategory}
-            onBlurInsert={() => setJustInsertedId(null)}
-          />
-        </DnDProvider>
-      </div>
-      )}
-
-      <Footer
-        schedule={schedule}
-        onReset={() => {
-          if (window.confirm('Reset this schedule to blank?')) {
-            setSchedule({
-              title: 'Materials Cost Schedule',
-              options: [{ id: 'o-1', name: 'Option 1' }],
-              components: [], cells: {},
-            });
-          }
-        }}
-      />
-
-      {clipboard && clipboardMaterial && (
-        <ClipboardToast
-          label={window.formatLabel ? window.formatLabel(clipboardMaterial, labelTemplates) : clipboardMaterial.name}
-          onClear={() => setClipboard(null)}
-        />
-      )}
-
-      {pickerFor && (
-        <MaterialPicker
-          materials={scopedMaterials}
-          libraries={libraries}
-          labelTemplates={labelTemplates}
-          component={schedule.components.find(c => c.id === pickerFor.componentId)}
-          currentId={schedule.cells[pickerFor.optionId + ':' + pickerFor.componentId]?.materialId}
-          projectId={project.id}
-          onClose={() => setPickerFor(null)}
-          onSelect={mid => setCellMaterial(pickerFor.optionId, pickerFor.componentId, mid)}
-          onClear={() => setCellMaterial(pickerFor.optionId, pickerFor.componentId, null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ───────── Header / Toolbar / Footer ─────────
-
-function Header({ project, projects, schedule, editingTitle, setEditingTitle, onTitleChange, setActiveProjectId, viewMode, setViewMode }) {
-  return (
-    <header style={{ marginBottom: 28 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 300 }}>
-          <Eyebrow>Volume III · Cost schedule · v2</Eyebrow>
-          {editingTitle ? (
-            <input autoFocus value={schedule.title}
-              onChange={e => onTitleChange(e.target.value)}
-              onBlur={() => setEditingTitle(false)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingTitle(false); }}
-              style={{
-                fontFamily: "'Newsreader', serif", fontWeight: 300,
-                fontSize: 52, letterSpacing: '-0.015em', lineHeight: 1,
-                margin: '10px 0 6px', background: 'transparent',
-                border: 'none', borderBottom: '1px solid var(--ink)',
-                outline: 'none', width: '100%', color: 'var(--ink)',
-              }} />
-          ) : (
-            <h1 onClick={() => setEditingTitle(true)}
-              title="Click to rename"
-              style={{
-                fontFamily: "'Newsreader', serif", fontWeight: 300,
-                fontSize: 52, letterSpacing: '-0.015em', lineHeight: 1,
-                margin: '10px 0 6px', cursor: 'text',
-              }}>{schedule.title}</h1>
-          )}
-          <div style={{ ...ui.mono, fontSize: 11.5, color: 'var(--ink-3)' }}>
-            {project.code || '—'} · {project.name} {project.client ? '· ' + project.client : ''}
+    return (
+      <>
+        <div className="sched-page-header">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="sched-page-eyebrow">III · Cost Schedule</div>
+            <span className="sched-page-title">{project.name || 'Untitled project'}</span>
+            <div className="sched-page-meta">
+              {project.code && <span className="sched-meta-mono">{project.code}</span>}
+              {project.client && <span className="sched-meta-for">for {project.client}</span>}
+              <span className="sched-meta-mono">{rows.length} item{rows.length === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {projects.length > 1 && (
+              <select
+                value={project.id}
+                onChange={e => setActiveProjectId(e.target.value)}
+                style={{
+                  background: 'transparent', border: '1px solid var(--rule-2)',
+                  padding: '5px 26px 5px 9px',
+                  fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-2)',
+                  cursor: 'pointer', appearance: 'none', borderRadius: 0,
+                }}>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name || p.code}</option>)}
+              </select>
+            )}
+            <button type="button" className="sched-add-btn"
+              onClick={() => openPickerForGroup('Unspecified')}>
+              + Add component
+            </button>
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <Eyebrow style={{ marginBottom: 6 }}>Project</Eyebrow>
-          <select value={project.id} onChange={e => setActiveProjectId(e.target.value)}
-            style={{
-              background: 'transparent', border: 'none',
-              borderBottom: '1px solid var(--ink)',
-              fontFamily: "'Newsreader', serif", fontSize: 17,
-              padding: '2px 20px 4px 0', outline: 'none',
-              cursor: 'pointer', color: 'var(--ink)',
-            }}>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          {setViewMode && (
-            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
-              <window.ModeToggle mode={viewMode} setMode={setViewMode} />
+
+        {window.LibraryScopeRow && (
+          <window.LibraryScopeRow
+            libraries={libraries}
+            selectedIds={projectLibIds}
+            materials={materials}
+            scopedCount={scopedMaterials.length}
+            onChange={(ids) => onUpdateProject({ ...project, libraryIds: ids })}
+          />
+        )}
+
+        {rows.length === 0 ? (
+          <div className="sched-empty" style={{ padding: '80px 0' }}>
+            <div className="sched-empty-eyebrow">No items yet</div>
+            <div className="sched-empty-msg">Add a product to start costing</div>
+            <button type="button" className="sched-add-btn"
+              onClick={() => openPickerForGroup('Unspecified')}
+              style={{ marginTop: 8 }}>
+              + Add from Library
+            </button>
+          </div>
+        ) : (
+          <>
+            {grouped.map(g => (
+              <div key={g.category} className="sched-sec">
+                <div className="sched-sec-head">
+                  <span className="sched-sec-title">{g.category}</span>
+                  <span className="sched-sec-count">{g.entries.length} item{g.entries.length === 1 ? '' : 's'}</span>
+                  <span className="sched-sec-grow" />
+                  <span className="cs-sec-subtotal">{fmtCurrency(g.subtotal)}</span>
+                </div>
+
+                <div className="cs-row-head">
+                  <span></span>
+                  <span></span>
+                  <span>Code</span>
+                  <span>Name</span>
+                  <span>Type</span>
+                  <span>Qty × Cost</span>
+                  <span className="right">Subtotal</span>
+                  <span></span>
+                </div>
+
+                {g.entries.map(({ row, material, ptypeMeta, qty, subtotal }) => {
+                  const isClipSrc = clipboard && clipboard.fromRowId === row.id;
+                  const isDragOver = dragOver && dragOver.rowId === row.id;
+                  const dropClass = isDragOver
+                    ? (dragOver.edge === 'top' ? ' drop-above' : ' drop-below')
+                    : '';
+                  const dragClass = dragRowId === row.id ? ' dragging' : '';
+                  const clipClass = isClipSrc ? ' cs-clip-src' : '';
+                  const swatchTone = material ? ((material.swatch && material.swatch.tone) || material.color || '#a08660') : null;
+                  const ptypeLabel = ptypeMeta ? ptypeMeta.label.toLowerCase()
+                    : (material && material.productType ? String(material.productType).replace(/_/g, ' ') : '—');
+                  const unit = row.unit || (ptypeMeta && ptypeMeta.defaultUnit) || (material && material.unit) || '';
+                  return (
+                    <div key={row.id}
+                      className={`cs-row${dragClass}${dropClass}${clipClass}`}
+                      data-row-id={row.id}
+                      onMouseEnter={() => setHoverRowId(row.id)}
+                      onMouseLeave={() => setHoverRowId(prev => prev === row.id ? null : prev)}
+                      onDragOver={(e) => onDragOver(e, row.id)}
+                      onDrop={(e) => onDrop(e, row.id)}>
+                      <div className="cs-row-drag"
+                        draggable
+                        onDragStart={(e) => onDragStart(e, row.id)}
+                        onDragEnd={onDragEnd}
+                        title="Drag to reorder">⋮⋮</div>
+                      {material ? (
+                        <div className="cs-swatch"
+                          style={{ background: swatchTone }}
+                          onClick={() => openPickerForSwap(row.id)}
+                          title="Click to swap product" />
+                      ) : (
+                        <div className="cs-swatch empty"
+                          onClick={() => openPickerForSwap(row.id)}
+                          title="Click to pick a product">+</div>
+                      )}
+                      <div className={`cs-cell-code${material ? '' : ' empty'}`}>
+                        {material ? (material.code || '—') : '(unassigned)'}
+                      </div>
+                      <div>
+                        <div className={`cs-cell-name${material ? '' : ' empty'}`}>
+                          {material ? (material.name || material.code || 'Unnamed') : 'Pick a product'}
+                        </div>
+                        {material && (material.brand || material.supplier) && (
+                          <div className="cs-cell-name-sub">{material.brand || material.supplier}</div>
+                        )}
+                      </div>
+                      <div className="cs-cell-ptype">{ptypeLabel}</div>
+                      <div className="cs-cell-qty">
+                        <input type="text" value={row.qty == null ? '' : row.qty}
+                          placeholder="—"
+                          onChange={(e) => updateRow(row.id, { qty: e.target.value === '' ? null : e.target.value })} />
+                        {unit && <span className="unit">{unit}</span>}
+                        {material && material.unitCost != null && (
+                          <span className="cost">× {fmtCurrency(material.unitCost)}</span>
+                        )}
+                      </div>
+                      <div className={`cs-cell-subtotal${subtotal == null ? ' empty' : ''}`}>
+                        {subtotal == null ? '—' : fmtCurrency(subtotal)}
+                      </div>
+                      <div className="cs-row-actions">
+                        <button type="button" className="del" title="Remove"
+                          onClick={() => deleteRow(row.id)}>×</button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="sched-add-row">
+                  <button type="button" onClick={() => openPickerForGroup(g.category)}>
+                    + Add component to {g.category}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="cs-grand">
+              <span className="cs-grand-label">Grand total</span>
+              <span className="cs-grand-value">{fmtCurrency(grandTotal)}</span>
             </div>
-          )}
-        </div>
-      </div>
-      <Rule heavy style={{ marginTop: 20 }} />
-    </header>
-  );
-}
+          </>
+        )}
 
-function ToolbarV2({ addOption }) {
-  return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-      gap: 16, marginBottom: 10, flexWrap: 'wrap',
-    }}>
-      <div style={{ ...ui.serif, fontSize: 14, fontStyle: 'italic', color: 'var(--ink-3)', maxWidth: '62ch' }}>
-        Hover between rows to insert. Leave <Mono size={12}>Count</Mono> blank for single items —
-        totals use <Mono size={12}>size</Mono> alone. Filled, totals use <Mono size={12}>count × size</Mono>.
-      </div>
-      <div style={{ display: 'flex', gap: 18, alignItems: 'baseline' }}>
-        <TextButton onClick={addOption}>＋ Add option</TextButton>
-      </div>
-    </div>
-  );
-}
+        {clipboard && clipboardMaterial && (
+          <div className="cs-clip-toast">
+            <span className="lbl">Copied</span>
+            <span className="name">{clipboardMaterial.name || clipboardMaterial.code || 'Unnamed'}</span>
+            <span style={{ opacity: 0.55 }}>·</span>
+            <span className="hint">press V to paste, Esc to clear</span>
+            <button type="button" onClick={() => setClipboard(null)} title="Clear clipboard">×</button>
+          </div>
+        )}
 
-function Footer({ schedule, onReset }) {
-  return (
-    <div style={{
-      marginTop: 42, paddingTop: 20, borderTop: '1px solid var(--rule)',
-      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-    }}>
-      <Mono size={10} color="var(--ink-4)" style={{ letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        {schedule.components.length} components · {schedule.options.length} options · autosaved
-      </Mono>
-      <TextButton onClick={onReset} accent>Reset schedule</TextButton>
-    </div>
-  );
-}
+        {picker && window.PickerDrawer && (
+          <window.PickerDrawer
+            open={true}
+            eyebrow={picker.eyebrow}
+            title={picker.title}
+            subtitle={picker.subtitle}
+            elementFilter={null}
+            materials={scopedMaterials}
+            typeTemplates={[]}
+            selectionMode={picker.mode === 'multi' ? 'multi' : 'single'}
+            initialSelected={picker.mode === 'single' && picker.rowId
+              ? (() => {
+                  const r = rows.find(x => x.id === picker.rowId);
+                  return (r && r.specRef && r.specRef.id) ? [r.specRef.id] : [];
+                })()
+              : []}
+            onPick={onPickerConfirm}
+            onClose={() => setPicker(null)}
+          />
+        )}
+      </>
+    );
+  }
 
-// ───────── Option header ─────────
-
-function OptionHeader({ index, option, canRemove, editing, setEditing, onRename, onDuplicate, onRemove }) {
-  return (
-    <div style={{ paddingBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Mono size={10} color="var(--ink-4)">OPT·{String(index + 1).padStart(2, '0')}</Mono>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button type="button" onClick={onDuplicate} title="Duplicate" style={v2SmallIcon}>dup</button>
-          {canRemove && (
-            <button type="button" onClick={onRemove} title="Remove" style={v2SmallIcon}>×</button>
-          )}
-        </div>
-      </div>
-      {editing ? (
-        <input autoFocus value={option.name}
-          onChange={e => onRename(e.target.value)}
-          onBlur={() => setEditing(false)}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditing(false); }}
-          style={{
-            ...ui.serif, fontSize: 15, fontWeight: 500,
-            background: 'transparent', border: 'none',
-            borderBottom: '1px solid var(--ink)', outline: 'none',
-            width: '100%', padding: '2px 0',
-          }} />
-      ) : (
-        <div onClick={() => setEditing(true)} title="Click to rename"
-          style={{ ...ui.serif, fontSize: 15, fontWeight: 500, cursor: 'text' }}>
-          {option.name}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const v2SmallIcon = {
-  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-  fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
-  letterSpacing: '0.1em', textTransform: 'uppercase',
-  color: 'var(--ink-4)', fontWeight: 500,
-};
-
-function ClipboardToast({ label, onClear }) {
-  return (
-    <div style={{
-      position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-      background: 'var(--ink)', color: 'var(--paper)',
-      padding: '10px 14px',
-      display: 'flex', alignItems: 'center', gap: 12,
-      boxShadow: '0 6px 22px rgba(20,20,20,0.22)',
-      zIndex: 60,
-      fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
-      letterSpacing: '0.01em',
-      maxWidth: 520,
-    }}>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
-        letterSpacing: '0.14em', textTransform: 'uppercase', opacity: 0.6,
-      }}>Copied</span>
-      <span style={{
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-        maxWidth: 260, fontWeight: 500,
-      }}>{label}</span>
-      <span style={{ opacity: 0.55 }}>·</span>
-      <span style={{ opacity: 0.7 }}>press V to paste, Esc to clear</span>
-      <button type="button" onClick={onClear}
-        title="Clear clipboard"
-        style={{
-          background: 'none', border: 'none', color: 'var(--paper)',
-          cursor: 'pointer', opacity: 0.6, padding: '0 0 0 6px',
-          fontSize: 16, lineHeight: 1,
-        }}>×</button>
-    </div>
-  );
-}
-
-function ScheduleSkeletonV2() {
-  return (
-    <div style={{ padding: '80px 0', textAlign: 'center',
-      fontFamily: 'var(--font-mono)', fontSize: 11,
-      letterSpacing: '0.18em', textTransform: 'uppercase',
-      color: 'var(--ink-3)' }}>
-      Loading schedule…
-    </div>
-  );
-}
-
-function ScheduleErrorStateV2() {
-  return (
-    <div style={{ padding: '80px 0', textAlign: 'center' }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
-        letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: 'var(--ink-3)', marginBottom: 12 }}>
-        Couldn't load schedule
-      </div>
-      <button onClick={() => location.reload()} style={{
-        padding: '8px 16px', fontSize: 13, fontFamily: 'var(--font-sans)',
-        background: 'var(--accent)', color: '#fff',
-        border: 'none', borderRadius: 2, cursor: 'pointer',
-      }}>Reload</button>
-    </div>
-  );
-}
-
-Object.assign(window, { CostScheduleV2 });
+  Object.assign(window, { CostScheduleV2 });
+})();
