@@ -1216,7 +1216,13 @@ function Footer({ settings }) {
 // ───────────────────── Material editor ─────────────────────
 
 function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave }) {
-  const [draft, setDraft] = React.useState(material);
+  // Phase 1B (commit 4): normalise tradeDiscounts/currency on existing rows
+  // that pre-date these fields so Commercial doesn't crash on undefined.
+  const [draft, setDraft] = React.useState(() => ({
+    ...material,
+    tradeDiscounts: Array.isArray(material.tradeDiscounts) ? material.tradeDiscounts : [],
+    currency: material.currency || 'AUD',
+  }));
   const [codeError, setCodeError] = React.useState(false);
   // Phase C1 — intake-mode tabs. Manual is the only functional mode in v1;
   // Duplicate is selectable but its body lands in C9. URL/PDF/CSV are disabled.
@@ -1304,6 +1310,9 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
               <window.ProductFieldBlocks.Specs
                 draft={draft} set={set} materials={materials} />
 
+              <window.ProductFieldBlocks.Commercial
+                draft={draft} set={set} />
+
               <div style={{ padding: '14px 0 4px' }}>
                 {(draft.kind === 'paint' || draft.category === 'Paint') ? (
                   <PaintFields draft={draft} set={set} />
@@ -1356,26 +1365,10 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
 // ───────── Standard (non-paint) material fields ─────────
 // (PaintSelect helper moved into src/ProductFieldBlocks.jsx in commit 3.)
 function StandardFields({ draft, set }) {
-  // Phase 1B: Identity (commit 1) and Specs (commit 3) absorb most of the
-  // legacy fields. What's left here flows into Commercial (commit 4) and
-  // Notes (commit 5).
+  // Phase 1B: Identity (commit 1), Specs (commit 3), Commercial (commit 4)
+  // absorb everything else. Specification + Submittal land in Notes (commit 5).
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <EditorField label="Supplier code">
-        <input value={draft.supplier_code || ''} onChange={e => set('supplier_code', e.target.value)}
-          style={fieldStyle('mono')} placeholder="Supplier's SKU / product no." />
-      </EditorField>
-      <EditorField label="Origin">
-        <input value={draft.origin} onChange={e => set('origin', e.target.value)} style={fieldStyle()} />
-      </EditorField>
-      <EditorField label="Lead time">
-        <input value={draft.leadTime} onChange={e => set('leadTime', e.target.value)} style={fieldStyle('mono')} />
-      </EditorField>
-      <EditorField label="Unit cost">
-        <input type="number" value={draft.unitCost}
-          onChange={e => set('unitCost', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
-      </EditorField>
-
       <EditorField label="Specification" full>
         <textarea value={draft.spec} onChange={e => set('spec', e.target.value)}
           rows={4}
@@ -1428,86 +1421,12 @@ function SubmittalFields({ draft, set }) {
 }
 
 // ───────── Paint-specific fields ─────────
+// Phase 1B: Identity (commit 1) / Visual (commit 2) / Specs (commit 3) /
+// Commercial (commit 4) absorb everything paint. Specification + Submittal
+// land in Notes (commit 5), at which point this component goes away.
 function PaintFields({ draft, set }) {
-  // auto-derive $/m² from $/L × coats ÷ coverage
-  React.useEffect(() => {
-    if (draft.costModel === 'perLitre' && draft.pricePerL && draft.coveragePerL) {
-      const derived = (draft.pricePerL * (draft.coats || 2)) / draft.coveragePerL;
-      if (Math.abs((draft.unitCost || 0) - derived) > 0.5) {
-        set('unitCost', Math.round(derived * 100) / 100);
-      }
-    }
-  }, [draft.costModel, draft.pricePerL, draft.coveragePerL, draft.coats]);
-
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* Phase 1B: Identity (commit 1) covers Name / Code / Category / Brand /
-          Colour code / Sheen / System. Visual (commit 2) covers Colour (hex).
-          Specs (commit 3) covers Base type / Coats / Finishes-use / Substrates.
-          What's left here flows into Commercial (commit 4) and Notes (commit 5). */}
-      <EditorField label="Lead time">
-        <input value={draft.leadTime} onChange={e => set('leadTime', e.target.value)} style={fieldStyle('mono')} />
-      </EditorField>
-
-      {/* Pricing model */}
-      <div style={{ gridColumn: '1 / -1', marginTop: 6, padding: '12px 0 2px',
-        borderTop: '1px dotted var(--rule-2)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-          <span style={{ ...ui.label }}>Pricing</span>
-          {[
-            { v: 'perSqm', l: 'per m²' },
-            { v: 'perLitre', l: 'per litre (auto m²)' },
-          ].map(o => (
-            <label key={o.v} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-              <input type="radio" name="paint-cost-model"
-                checked={(draft.costModel || 'perSqm') === o.v}
-                onChange={() => set('costModel', o.v)}
-                style={{ accentColor: 'var(--accent)' }} />
-              <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{o.l}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {(draft.costModel || 'perSqm') === 'perSqm' ? (
-        <>
-          <EditorField label="Unit cost (per m²)">
-            <input type="number" value={draft.unitCost}
-              onChange={e => set('unitCost', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
-          </EditorField>
-          <EditorField label="Unit">
-            <select value={draft.unit || 'm²'} onChange={e => set('unit', e.target.value)} style={fieldStyle('mono')}>
-              <option value="m²">m²</option>
-            </select>
-          </EditorField>
-        </>
-      ) : (
-        <>
-          <EditorField label="Price per litre (A$)">
-            <input type="number" value={draft.pricePerL || 0}
-              onChange={e => set('pricePerL', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
-          </EditorField>
-          <EditorField label="Coverage (m² / L)">
-            <input type="number" value={draft.coveragePerL || 14}
-              onChange={e => set('coveragePerL', parseFloat(e.target.value) || 0)} style={fieldStyle('mono')} />
-          </EditorField>
-          <div style={{ gridColumn: '1 / -1',
-            background: 'var(--tint)', padding: '10px 12px',
-            borderLeft: '2px solid var(--accent)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ ...ui.label }}>Derived cost per m²</span>
-            <Mono size={14} color="var(--ink)">
-              {draft.pricePerL && draft.coveragePerL
-                ? 'A$' + ((draft.pricePerL * (draft.coats || 2)) / draft.coveragePerL).toFixed(2)
-                : '—'}
-              <span style={{ ...ui.mono, fontSize: 10, color: 'var(--ink-4)', marginLeft: 6 }}>
-                = {draft.pricePerL || 0}/L × {draft.coats || 2} coats ÷ {draft.coveragePerL || 0} m²/L
-              </span>
-            </Mono>
-          </div>
-        </>
-      )}
-
       <EditorField label="Specification" full>
         <textarea value={draft.spec} onChange={e => set('spec', e.target.value)}
           rows={3}

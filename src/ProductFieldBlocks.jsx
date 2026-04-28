@@ -625,8 +625,171 @@ function PFB_Specs({ draft, set, materials = [] }) {
   );
 }
 
+function PFB_Commercial({ draft, set }) {
+  const isPaint = draft.kind === 'paint' || draft.category === 'Paint';
+  const tradeDiscounts = Array.isArray(draft.tradeDiscounts) ? draft.tradeDiscounts : [];
+
+  // Auto-derive $/m² from $/L × coats ÷ coverage (paint, perLitre model only).
+  React.useEffect(() => {
+    if (isPaint && draft.costModel === 'perLitre' && draft.pricePerL && draft.coveragePerL) {
+      const derived = (draft.pricePerL * (draft.coats || 2)) / draft.coveragePerL;
+      if (Math.abs((draft.unitCost || 0) - derived) > 0.5) {
+        set('unitCost', Math.round(derived * 100) / 100);
+      }
+    }
+  }, [isPaint, draft.costModel, draft.pricePerL, draft.coveragePerL, draft.coats]);
+
+  return (
+    <PFB_Section num="04" label="Commercial">
+      <div className="row-2" style={{ marginBottom: 10 }}>
+        <div>
+          <label className="lbl-d">{isPaint && (draft.costModel || 'perSqm') === 'perSqm' ? 'Price (per m²)' : 'Price'}</label>
+          <input className="inp-d mono" type="number"
+            value={draft.unitCost || 0}
+            onChange={e => set('unitCost', parseFloat(e.target.value) || 0)} />
+        </div>
+        <div>
+          <label className="lbl-d">Currency</label>
+          <select className="sel-d"
+            value={draft.currency || 'AUD'}
+            onChange={e => set('currency', e.target.value)}>
+            {['AUD', 'USD', 'EUR', 'GBP', 'NZD'].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="row-2" style={{ marginBottom: 10 }}>
+        <div>
+          <label className="lbl-d">Lead time</label>
+          <input className="inp-d mono"
+            value={draft.leadTime || ''}
+            onChange={e => set('leadTime', e.target.value)} />
+        </div>
+        <div>
+          <label className="lbl-d">Supplier code</label>
+          <input className="inp-d mono"
+            value={draft.supplier_code || ''}
+            onChange={e => set('supplier_code', e.target.value)}
+            placeholder="Supplier's SKU / product no." />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label className="lbl-d">Origin</label>
+        <input className="inp-d"
+          value={draft.origin || ''}
+          onChange={e => set('origin', e.target.value)} />
+      </div>
+
+      {isPaint && (
+        <div style={{ marginTop: 10, padding: '12px 0 4px',
+          borderTop: '1px dotted var(--rule-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: 8 }}>
+            <span className="lbl-d" style={{ marginBottom: 0 }}>Pricing model</span>
+            {[
+              { v: 'perSqm', l: 'per m²' },
+              { v: 'perLitre', l: 'per litre (auto m²)' },
+            ].map(o => (
+              <label key={o.v} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                <input type="radio" name="paint-cost-model"
+                  checked={(draft.costModel || 'perSqm') === o.v}
+                  onChange={() => set('costModel', o.v)}
+                  style={{ accentColor: 'var(--accent)' }} />
+                <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>{o.l}</span>
+              </label>
+            ))}
+          </div>
+          {(draft.costModel || 'perSqm') === 'perLitre' && (
+            <>
+              <div className="row-2" style={{ marginBottom: 10 }}>
+                <div>
+                  <label className="lbl-d">Price per litre</label>
+                  <input className="inp-d mono" type="number"
+                    value={draft.pricePerL || 0}
+                    onChange={e => set('pricePerL', parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <label className="lbl-d">Coverage (m² / L)</label>
+                  <input className="inp-d mono" type="number"
+                    value={draft.coveragePerL || 14}
+                    onChange={e => set('coveragePerL', parseFloat(e.target.value) || 0)} />
+                </div>
+              </div>
+              <div style={{
+                background: 'var(--tint)', padding: '10px 12px',
+                borderLeft: '2px solid var(--accent)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                marginBottom: 10,
+              }}>
+                <span className="lbl-d" style={{ marginBottom: 0 }}>Derived cost per m²</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--ink)' }}>
+                  {draft.pricePerL && draft.coveragePerL
+                    ? (draft.currency || 'AUD') + ' ' +
+                      ((draft.pricePerL * (draft.coats || 2)) / draft.coveragePerL).toFixed(2)
+                    : '—'}
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10,
+                    color: 'var(--ink-4)', marginLeft: 6 }}>
+                    = {draft.pricePerL || 0}/L × {draft.coats || 2} coats ÷ {draft.coveragePerL || 0} m²/L
+                  </span>
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 10, padding: '12px 0 4px',
+        borderTop: '1px dotted var(--rule-2)' }}>
+        <label className="lbl-d">Trade discounts</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {tradeDiscounts.map((d, i) => (
+            <span key={`${d}-${i}`} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '4px 6px 4px 10px',
+              fontSize: 11,
+              fontFamily: 'var(--font-sans)',
+              border: '1px solid var(--rule-2)',
+              background: 'var(--paper)',
+              color: 'var(--ink-2)',
+            }}>
+              {d}
+              <button type="button"
+                onClick={() => set('tradeDiscounts',
+                  tradeDiscounts.filter((_, j) => j !== i))}
+                style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontSize: 14, color: 'var(--ink-4)', lineHeight: 1,
+                }}
+                aria-label={`Remove ${d}`}>×</button>
+            </span>
+          ))}
+          <button type="button"
+            onClick={() => {
+              const v = window.prompt('Trade discount (e.g. "GC 10%")');
+              if (v && v.trim()) {
+                set('tradeDiscounts', [...tradeDiscounts, v.trim()]);
+              }
+            }}
+            style={{
+              padding: '4px 10px',
+              fontSize: 11,
+              fontFamily: 'var(--font-sans)',
+              border: '1px dashed var(--rule-2)',
+              background: 'transparent',
+              color: 'var(--ink-3)',
+              cursor: 'pointer',
+            }}>+ Add</button>
+        </div>
+      </div>
+    </PFB_Section>
+  );
+}
+
 window.ProductFieldBlocks = {
   Identity: PFB_Identity,
   Visual: PFB_Visual,
   Specs: PFB_Specs,
+  Commercial: PFB_Commercial,
 };
