@@ -727,6 +727,15 @@ function App() {
             density={settings.density}
           />
         )}
+        {view === 'schedule' && window.SchedulePage && (
+          <window.SchedulePage
+            materials={materials}
+            projects={projects}
+            activeProjectId={activeProjectId}
+            setActiveProjectId={setActiveProjectId}
+            density={settings.density}
+          />
+        )}
         {view === 'cost' && (
           <CostScheduleHost
             materials={materials}
@@ -1076,11 +1085,15 @@ function RevisionBadge() {
 }
 
 function Nav({ view, setView, settings }) {
+  // Slot IV is the new card-based Schedule (D1a). The legacy Spec view (now
+  // ProjectSpecV2 — Material Submittal Register) keeps a temporary slot V
+  // entry until D5 trims the nav to four slots per the integration plan.
   const items = [
     { key: 'library',  label: 'Library',  num: 'I' },
     { key: 'projects', label: 'Projects', num: 'II' },
     { key: 'cost',     label: 'Cost Schedule', num: 'III' },
-    { key: 'spec',     label: 'Spec',          num: 'IV' },
+    { key: 'schedule', label: 'Schedule',      num: 'IV' },
+    { key: 'spec',     label: 'Spec',          num: 'V' },
   ];
   const settingsActive = view === 'settings';
   return (
