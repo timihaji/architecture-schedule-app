@@ -326,7 +326,10 @@
   .sched-edit-select:focus, .sched-edit-input:focus { border-color: var(--ink-3); background: #fff; }
   .sched-edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
   textarea.sched-edit-input { resize: vertical; min-height: 54px; line-height: 1.5; font-family: var(--font-serif); font-style: italic; font-size: 13px; }
-  .hidden-tray { margin-top: 8px; padding: 7px 10px; background: var(--paper-2); border-top: 1px dashed var(--rule-2); }
+  .fwide-hide { background: none; border: none; cursor: pointer; color: var(--ink-4); font-size: 12px; padding: 0; line-height: 1; opacity: 0; transition: opacity 0.1s; }
+  .fwide-hide.fwide-hide-vis { opacity: 1; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  .hidden-tray { margin-top: 8px; padding: 7px 10px; background: var(--paper-2); border-top: 1px dashed var(--rule-2); animation: slideDown 0.18s ease; }
   .hidden-tray-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 6px; }
   .hidden-tray-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .hidden-show-btn { background: var(--paper); border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; color: var(--ink-3); letter-spacing: 0.04em; transition: border-color 0.1s; }

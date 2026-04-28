@@ -258,16 +258,17 @@
             <div key={f.key} className="fwide-d">
               <div className="fcell-head">
                 <div className="field-label">{f.label}</div>
-                {isEditing && (
-                  <button type="button" className="fcell-editbtn"
-                    onClick={() => hideField(f.key)}>Hide ×</button>
-                )}
+                {isEditing
+                  ? <button type="button" className="fcell-editbtn"
+                      onClick={() => hideField(f.key)}>Hide ×</button>
+                  : <button type="button" className={`fwide-hide${hovered ? ' fwide-hide-vis' : ''}`}
+                      onClick={() => hideField(f.key)}>×</button>}
               </div>
               {renderFieldVal(f)}
             </div>
           ))}
 
-          {isEditing && hidFields.length > 0 && (
+          {hidFields.length > 0 && (
             <div className="hidden-tray">
               <div className="hidden-tray-label">Hidden fields</div>
               <div className="hidden-tray-btns">

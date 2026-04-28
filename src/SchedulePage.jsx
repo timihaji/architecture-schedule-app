@@ -114,6 +114,10 @@
 
     // Default visible fields per card. The Fields popover toggles these — the
     // toggle adds/removes the key from every row's hiddenFields[] simultaneously.
+    // Resolution rule: per-card showField() removes the key from ONE row only,
+    // overriding the toolbar hide for that card. New rows inherit toolbar state
+    // because their hiddenFields starts as []. So toolbar-off + card-show → that
+    // card visible, all others still hidden; toolbar-on clears the key from every row.
     const FIELD_TOGGLES = [
       { key: 'element',  label: 'Element' },
       { key: 'state',    label: 'State' },
