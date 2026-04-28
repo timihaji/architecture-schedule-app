@@ -339,6 +339,83 @@ function SegmentedToggle({
   );
 }
 
+// ─── ModeTabStrip ───────────────────────────────────────────────────────────
+// Add Product.html top strip — five intake-mode tabs across the top of the
+// .ae editor frame. Manual + Duplicate are functional in v1; URL/PDF/CSV
+// render greyed with a "v2" tag and a tooltip explaining unavailability.
+// Disabled tabs are non-clickable and excluded from the tab order.
+function ModeTabStrip({ mode, setMode, items, style = {} }) {
+  const list = items || [
+    { id: 'manual',    label: 'Manual' },
+    { id: 'duplicate', label: 'Duplicate' },
+    { id: 'url',       label: 'URL', v2: true },
+    { id: 'pdf',       label: 'PDF', v2: true },
+    { id: 'csv',       label: 'CSV', v2: true },
+  ];
+  return (
+    <div
+      role="tablist"
+      style={{
+        display: 'flex',
+        gap: 0,
+        borderBottom: '1px solid var(--rule)',
+        padding: '0 22px',
+        ...style,
+      }}
+    >
+      {list.map(item => {
+        const isActive = mode === item.id;
+        const isDisabled = !!item.v2;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-disabled={isDisabled || undefined}
+            disabled={isDisabled}
+            tabIndex={isDisabled ? -1 : 0}
+            title={isDisabled ? 'Available in v2' : item.label}
+            onClick={isDisabled ? undefined : () => setMode(item.id)}
+            style={{
+              background: 'none',
+              border: 'none',
+              borderBottom: '2px solid ' + (isActive ? 'var(--ink)' : 'transparent'),
+              marginBottom: -1,
+              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              padding: '11px 14px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11.5,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: isDisabled ? 'var(--ink-4)' : (isActive ? 'var(--ink)' : 'var(--ink-3)'),
+              fontWeight: isActive ? 600 : 500,
+              opacity: isDisabled ? 0.45 : 1,
+              transition: 'color 0.12s, border-color 0.12s',
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 6,
+            }}
+          >
+            <span>{item.label}</span>
+            {isDisabled && (
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                color: 'var(--ink-4)',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                background: 'var(--rule)',
+                padding: '1px 4px',
+              }}>v2</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Plate ──────────────────────────────────────────────────────────────────
 // Reserved for v2 — Library Switcher overlay rows. Defined so v2 imports
 // against a stable surface; not rendered anywhere in v1.
@@ -566,6 +643,7 @@ Object.assign(window, {
   LibTabs,
   Tab,
   SegmentedToggle,
+  ModeTabStrip,
   Plate,
   Modal,
   Toolbar,

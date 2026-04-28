@@ -1209,6 +1209,9 @@ function Footer({ settings }) {
 function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, requireCodeOnSave }) {
   const [draft, setDraft] = React.useState(material);
   const [codeError, setCodeError] = React.useState(false);
+  // Phase C1 — intake-mode tabs. Manual is the only functional mode in v1;
+  // Duplicate is selectable but its body lands in C3. URL/PDF/CSV are disabled.
+  const [mode, setMode] = React.useState('manual');
   function set(k, v) { setDraft(d => ({ ...d, [k]: v })); if (k === 'code') setCodeError(false); }
   function setSwatch(k, v) { setDraft(d => ({ ...d, swatch: { ...d.swatch, [k]: v } })); }
   function handleSave() {
@@ -1261,54 +1264,77 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
           maxHeight: '92vh',
           overflowY: 'auto',
         }}>
-        <div style={{ padding: '22px 28px 16px', borderBottom: '1px solid var(--ink)',
+        <div style={{ padding: '22px 28px 16px', borderBottom: '1px solid var(--rule)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div>
-            <Eyebrow>
-              {material._isNew ? 'New ' : 'Edit '}
-              {((window.kindById && window.kindById(draft.kind))?.label) || 'entry'}
-              {draft.trade ? ' · ' + draft.trade : ''}
-            </Eyebrow>
+            <Eyebrow style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>01</Eyebrow>
             <Serif size={24} style={{ marginTop: 4, display: 'block' }}>
-              {draft.name || `Untitled ${((window.kindById && window.kindById(draft.kind))?.label || 'entry').toLowerCase()}`}
+              {material._isNew ? 'Add product' : 'Edit product'}
             </Serif>
           </div>
           <TextButton onClick={onClose}>Close ×</TextButton>
         </div>
 
-        <CustomNameBar draft={draft} set={set}
-          labelTemplates={labelTemplates}
-          onOpenLabelBuilder={onOpenLabelBuilder} />
+        {window.ModeTabStrip && (
+          <window.ModeTabStrip mode={mode} setMode={setMode} />
+        )}
 
-        <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 28 }}>
-          <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
-            seed={parseInt((draft.id || '').slice(2)) || 1}
-            category={draft.category}
-            sheen={draft.sheen}
-            linkedPaint={draft.paintable && draft.paintedWithId
-              ? materials.find(x => x.id === draft.paintedWithId) : null}
-            inheritPaintTone={!!draft.inheritPaintTone}
-            setInheritPaintTone={v => set('inheritPaintTone', v)} />
+        {mode === 'manual' && (
+          <>
+            <CustomNameBar draft={draft} set={set}
+              labelTemplates={labelTemplates}
+              onOpenLabelBuilder={onOpenLabelBuilder} />
 
-          {(draft.kind === 'paint' || draft.category === 'Paint') ? (
-            <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
-          ) : (
-            <StandardFields draft={draft} set={set} materials={materials} />
-          )}
-        </div>
+            <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 28 }}>
+              <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
+                seed={parseInt((draft.id || '').slice(2)) || 1}
+                category={draft.category}
+                sheen={draft.sheen}
+                linkedPaint={draft.paintable && draft.paintedWithId
+                  ? materials.find(x => x.id === draft.paintedWithId) : null}
+                inheritPaintTone={!!draft.inheritPaintTone}
+                setInheritPaintTone={v => set('inheritPaintTone', v)} />
 
-        <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
-          {codeError && (
-            <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-sans)', marginRight: 'auto' }}>
-              A code is required before saving.
-            </span>
-          )}
-          <TextButton onClick={onClose}>Cancel</TextButton>
-          <TextButton onClick={handleSave} accent>
-            {material._isNew ? 'Add to library' : 'Save changes'}
-          </TextButton>
-        </div>
+              {(draft.kind === 'paint' || draft.category === 'Paint') ? (
+                <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
+              ) : (
+                <StandardFields draft={draft} set={set} materials={materials} />
+              )}
+            </div>
+
+            <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
+              display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
+              {codeError && (
+                <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-sans)', marginRight: 'auto' }}>
+                  A code is required before saving.
+                </span>
+              )}
+              <TextButton onClick={onClose}>Cancel</TextButton>
+              <TextButton onClick={handleSave} accent>
+                {material._isNew ? 'Add to library' : 'Save changes'}
+              </TextButton>
+            </div>
+          </>
+        )}
+
+        {mode === 'duplicate' && (
+          <>
+            <div style={{
+              padding: '60px 28px',
+              textAlign: 'center',
+              fontFamily: 'var(--font-serif)',
+              fontStyle: 'italic',
+              color: 'var(--ink-4)',
+              fontSize: 14,
+            }}>
+              Duplicate mode lands in Phase C3.
+            </div>
+            <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
+              display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
+              <TextButton onClick={onClose}>Cancel</TextButton>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
