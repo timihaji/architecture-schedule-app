@@ -1298,18 +1298,12 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
               <window.ProductFieldBlocks.Identity
                 draft={draft} set={set} codeError={codeError} />
 
-              <div style={{ padding: '14px 0 4px', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
-                <SwatchEditor swatch={draft.swatch} setSwatch={setSwatch}
-                  seed={parseInt((draft.id || '').slice(2)) || 1}
-                  category={draft.category}
-                  sheen={draft.sheen}
-                  linkedPaint={draft.paintable && draft.paintedWithId
-                    ? materials.find(x => x.id === draft.paintedWithId) : null}
-                  inheritPaintTone={!!draft.inheritPaintTone}
-                  setInheritPaintTone={v => set('inheritPaintTone', v)} />
+              <window.ProductFieldBlocks.Visual
+                draft={draft} set={set} setSwatch={setSwatch} materials={materials} />
 
+              <div style={{ padding: '14px 0 4px' }}>
                 {(draft.kind === 'paint' || draft.category === 'Paint') ? (
-                  <PaintFields draft={draft} set={set} setSwatch={setSwatch} />
+                  <PaintFields draft={draft} set={set} />
                 ) : (
                   <StandardFields draft={draft} set={set} materials={materials} />
                 )}
@@ -1695,10 +1689,7 @@ function SubmittalFields({ draft, set }) {
 }
 
 // ───────── Paint-specific fields ─────────
-function PaintFields({ draft, set, setSwatch }) {
-  // keep the paint swatch tone mirrored to a hex field
-  const hex = draft.swatch?.tone || '#e5e2d8';
-
+function PaintFields({ draft, set }) {
   // auto-derive $/m² from $/L × coats ÷ coverage
   React.useEffect(() => {
     if (draft.costModel === 'perLitre' && draft.pricePerL && draft.coveragePerL) {
@@ -1711,20 +1702,11 @@ function PaintFields({ draft, set, setSwatch }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      {/* Phase 1B (commit 1): Name / Code / Category / Brand / Colour code /
-          Sheen / System are now rendered by ProductFieldBlocks.Identity.
-          Colour (hex) moves to Visual in commit 2; the rest of these paint
-          extras flow into Specs (commit 3) and Commercial (commit 4). */}
-      <EditorField label="Colour (hex)">
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input type="color" value={hex}
-            onChange={e => { setSwatch('kind', 'paint'); setSwatch('tone', e.target.value); }}
-            style={{ ...colorFieldStyle, width: 44, height: 32, flexShrink: 0 }} />
-          <input value={hex}
-            onChange={e => { setSwatch('kind', 'paint'); setSwatch('tone', e.target.value); }}
-            style={fieldStyle('mono')} />
-        </div>
-      </EditorField>
+      {/* Phase 1B: Name / Code / Category / Brand / Colour code / Sheen /
+          System are rendered by ProductFieldBlocks.Identity (commit 1).
+          Colour (hex) is rendered by ProductFieldBlocks.Visual (commit 2).
+          The rest of the paint extras flow into Specs (commit 3) and
+          Commercial (commit 4). */}
       <EditorField label="Base type">
         <select value={draft.baseType || ''} onChange={e => set('baseType', e.target.value)} style={fieldStyle()}>
           <option value="">—</option>
@@ -2247,7 +2229,7 @@ function CustomNameBar({ draft, set, labelTemplates, onOpenLabelBuilder }) {
     </div>
   );
 }
-Object.assign(window, { CustomNameBar });
+Object.assign(window, { CustomNameBar, SwatchEditor });
 
 // Phase 1b: wrap App in AuthGate so the cloud session is required before
 // any UI renders. App itself still reads/writes localStorage in this phase;

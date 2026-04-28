@@ -197,6 +197,62 @@ function PFB_Identity({ draft, set, codeError = false }) {
   );
 }
 
+function PFB_Visual({ draft, set, setSwatch, materials = [] }) {
+  const isPaint = draft.kind === 'paint' || draft.category === 'Paint';
+  const seed = parseInt((draft.id || '').slice(2)) || 1;
+  const linkedPaint = draft.paintable && draft.paintedWithId
+    ? materials.find(x => x.id === draft.paintedWithId)
+    : null;
+  const hex = draft.swatch?.tone || (isPaint ? '#e5e2d8' : '#b8aa94');
+
+  return (
+    <PFB_Section num="02" label="Visual">
+      {window.SwatchEditor && (
+        <window.SwatchEditor
+          swatch={draft.swatch}
+          setSwatch={setSwatch}
+          seed={seed}
+          category={draft.category}
+          sheen={draft.sheen}
+          linkedPaint={linkedPaint}
+          inheritPaintTone={!!draft.inheritPaintTone}
+          setInheritPaintTone={v => set('inheritPaintTone', v)}
+        />
+      )}
+      {isPaint && (
+        <div style={{ marginTop: 12 }}>
+          <label className="lbl-d">Colour (hex)</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="color"
+              value={hex}
+              onChange={e => {
+                setSwatch('kind', 'paint');
+                setSwatch('tone', e.target.value);
+              }}
+              style={{
+                width: 44, height: 32, flexShrink: 0,
+                border: '1px solid var(--rule-2)',
+                background: 'var(--paper)',
+                padding: 0, cursor: 'pointer',
+              }}
+            />
+            <input
+              className="inp-d mono"
+              value={hex}
+              onChange={e => {
+                setSwatch('kind', 'paint');
+                setSwatch('tone', e.target.value);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </PFB_Section>
+  );
+}
+
 window.ProductFieldBlocks = {
   Identity: PFB_Identity,
+  Visual: PFB_Visual,
 };
