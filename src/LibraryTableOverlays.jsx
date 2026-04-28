@@ -238,6 +238,8 @@ function LTColumnPicker({ colPref, setColPref, onClose }) {
   const DEFAULT_ORDER = window.LIBRARY_DEFAULT_ORDER || COLUMNS.map(c => c.id);
 
   function toggleVisible(id) {
+    const col = COLUMNS.find(c => c.id === id);
+    if (col && col.locked) return;
     setColPref(p => ({
       ...p,
       visible: p.visible.includes(id)

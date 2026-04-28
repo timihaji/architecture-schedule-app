@@ -13,21 +13,8 @@
 //   libraries, allMaterials, labelTemplates,
 //   onEditMaterial, onDuplicateMaterial, onDeleteMaterial,
 
-// ─── Hover-reveal stylesheet (one-time injection) ──────────────────────────
-(function injectRegRowStyles() {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById('aml-reg-row-styles')) return;
-  const css = `
-    [data-row-id] .reg-row-drag,
-    [data-row-id] .reg-row-actions { opacity: 0; transition: opacity 0.12s; }
-    [data-row-id]:hover .reg-row-drag,
-    [data-row-id]:hover .reg-row-actions { opacity: 1; }
-  `;
-  const tag = document.createElement('style');
-  tag.id = 'aml-reg-row-styles';
-  tag.textContent = css;
-  document.head.appendChild(tag);
-})();
+// Hover-reveal opacity for .reg-row-drag and .reg-actions is owned by
+// index.html's LAYOUT A: REGISTER block (B4.1).
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -256,8 +243,8 @@ function ActionsCell(row, ctx) {
   }
   return (
     <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'flex-end' }}>
-      <span className="reg-row-actions"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <span className="reg-actions"
+        style={{ gap: 8 }}>
         {btn('Edit', 'Edit entry (E)', onEditMaterial)}
         <span style={{ width: 1, height: 10, background: 'var(--rule-2)' }} />
         {btn('Dup', 'Duplicate', onDuplicateMaterial)}
@@ -409,35 +396,35 @@ function genericEditable(field) {
 
 const LIBRARY_COLUMNS = [
   // Design row, in spec order:
-  { id: 'drag',     label: '', width: 24, minWidth: 24, fixed: true, align: 'center', sortable: false,
+  { id: 'drag',     label: '', width: 24, minWidth: 24, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false,
     render: DragCell },
-  { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, align: 'center', sortable: false },
-  { id: 'swatch',   label: '', width: 44, minWidth: 44, fixed: true, align: 'center', sortable: false,
+  { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false },
+  { id: 'swatch',   label: '', width: 44, minWidth: 44, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false,
     render: SwatchCell },
-  { id: 'code',     label: 'Code', width: 96, minWidth: 64,
+  { id: 'code',     label: 'Code', width: 96, minWidth: 64, defaultOn: true,
     render: CodeCell,
     searchText: (m) => m.code,
   },
-  { id: 'label',    label: 'Material', width: 320, minWidth: 180,
+  { id: 'label',    label: 'Material', width: 320, minWidth: 180, locked: true, defaultOn: true,
     render: LabelCell,
     sortValue: (m) => window.formatLabel(m, window._labelTemplatesCache || {}).toLowerCase(),
     searchText: (m) => (m.name || '') + ' ' + (m.customName || ''),
   },
-  { id: 'brand',    label: 'Brand', width: 130, minWidth: 80,
+  { id: 'brand',    label: 'Brand', width: 130, minWidth: 80, defaultOn: true,
     render: BrandCell,
     searchText: (m) => m.brand },
-  { id: 'productType', label: 'Type', width: 130, minWidth: 90,
+  { id: 'productType', label: 'Type', width: 130, minWidth: 90, defaultOn: true,
     render: ProductTypeCell,
     sortValue: (m) => productTypeLabel(m.productType) || (m.kind || 'material'),
     searchText: (m) => productTypeLabel(m.productType) || '',
   },
-  { id: 'supplier', label: 'Supplier', width: 150, minWidth: 90, editable: true,
+  { id: 'supplier', label: 'Supplier', width: 150, minWidth: 90, editable: true, defaultOn: true,
     render: SupplierCell,
     searchText: (m) => m.supplier },
-  { id: 'unitCost', label: 'Price', width: 100, minWidth: 70, mono: true, editable: true, align: 'right',
+  { id: 'unitCost', label: 'Price', width: 100, minWidth: 70, mono: true, editable: true, align: 'right', defaultOn: true,
     render: UnitCostCell,
     sortValue: (m) => m.unitCost || 0 },
-  { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, align: 'right', sortable: false,
+  { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, locked: true, defaultOn: true, align: 'right', sortable: false,
     render: ActionsCell },
 
   // Optional columns (off by default; available via column chooser):
@@ -474,11 +461,8 @@ const LIBRARY_COLUMNS = [
     sortValue: (m) => m.paintedWithId || '' },
 ];
 
-// Default visible set follows the design's `.reg-row` columns.
-const LIBRARY_DEFAULT_VISIBLE = [
-  'drag', 'select', 'swatch', 'code', 'label',
-  'brand', 'productType', 'supplier', 'unitCost', 'actions',
-];
+// Default visible set is derived from per-column `defaultOn` flags.
+const LIBRARY_DEFAULT_VISIBLE = LIBRARY_COLUMNS.filter(c => c.defaultOn).map(c => c.id);
 const LIBRARY_DEFAULT_ORDER = LIBRARY_COLUMNS.map(c => c.id);
 
 // Library-specific filter matcher — supports in-library op on top of defaults.

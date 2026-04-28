@@ -105,6 +105,40 @@
   .edit-input:focus { border-color: var(--ink-3); }
   .edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
 
+  /* LAYOUT A: REGISTER — lifted from design/handoff/v2/Library.html lines 124-207. */
+  /* No nested block-comments inside this section — keep prose only. */
+  .reg-row { position: relative; cursor: pointer; transition: background 0.1s, box-shadow 0.1s; }
+  .reg-row + .reg-row { box-shadow: inset 0 1px 0 var(--rule); }
+  .reg-row:hover + .reg-row, .reg-row.selected + .reg-row, .reg-row.editing + .reg-row { box-shadow: none; }
+  .reg-row:hover { background: var(--tint); box-shadow: inset 2px 0 0 var(--ink-3); }
+  .reg-row.selected { background: rgba(107,142,78,0.05); box-shadow: inset 2px 0 0 var(--good); }
+  .reg-row.editing { background: rgba(20,20,20,0.015); }
+  .reg-actions { display: flex; gap: 5px; align-items: center; justify-content: flex-end; opacity: 0; transition: opacity 0.1s; }
+  .reg-row:hover .reg-actions { opacity: 1; }
+  .reg-row.editing .reg-actions { opacity: 1; }
+  .reg-row .reg-row-drag { opacity: 0; transition: opacity 0.12s; }
+  .reg-row:hover .reg-row-drag { opacity: 1; }
+  .reg-section { padding: 26px 0 6px; margin-top: 4px; display: flex; align-items: baseline; gap: 14px; }
+  .reg-section:first-of-type { padding-top: 14px; margin-top: 0; }
+  .reg-section-title { font-family: var(--font-serif); font-size: 16px; font-weight: 400; color: var(--ink-2); font-style: italic; flex-shrink: 0; }
+  .reg-section-rule { flex: 1; height: 1px; background: var(--rule); }
+  .reg-section-count { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0; }
+  .cb { width: 14px; height: 14px; border: 1px solid var(--rule-2); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.1s; background: var(--paper); }
+  .cb.checked { background: var(--ink); border-color: var(--ink); }
+  .cb.indeterminate { background: var(--ink-3); border-color: var(--ink-3); }
+  .cb svg { display: block; }
+  /* Inline edit row — scope edit-grid override to register so Layout C's 2-col edit-grid is not affected. */
+  .reg-edit-row { padding: 10px 14px 14px; border-bottom: 1px solid var(--rule); background: rgba(20,20,20,0.012); }
+  .reg-edit-row .edit-grid { grid-template-columns: repeat(4, 1fr); }
+  .edit-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .edit-save { background: var(--ink); color: var(--paper); border: none; padding: 6px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+  .edit-cancel { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .edit-remove { margin-left: auto; background: transparent; border: 1px solid rgba(160,69,69,0.3); color: #a04545; padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  /* Per-group add row */
+  .lib-add-row { padding: 7px 12px; }
+  .lib-add-row button { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; white-space: nowrap; }
+  .lib-add-row button:hover { color: var(--ink-2); }
+
   /* BULK ACTION BAR — lifted from design/handoff/v2/Library.html */
   .bulk-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--ink); color: var(--paper); padding: 13px 56px; display: flex; align-items: center; gap: 16px; z-index: 100; animation: barUp 0.18s ease; }
   @keyframes barUp { from { transform: translateY(100%); } to { transform: translateY(0); } }

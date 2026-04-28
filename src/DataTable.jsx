@@ -81,9 +81,17 @@ function DataTable({
   onOpenRow,
   onEditRow,
   onAdd,
+  onAddRow,            // optional — receives groupKey when grouped, undefined otherwise
   onDeleteRow,
   onDuplicateRow,
   onCheatsheet,
+
+  // Inline row-level edit (.reg-edit-row). When set, keyboard `e` and host
+  // click hooks set editingRowId via setEditingRowId; DtEditRow renders below.
+  editingRowId,
+  setEditingRowId,
+  onSaveEditRow,
+  onDeleteEditRow,
 
   // Filter matcher (per-row). Defaults to stringly-match.
   matchFilter,
@@ -196,6 +204,7 @@ function DataTable({
   }
   function clearSelection() { setSelected(new Set()); }
   function selectAll() { setSelected(new Set(filtered.map(getRowId))); }
+  function selectAllVisible() { setSelected(new Set(filtered.map(getRowId))); }
 
   // ───── keyboard
   React.useEffect(() => {
@@ -204,6 +213,7 @@ function DataTable({
         (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox');
       if (e.key === 'Escape') {
         if (editingCell) { setEditingCell(null); return; }
+        if (editingRowId && setEditingRowId) { setEditingRowId(null); return; }
         if (openId) { setOpenId && setOpenId(null); return; }
         if (selected && selected.size) { clearSelection(); return; }
         return;
@@ -232,7 +242,10 @@ function DataTable({
       }
       else if (e.key === 'e') {
         e.preventDefault();
-        if (cursorId && onEditRow) onEditRow(cursorId);
+        if (cursorId) {
+          if (setEditingRowId) setEditingRowId(cursorId);
+          else if (onEditRow) onEditRow(cursorId);
+        }
       }
       else if (e.key === 'x' || e.key === ' ') {
         e.preventDefault();
@@ -270,7 +283,7 @@ function DataTable({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filtered, cursorId, openId, selected, editingCell, onDeleteRow, onDuplicateRow, onEditRow, onOpenRow, onAdd, onCheatsheet]);
+  }, [filtered, cursorId, openId, selected, editingCell, editingRowId, setEditingRowId, onDeleteRow, onDuplicateRow, onEditRow, onOpenRow, onAdd, onCheatsheet]);
 
   // ───── visible cols
   const visibleCols = colPref.order
@@ -333,6 +346,8 @@ function DataTable({
           selected={selected}
           toggleSelect={toggleSelect}
           selectRange={selectRange}
+          onSelectAllVisible={selectAllVisible}
+          onClearSel={clearSelection}
           cursorId={cursorId}
           setCursorId={setCursorId}
           openId={openId}
@@ -343,6 +358,11 @@ function DataTable({
           cellCtx={cellCtx}
           groupBy={groupBy}
           groupSubtotal={groupSubtotal}
+          onAddRow={onAddRow}
+          editingRowId={editingRowId}
+          setEditingRowId={setEditingRowId}
+          onSaveEditRow={onSaveEditRow}
+          onDeleteEditRow={onDeleteEditRow}
         />
         {selected && selected.size > 0 && bulkBar}
       </div>
@@ -356,9 +376,12 @@ function DataTable({
 function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
   colPref, setColPref, sort, setSort,
   selected, toggleSelect, selectRange,
+  onSelectAllVisible, onClearSel,
   cursorId, setCursorId, openId, setOpenId,
   editingCell, setEditingCell, onSaveCell, cellCtx,
-  groupBy, groupSubtotal }) {
+  groupBy, groupSubtotal,
+  onAddRow,
+  editingRowId, setEditingRowId, onSaveEditRow, onDeleteEditRow }) {
 
   const [collapsed, setCollapsed] = React.useState(new Set());
 
@@ -384,7 +407,8 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
 
   function renderRow(r) {
     const id = getRowId(r);
-    return (
+    const isEditingRow = editingRowId === id;
+    const node = (
       <DtRow
         key={id}
         row={r} rowId={id}
@@ -394,6 +418,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         isCursor={id === cursorId}
         isSelected={selected && selected.has(id)}
         isOpen={id === openId}
+        isEditingRow={isEditingRow}
         onRowClick={(e) => {
           if (e.shiftKey) { selectRange(id); return; }
           if (e.metaKey || e.ctrlKey) { toggleSelect(id); setCursorId && setCursorId(id); return; }
@@ -407,6 +432,18 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         }}
         cellCtx={cellCtx}
       />
+    );
+    if (!isEditingRow) return node;
+    return (
+      <React.Fragment key={id}>
+        {node}
+        <DtEditRow
+          row={r}
+          onSave={(patch) => { onSaveEditRow && onSaveEditRow(id, patch); setEditingRowId && setEditingRowId(null); }}
+          onCancel={() => setEditingRowId && setEditingRowId(null)}
+          onDelete={() => { onDeleteEditRow && onDeleteEditRow(id); setEditingRowId && setEditingRowId(null); }}
+        />
+      </React.Fragment>
     );
   }
 
@@ -422,10 +459,13 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         anySelected={selected && selected.size > 0}
         onToggleAll={() => {
           if (!selected) return;
-          if (selected.size === rows.length) {
-            rows.forEach(r => { if (selected.has(getRowId(r))) toggleSelect(getRowId(r)); });
+          const allChecked = rows.length > 0 && selected.size === rows.length;
+          if (allChecked) {
+            if (onClearSel) onClearSel();
+            else rows.forEach(r => { if (selected.has(getRowId(r))) toggleSelect(getRowId(r)); });
           } else {
-            rows.forEach(r => { if (!selected.has(getRowId(r))) toggleSelect(getRowId(r)); });
+            if (onSelectAllVisible) onSelectAllVisible();
+            else rows.forEach(r => { if (!selected.has(getRowId(r))) toggleSelect(getRowId(r)); });
           }
         }}
       />
@@ -443,6 +483,13 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
                 onToggle={() => toggleGroup(key)}
               />
               {!isCollapsed && groupRows.map(renderRow)}
+              {!isCollapsed && onAddRow && (
+                <div className="lib-add-row">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); onAddRow(key); }}>
+                    + Add to {key}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })
@@ -452,6 +499,13 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
           {rows.length === 0 && (
             <div style={{ padding: '80px 20px', textAlign: 'center' }}>
               <Serif size={16} color="var(--ink-3)">No rows match</Serif>
+            </div>
+          )}
+          {rows.length > 0 && onAddRow && (
+            <div className="lib-add-row">
+              <button type="button" onClick={(e) => { e.stopPropagation(); onAddRow(); }}>
+                + Add row
+              </button>
             </div>
           )}
         </div>
@@ -467,39 +521,22 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
 
 function DtGroupHeader({ label, count, subtotal, collapsed, onToggle }) {
   return (
-    <div
+    <div className="reg-section"
       onClick={onToggle}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '0 14px',
-        height: 30,
-        background: 'var(--paper-2)',
-        borderBottom: '1px solid var(--rule)',
-        borderTop: '1px solid var(--rule)',
-        cursor: 'pointer',
-        userSelect: 'none',
-        position: 'sticky', top: 36, zIndex: 1,
-      }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'var(--paper-2)'}
+      style={{ cursor: 'pointer', userSelect: 'none', padding: '20px 14px 6px' }}
     >
       <span style={{
-        fontFamily: "'Inter Tight', sans-serif",
+        fontFamily: 'var(--font-sans)',
         fontSize: 9, color: 'var(--ink-4)',
         transition: 'transform 0.1s',
-        display: 'inline-block',
+        display: 'inline-block', flexShrink: 0,
         transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
       }}>▾</span>
-      <span style={{
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-        color: 'var(--ink-2)', flex: 1,
-      }}>{label}</span>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: 'var(--ink-4)',
-      }}>{count} {count === 1 ? 'row' : 'rows'}{subtotal ? ' · ' + subtotal : ''}</span>
+      <span className="reg-section-title">{label}</span>
+      <span className="reg-section-rule" />
+      <span className="reg-section-count">
+        {count} {count === 1 ? 'item' : 'items'}{subtotal ? ' · ' + subtotal : ''}
+      </span>
     </div>
   );
 }
@@ -592,45 +629,53 @@ function DtResizeHandle({ col, setColPref }) {
 }
 
 function DtCheckbox({ checked, indeterminate, onChange }) {
-  const ref = React.useRef(null);
-  React.useEffect(() => { if (ref.current) ref.current.indeterminate = !!indeterminate; }, [indeterminate]);
+  const cls = 'cb' + (checked ? ' checked' : (indeterminate ? ' indeterminate' : ''));
+  function handleClick(e) {
+    e.stopPropagation();
+    onChange && onChange(e);
+  }
   return (
-    <input ref={ref} type="checkbox" checked={!!checked}
-      onChange={e => { e.stopPropagation(); onChange(e); e.target.blur(); }}
-      onClick={e => e.stopPropagation()}
-      style={{
-        width: 12, height: 12, margin: 0, cursor: 'pointer',
-        accentColor: 'var(--ink)',
-      }} />
+    <div role="checkbox" aria-checked={checked ? 'true' : (indeterminate ? 'mixed' : 'false')}
+      tabIndex={-1} className={cls} onClick={handleClick}>
+      {checked ? (
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--paper)" strokeWidth="1.5">
+          <path d="M2 5l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : indeterminate ? (
+        <svg width="10" height="2" viewBox="0 0 10 2" fill="none" stroke="var(--paper)" strokeWidth="1.5">
+          <path d="M2 1h6" strokeLinecap="round" />
+        </svg>
+      ) : null}
+    </div>
   );
 }
 
 // ───────── Row ─────────
 
 function DtRow({ row, rowId, visibleCols, gridTemplate, rowH,
-  isCursor, isSelected, isOpen, onRowClick, onToggleSelect, cellCtx }) {
-  const [hov, setHov] = React.useState(false);
-  const bg = isOpen ? 'var(--tint-strong)'
-    : isSelected ? 'rgba(var(--accent-rgb, 180, 90, 40), 0.08)'
-    : hov ? 'var(--tint)'
-    : 'transparent';
+  isCursor, isSelected, isOpen, isEditingRow, onRowClick, onToggleSelect, cellCtx }) {
+  const cls = 'reg-row'
+    + (isSelected ? ' selected' : '')
+    + (isEditingRow ? ' editing' : '');
+  // Cursor accent shown only when row is not selected (selected has its own
+  // .reg-row.selected box-shadow). Open/inspected rows get a soft tint bg.
+  const cursorAccent = isCursor && !isSelected
+    ? { boxShadow: 'inset 2px 0 0 var(--accent)' }
+    : null;
+  const openBg = isOpen ? { background: 'var(--tint-strong, var(--tint))' } : null;
   return (
     <div
       data-row-id={rowId}
+      className={cls}
       onClick={onRowClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
       style={{
         display: 'grid',
         gridTemplateColumns: gridTemplate,
+        minHeight: rowH,
         height: rowH,
         alignItems: 'center',
-        borderBottom: '1px solid var(--rule)',
-        background: bg,
-        cursor: 'pointer',
-        position: 'relative',
-        borderLeft: '2px solid ' + (isCursor ? 'var(--accent)' : 'transparent'),
-        transition: 'background 0.06s',
+        ...openBg,
+        ...cursorAccent,
       }}>
       {visibleCols.map((col, idx) => (
         <DtCell
@@ -648,6 +693,75 @@ function DtRow({ row, rowId, visibleCols, gridTemplate, rowH,
           ctx={cellCtx}
         />
       ))}
+    </div>
+  );
+}
+
+// Inline edit row — Name (span 2), Brand, Supplier, SKU (mono), Price (mono).
+// Mounts directly below DtRow when editingRowId matches. Save dispatches a
+// patch object; host applies it (e.g. via window.saveMaterialCell per field).
+function DtEditRow({ row, onSave, onCancel, onDelete }) {
+  const [draft, setDraft] = React.useState({
+    name: row.name || '',
+    brand: row.brand || '',
+    supplier: row.supplier || '',
+    supplier_code: row.supplier_code || row.sku || '',
+    unitCost: row.unitCost == null ? '' : row.unitCost,
+  });
+  function set(field, value) { setDraft(d => ({ ...d, [field]: value })); }
+  function handleSave() {
+    const patch = {
+      name: draft.name === '' ? null : draft.name,
+      brand: draft.brand === '' ? null : draft.brand,
+      supplier: draft.supplier === '' ? null : draft.supplier,
+      supplier_code: draft.supplier_code === '' ? null : draft.supplier_code,
+      unitCost: draft.unitCost === '' || draft.unitCost == null ? null : Number(draft.unitCost),
+    };
+    onSave && onSave(patch);
+  }
+  function onKey(e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); }
+    else if (e.key === 'Escape') { e.preventDefault(); onCancel && onCancel(); }
+  }
+  return (
+    <div className="reg-edit-row" onClick={e => e.stopPropagation()} onKeyDown={onKey}>
+      <div className="edit-grid">
+        <div style={{ gridColumn: 'span 2' }}>
+          <div className="edit-label">Name</div>
+          <input className="edit-input" autoFocus
+            value={draft.name} onChange={e => set('name', e.target.value)} />
+        </div>
+        <div>
+          <div className="edit-label">Brand</div>
+          <input className="edit-input"
+            value={draft.brand} onChange={e => set('brand', e.target.value)} />
+        </div>
+        <div>
+          <div className="edit-label">Supplier</div>
+          <input className="edit-input"
+            value={draft.supplier} onChange={e => set('supplier', e.target.value)} />
+        </div>
+        <div>
+          <div className="edit-label">SKU</div>
+          <input className="edit-input mono"
+            value={draft.supplier_code} onChange={e => set('supplier_code', e.target.value)} />
+        </div>
+        <div>
+          <div className="edit-label">Price</div>
+          <input className="edit-input mono" type="number"
+            value={draft.unitCost} onChange={e => set('unitCost', e.target.value)} />
+        </div>
+      </div>
+      <div className="edit-foot">
+        <button type="button" className="edit-save" onClick={handleSave}>Save</button>
+        <button type="button" className="edit-cancel" onClick={onCancel}>Cancel</button>
+        {onDelete && (
+          <button type="button" className="edit-remove"
+            onClick={() => { if (window.confirm('Remove this item?')) onDelete(); }}>
+            Remove
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -773,7 +887,7 @@ function defaultMatchFilter(row, f) {
 }
 
 Object.assign(window, {
-  DataTable, DtTable, DtHeader, DtRow, DtCell,
+  DataTable, DtTable, DtHeader, DtRow, DtCell, DtEditRow,
   DtResizeHandle, DtCheckbox, DtInlineInput,
   DT_DENSITY_ROW_H,
   loadDtColPref, saveDtColPref, defaultMatchFilter,
