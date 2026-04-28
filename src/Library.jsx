@@ -13,6 +13,9 @@ function Library({
   onFindDupes,
   compareIds, toggleCompare, showImagery, density,
 }) {
+  // Lifted to survive layout switches (Register ↔ Gallery ↔ Split). B6.
+  const [selected, setSelected] = React.useState(new Set());
+
   return (
     <>
       <window.LibraryMasthead
@@ -42,6 +45,17 @@ function Library({
           onDuplicateMaterial={onDuplicateMaterial}
           onDuplicate={onDuplicate}
           onFindDupes={onFindDupes}
+          selected={selected} setSelected={setSelected}
+        />
+      ) : mode === 'split' ? (
+        <window.LibraryLayoutC
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          selected={selected} setSelected={setSelected}
         />
       ) : (
         <LibraryGallery
@@ -862,6 +876,7 @@ function ModeToggle({ mode, setMode, modes }) {
   const items = modes || [
     { id: 'gallery', label: 'Gallery', icon: '▦' },
     { id: 'table',   label: 'Table',   icon: '≡' },
+    { id: 'split',   label: 'Split',   icon: '◫' },
   ];
   return (
     <window.SegmentedToggle

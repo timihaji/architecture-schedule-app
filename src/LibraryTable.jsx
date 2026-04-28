@@ -18,6 +18,7 @@ function LibraryTable(props) {
     onEdit, onAdd, onDelete,
     onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
     onFindDupes,
+    selected: extSelected, setSelected: extSetSelected,
   } = props;
 
   // Keep labelTemplates accessible to column sort fns (they can't take args)
@@ -40,7 +41,11 @@ function LibraryTable(props) {
   React.useEffect(() => { try { localStorage.setItem('aml-kind-filter', kindFilter); } catch {} }, [kindFilter]);
 
   const [sort, setSort] = React.useState({ id: 'code', dir: 'asc' });
-  const [selected, setSelected] = React.useState(new Set());
+  // Selection state lifted to Library.jsx (B6) so it persists across layout
+  // switches; fall back to local state if a host doesn't pass it.
+  const [localSelected, setLocalSelected] = React.useState(new Set());
+  const selected = extSelected || localSelected;
+  const setSelected = extSetSelected || setLocalSelected;
   const [cursorId, setCursorId] = React.useState(null);
   const [openId, setOpenId] = React.useState(null);
   const [editingCell, setEditingCell] = React.useState(null);
