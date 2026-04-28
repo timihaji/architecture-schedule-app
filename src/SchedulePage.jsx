@@ -107,6 +107,10 @@
     const [view, setView] = useState('schedule');   // 'schedule' | 'specification'
     const [editingId, setEditingId] = useState(null);
     const [fieldsOpen, setFieldsOpen] = useState(false);
+    // PickerDrawer state. mode='single' opens for one row's swatch click;
+    // mode='multi' opens for "+ Add to Section" bulk-add.
+    // null when closed. { mode, rowId?, element, eyebrow, title, subtitle, seed? }
+    const [picker, setPicker] = useState(null);
 
     // Default visible fields per card. The Fields popover toggles these — the
     // toggle adds/removes the key from every row's hiddenFields[] simultaneously.
@@ -199,6 +203,75 @@
     function deleteRow(id) {
       setRows(prev => prev.filter(r => r.id !== id));
       if (editingId === id) setEditingId(null);
+    }
+
+    function openPickerForRow(card) {
+      const elementLabel = card.elementLabel || (card.element ? (elementsById[card.element]?.label || card.element) : null);
+      setPicker({
+        mode: 'single',
+        rowId: card.id,
+        element: card.element || null,
+        eyebrow: elementLabel ? `Specify · ${elementLabel}` : 'Specify',
+        title: 'Pick from Library',
+        subtitle: 'Choose a product to attach to this row.',
+      });
+    }
+
+    function openPickerForBulkAdd(seed, label) {
+      setPicker({
+        mode: 'multi',
+        rowId: null,
+        element: seed.element || null,
+        seed,
+        eyebrow: `Add to · ${label}`,
+        title: 'Add items',
+        subtitle: 'Pick one or more products — each becomes a new row in this section.',
+      });
+    }
+
+    function onPickerConfirm(idOrIds) {
+      if (!picker) return;
+      if (picker.mode === 'single') {
+        const productId = idOrIds;
+        const m = materials.find(x => x.id === productId);
+        const tradeFromProduct = m
+          ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null))
+          : null;
+        // We treat anything matched in `materials` as a product; type ids would
+        // come from typeTemplates once Types ship. For v1, products only.
+        updateRow(picker.rowId, {
+          specRef: { kind: 'product', id: productId },
+          ...(tradeFromProduct ? { trade: tradeFromProduct } : {}),
+        });
+        setPicker(null);
+        return;
+      }
+      // Bulk add — create one row per id, all carrying the seed.
+      const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+      const seed = picker.seed || {};
+      const newRows = ids.map(id => {
+        const m = materials.find(x => x.id === id);
+        const tradeFromProduct = m
+          ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null))
+          : null;
+        return {
+          id: newRowId(),
+          specRef: { kind: 'product', id },
+          element: seed.element || null,
+          roomId:  seed.roomId  || (rooms[0] && rooms[0].id) || null,
+          state: 'new',
+          specMode: 'prop',
+          isInstance: false,
+          qty: null, unit: null,
+          revision: null, approvalComment: null,
+          note: null,
+          hiddenFields: [],
+          source: 'manual',
+          trade: seed.trade || tradeFromProduct || null,
+        };
+      });
+      setRows(prev => [...prev, ...newRows]);
+      setPicker(null);
     }
 
     // Per-card change handlers — translates CardVariantD fields back into the
@@ -357,7 +430,7 @@
                 <window.CardVariantD
                   key={c.id} card={c} elements={elements}
                   density={density}
-                  onSwatchClick={() => { /* picker is D1d */ }}
+                  onSwatchClick={() => openPickerForRow(c)}
                   onStateChange={v => updateRow(c.id, { state: v })}
                   onModeChange={v => updateRow(c.id, { specMode: v })}
                   onFieldChange={(f, v) => onCardFieldChange(c.id, f, v)}
@@ -368,7 +441,17 @@
                   onSave={() => setEditingId(null)}
                 />
               ))}
-              <div className="sched-add-row">
+              <div className="sched-add-row" style={{ display: 'flex', gap: 16 }}>
+                <button type="button" onClick={() => {
+                  const seed = grouping === 'room'
+                    ? { roomId: rooms.find(r => r.name === g.title)?.id }
+                    : grouping === 'element'
+                    ? { element: elements.find(e => e.label === g.title)?.id }
+                    : { trade: g.title };
+                  openPickerForBulkAdd(seed, g.title);
+                }}>
+                  + Add from Library to {g.title}
+                </button>
                 <button type="button" onClick={() => {
                   const seed = grouping === 'room'
                     ? { roomId: rooms.find(r => r.name === g.title)?.id }
@@ -377,11 +460,32 @@
                     : { trade: g.title };
                   addEmptyRow(seed);
                 }}>
-                  + Add to {g.title}
+                  + Add empty row
                 </button>
               </div>
             </div>
           ))
+        )}
+
+        {picker && window.PickerDrawer && (
+          <window.PickerDrawer
+            open={true}
+            eyebrow={picker.eyebrow}
+            title={picker.title}
+            subtitle={picker.subtitle}
+            elementFilter={picker.element || null}
+            materials={materials}
+            typeTemplates={(taxonomies && taxonomies.typeTemplates) || []}
+            selectionMode={picker.mode === 'multi' ? 'multi' : 'single'}
+            initialSelected={picker.mode === 'single' && picker.rowId
+              ? (() => {
+                  const row = rows.find(r => r.id === picker.rowId);
+                  return row && row.specRef && row.specRef.id ? [row.specRef.id] : [];
+                })()
+              : []}
+            onPick={onPickerConfirm}
+            onClose={() => setPicker(null)}
+          />
         )}
       </>
     );

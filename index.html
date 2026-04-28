@@ -175,6 +175,68 @@
   .btn-sec-d { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 8px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; transition: border-color 0.1s, color 0.1s; }
   .btn-sec-d:hover { border-color: var(--ink-3); color: var(--ink-2); }
 
+  /* PICKER DRAWER (D1d) — translate+fade drawer per the PICKER DRAWER block in
+     design/handoff/v2/Schedule Cards.html. Distinct from .drw-* (Add Product
+     drawer C2) — keyframe is translate-X 40px + opacity, not C2's pure slideIn. */
+  .pdrw-overlay { position: fixed; inset: 0; background: rgba(20,20,20,0.32); z-index: 200; display: flex; justify-content: flex-end; }
+  .pdrw { width: 560px; max-width: 92vw; background: var(--paper); border-left: 1px solid var(--ink); display: flex; flex-direction: column; height: 100vh; box-shadow: -16px 0 48px rgba(20,20,20,0.14); animation: pdrwIn 0.22s ease; }
+  @keyframes pdrwIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .pdrw-head { padding: 20px 24px 14px; border-bottom: 1px solid var(--rule); }
+  .pdrw-head-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .pdrw-close { background: none; border: none; cursor: pointer; color: var(--ink-3); font-size: 20px; padding: 2px; line-height: 1; }
+  .pdrw-close:hover { color: var(--ink); }
+  .pdrw-eyebrow { font-family: var(--font-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 2px; }
+  .pdrw-title { font-family: var(--font-serif); font-size: 22px; display: block; margin-top: 4px; line-height: 1.2; }
+  .pdrw-subtitle { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-3); margin-top: 3px; display: block; }
+  .pdrw-search { margin-top: 14px; display: flex; align-items: center; gap: 7px; border: 1px solid var(--rule-2); padding: 6px 10px; background: transparent; }
+  .pdrw-search:focus-within { border-color: var(--ink-3); }
+  .pdrw-search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); }
+  .pdrw-search input::placeholder { color: var(--ink-4); }
+  .pdrw-search-clear { background: none; border: none; cursor: pointer; color: var(--ink-4); font-size: 14px; padding: 0 2px; line-height: 1; }
+  .pdrw-body { flex: 1; overflow-y: auto; }
+  .pdrw-dsec-head { padding: 10px 24px 8px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 2; }
+  .pdrw-dsec-head.types { background: rgba(107,142,78,0.07); }
+  .pdrw-dsec-head.products { background: rgba(184,92,58,0.05); }
+  .pdrw-dsec-eyebrow { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500; }
+  .pdrw-dsec-head.types .pdrw-dsec-eyebrow { color: var(--good-ink); }
+  .pdrw-dsec-head.products .pdrw-dsec-eyebrow { color: var(--accent-ink); }
+  .pdrw-dsec-explain { font-family: var(--font-sans); font-size: 10px; color: var(--ink-4); font-style: italic; }
+  .pdrw-dsec-count { font-family: var(--font-mono); font-size: 10px; }
+  .pdrw-dsec-head.types .pdrw-dsec-count { color: var(--good-ink); }
+  .pdrw-dsec-head.products .pdrw-dsec-count { color: var(--accent-ink); }
+  .pdrw-prow-type { display: flex; align-items: stretch; width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--rule); cursor: pointer; text-align: left; transition: background 0.1s; }
+  .pdrw-prow-type:hover { background: rgba(107,142,78,0.04); }
+  .pdrw-prow-type.selected { background: rgba(107,142,78,0.07); }
+  .pdrw-prow-type-badge { width: 64px; flex-shrink: 0; background: rgba(107,142,78,0.09); border-right: 1px solid rgba(107,142,78,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 14px 0; }
+  .pdrw-prow-type-code { font-family: var(--font-serif); font-style: italic; font-size: 18px; font-weight: 300; color: var(--good-ink); line-height: 1; }
+  .pdrw-prow-type-slots-mini { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good-ink); opacity: 0.6; }
+  .pdrw-prow-type-body { flex: 1; padding: 13px 16px; }
+  .pdrw-prow-type-name { font-family: var(--font-serif); font-size: 15px; color: var(--ink); margin-bottom: 4px; line-height: 1.3; }
+  .pdrw-prow-type-slots { display: flex; gap: 0; margin-bottom: 6px; }
+  .pdrw-prow-type-slot { height: 4px; flex: 1; }
+  .pdrw-prow-type-slot:first-child { border-radius: 2px 0 0 2px; }
+  .pdrw-prow-type-slot:last-child { border-radius: 0 2px 2px 0; }
+  .pdrw-prow-type-meta { display: flex; gap: 12px; align-items: baseline; }
+  .pdrw-prow-type-slots-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--good-ink); }
+  .pdrw-prow-type-trades { font-family: var(--font-sans); font-size: 10.5px; color: var(--ink-4); }
+  .pdrw-prow-type-check { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--good-ink); }
+  .pdrw-prow-product { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 24px; background: transparent; border: none; border-bottom: 1px solid var(--rule); cursor: pointer; text-align: left; transition: background 0.1s; }
+  .pdrw-prow-product:hover { background: var(--tint); }
+  .pdrw-prow-product.selected { background: rgba(107,142,78,0.05); }
+  .pdrw-prow-product-thumb { width: 40px; height: 40px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+  .pdrw-prow-product-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); }
+  .pdrw-prow-product-meta { display: flex; gap: 8px; align-items: baseline; margin-top: 2px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+  .pdrw-prow-product-check { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--good-ink); }
+  .pdrw-empty { padding: 28px 24px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--rule); }
+  .pdrw-empty-msg { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--ink-4); }
+  .pdrw-empty-sub { font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+  .pdrw-foot { padding: 14px 24px; border-top: 1px solid var(--ink); background: var(--paper-2); display: flex; gap: 9px; align-items: center; }
+  .pdrw-add { background: transparent; padding: 6px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+  .pdrw-add.acc { border: 1px solid var(--accent); color: var(--accent-ink); }
+  .pdrw-add.gd  { border: 1px solid var(--good); color: var(--good-ink); }
+  .pdrw-confirm { margin-left: auto; background: var(--ink); color: var(--paper); border: none; padding: 7px 16px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+  .pdrw-confirm:disabled { background: var(--ink-4); cursor: not-allowed; }
+
   /* SCHEDULE PAGE (D1a) — page header, toolbar, sections per design/handoff/v2/Schedule Cards.html */
   .sched-page-header { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--ink); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
   .sched-page-eyebrow { font-family: var(--font-sans); font-weight: 500; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; }
@@ -216,8 +278,8 @@
   .sched-no-match-clear { background: transparent; border: 1px solid var(--rule-2); padding: 6px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
   .sched-no-match-clear:hover { border-color: var(--ink-3); color: var(--ink); }
 
-  /* SCHEDULE CARD (D1b) — lifted from design/handoff/v2/Schedule Cards.html
-     /* EDIT inputs (variant D) */, .fgrid-d, .hidden-tray, .trade-chip blocks. */
+  /* SCHEDULE CARD (D1b) — lifted from design/handoff/v2/Schedule Cards.html:
+     EDIT inputs (variant D), .fgrid-d, .hidden-tray, .trade-chip blocks. */
   .sched-card { display: grid; grid-template-columns: 178px 1fr; border-bottom: 1px solid var(--rule); transition: background 0.12s; }
   .sched-card.editing { background: rgba(20,20,20,0.012); }
   .sched-card:hover:not(.editing) { background: var(--tint); }
@@ -270,7 +332,7 @@
   .hidden-show-btn { background: var(--paper); border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; color: var(--ink-3); letter-spacing: 0.04em; transition: border-color 0.1s; }
   .hidden-show-btn:hover { border-color: var(--ink-3); color: var(--ink); }
 
-  /* CHIP (D1c) — lifted from design/handoff/v2/Schedule Cards.html /* CHIP BASE */ */
+  /* CHIP (D1c) — lifted from the CHIP BASE block in design/handoff/v2/Schedule Cards.html */
   .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border: none; transition: opacity 0.1s; background: transparent; }
   .chip:hover { opacity: 0.75; }
   .chip .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
@@ -356,6 +418,7 @@
 <script type="text/babel" src="src/ProjectSpec.jsx"></script>
 <script type="text/babel" src="src/ProjectSpecV2.jsx"></script>
 <script type="text/babel" src="src/CardVariantD.jsx"></script>
+<script type="text/babel" src="src/PickerDrawer.jsx"></script>
 <script type="text/babel" src="src/SchedulePage.jsx"></script>
 <script type="text/babel" src="src/SettingsPage.jsx"></script>
 <script type="text/babel" src="src/Tweaks.jsx"></script>
