@@ -1215,6 +1215,94 @@ function Footer({ settings }) {
 
 // ───────────────────── Material editor ─────────────────────
 
+// Inline picker shown inside the Add Product drawer when mode === 'duplicate'.
+// Search-at-top + click-to-confirm. Selecting a row prefills the draft from
+// the picked product (everything except id + code) and flips mode back to
+// 'manual' so the regular drawer body re-renders.
+function DuplicatePicker({ products = [], onPick }) {
+  const [q, setQ] = React.useState('');
+  const ql = q.trim().toLowerCase();
+  const visible = ql
+    ? products.filter(p => {
+        const hay = [p.name, p.code, p.brand, p.supplier, p.colourName, p.colourCode]
+          .filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(ql);
+      })
+    : products;
+
+  return (
+    <div style={{ paddingTop: 14 }}>
+      <input
+        className="inp-d"
+        autoFocus
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder="Search products by name, code, brand or supplier…"
+        style={{ marginBottom: 12 }}
+      />
+      {visible.length === 0 ? (
+        <div style={{
+          padding: '40px 4px',
+          textAlign: 'center',
+          fontFamily: 'var(--font-serif)',
+          fontStyle: 'italic',
+          color: 'var(--ink-4)',
+          fontSize: 14,
+        }}>
+          {products.length === 0
+            ? 'No products to duplicate yet — create one in Manual mode first.'
+            : 'No products match.'}
+        </div>
+      ) : (
+        <div style={{ borderTop: '1px solid var(--rule-2)' }}>
+          {visible.map(p => (
+            <button key={p.id} type="button"
+              onClick={() => onPick(p)}
+              style={{
+                width: '100%', textAlign: 'left',
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 4px',
+                background: 'transparent',
+                border: 'none',
+                borderBottom: '1px dotted var(--rule-2)',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <div style={{
+                width: 32, height: 32, flexShrink: 0,
+                background: p.swatch?.tone || 'var(--paper-2)',
+                outline: '1px solid rgba(20,20,20,0.15)',
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--font-serif)', fontSize: 14,
+                  color: 'var(--ink)',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {p.colourName || p.name || '—'}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 9.5,
+                  color: 'var(--ink-4)', letterSpacing: '0.06em',
+                  marginTop: 2,
+                }}>
+                  {[p.code, p.brand || p.supplier].filter(Boolean).join(' · ')}
+                </div>
+              </div>
+              <span style={{
+                fontFamily: 'var(--font-sans)', fontSize: 9.5,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+              }}>Use →</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave }) {
   // Phase 1B (commit 4): normalise tradeDiscounts/currency on existing rows
   // that pre-date these fields so Commercial doesn't crash on undefined.
@@ -1316,16 +1404,26 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
           )}
 
           {mode === 'duplicate' && (
-            <div style={{
-              padding: '60px 4px',
-              textAlign: 'center',
-              fontFamily: 'var(--font-serif)',
-              fontStyle: 'italic',
-              color: 'var(--ink-4)',
-              fontSize: 14,
-            }}>
-              Duplicate mode body lands in Phase C9.
-            </div>
+            <DuplicatePicker
+              products={materials}
+              onPick={src => {
+                const { id, code, codeHistory, _isNew, ...prefill } = src;
+                const policy = window.DUPE_PRESET_A;
+                const newCode = (window.autoAssignCode
+                  ? window.autoAssignCode(materials, policy, src.kind,
+                      src.kind === 'material' ? src.category : undefined)
+                  : '') || '';
+                setDraft({
+                  ...prefill,
+                  id: 'm-' + Date.now(),
+                  code: newCode,
+                  tradeDiscounts: Array.isArray(prefill.tradeDiscounts) ? prefill.tradeDiscounts : [],
+                  currency: prefill.currency || 'AUD',
+                  _isNew: true,
+                });
+                setMode('manual');
+              }}
+            />
           )}
         </div>
 
