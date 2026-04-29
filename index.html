@@ -407,6 +407,48 @@
   .cs-clip-toast .hint { opacity: 0.7; font-size: 11px; }
   .cs-clip-toast button { background: none; border: none; color: var(--paper); cursor: pointer; opacity: 0.6; padding: 0 0 0 6px; font-size: 16px; line-height: 1; }
   .cs-clip-toast button:hover { opacity: 1; }
+
+  /* PROJECTS PAGE (D3) — page header mirrors .sched-page-header; rows use .reg-row.
+     Register grid: drag-handle | code | name | client+loc | stage | budget | materials | actions */
+  .proj-reg-cols { display: grid; grid-template-columns: 20px 68px 2fr 1.4fr 1fr 0.9fr 110px 52px; column-gap: 14px; padding: 10px 0; }
+  .proj-reg-row-grid { display: grid; grid-template-columns: 20px 68px 2fr 1.4fr 1fr 0.9fr 110px 52px; column-gap: 14px; padding: 18px 0 20px; align-items: center; cursor: pointer; }
+  .proj-drag-handle { color: var(--ink-4); font-size: 12px; cursor: grab; user-select: none; letter-spacing: -1px; line-height: 1; }
+  .proj-reg-action-btn { background: none; border: none; cursor: pointer; padding: 0; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+  .proj-reg-action-btn:hover { color: var(--ink-2); }
+  .proj-reg-action-del { background: none; border: none; cursor: pointer; padding: 0; font-size: 14px; color: var(--ink-4); line-height: 1; }
+  .proj-reg-action-del:hover { color: #a04545; }
+
+  /* AE MODAL — 1px ink border, paper bg, no radius, no shadow. Used by ProjectEditor. */
+  .ae-modal-bg { position: fixed; inset: 0; background: rgba(20,20,20,0.55); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 30px; }
+  .ae-modal { background: var(--paper); border: 1px solid var(--ink); width: min(700px, 100%); max-height: 92vh; display: flex; flex-direction: column; }
+  .ae-modal-head { padding: 20px 26px 14px; border-bottom: 1px solid var(--ink); display: flex; justify-content: space-between; align-items: baseline; flex-shrink: 0; }
+  .ae-modal-head-title { font-family: var(--font-serif); font-size: 24px; font-weight: 400; margin-top: 4px; display: block; }
+  .ae-modal-close { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; padding: 0; }
+  .ae-modal-close:hover { color: var(--ink); }
+  .ae-modal-body { padding: 22px 26px; overflow-y: auto; flex: 1; }
+  .ae-modal-section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--rule); }
+  .ae-modal-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+  .ae-modal-section-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .ae-modal-section-label::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+  .ae-modal-foot { padding: 12px 26px 16px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 14px; flex-shrink: 0; align-items: center; }
+
+  /* ROOMS EDITOR — inside .ae-modal-body, per-project room collection */
+  .rooms-list { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .room-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+  .room-row-idx { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.08em; min-width: 18px; }
+  .room-row-name { flex: 1; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
+  .room-name-input { flex: 1; background: transparent; border: 1px solid var(--rule-2); padding: 3px 7px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
+  .room-name-input:focus { border-color: var(--ink-3); }
+  .room-ord-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); line-height: 1; }
+  .room-ord-btn:hover { color: var(--ink-2); }
+  .room-ord-btn:disabled { opacity: 0.25; cursor: default; }
+  .room-del-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-size: 13px; color: var(--ink-4); line-height: 1; }
+  .room-del-btn:hover { color: #a04545; }
+  .rooms-add-row { display: flex; align-items: center; gap: 8px; }
+  .rooms-add-input { flex: 1; min-width: 0; background: transparent; border: 1px solid var(--rule-2); padding: 5px 9px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
+  .rooms-add-input:focus { border-color: var(--ink-3); }
+  .rooms-add-btn { background: var(--ink); color: var(--paper); border: none; padding: 5px 13px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .rooms-add-btn:disabled { background: var(--ink-4); cursor: not-allowed; }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>

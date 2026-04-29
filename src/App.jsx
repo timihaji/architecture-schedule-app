@@ -535,6 +535,7 @@ function App() {
       code: '', name: '', client: '', location: '',
       type: '', stage: 'Concept', budget: '', lead: '',
       commenced: '', completion: '', description: '',
+      rooms: [],
       _isNew: true,
     });
   }
@@ -1703,8 +1704,93 @@ const colorFieldStyle = {
 };
 
 // ───────── Project editor ─────────
+function ProjectRoomsEditor({ rooms, onChange }) {
+  const [newName, setNewName] = React.useState('');
+  const list = rooms || [];
+
+  function addRoom() {
+    const name = newName.trim();
+    if (!name) return;
+    onChange([...list, { id: 'room-' + Date.now(), name }]);
+    setNewName('');
+  }
+  function renameRoom(id, name) {
+    onChange(list.map(r => r.id === id ? { ...r, name } : r));
+  }
+  function deleteRoom(id) {
+    onChange(list.filter(r => r.id !== id));
+  }
+  function moveRoom(idx, dir) {
+    const next = list.slice();
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange(next);
+  }
+
+  return (
+    <div className="rooms-editor">
+      {list.length > 0 && (
+        <div className="rooms-list">
+          {list.map((r, i) => (
+            <RoomRowEdit key={r.id} room={r} idx={i} total={list.length}
+              onRename={name => renameRoom(r.id, name)}
+              onDelete={() => deleteRoom(r.id)}
+              onMove={dir => moveRoom(i, dir)} />
+          ))}
+        </div>
+      )}
+      <div className="rooms-add-row">
+        <input
+          className="rooms-add-input"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="Room name"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRoom(); } }}
+        />
+        <button className="rooms-add-btn" onClick={addRoom} disabled={!newName.trim()}>
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RoomRowEdit({ room, idx, total, onRename, onDelete, onMove }) {
+  const [editing, setEditing] = React.useState(false);
+  const [val, setVal] = React.useState(room.name);
+
+  function commit() {
+    const trimmed = val.trim();
+    if (trimmed && trimmed !== room.name) onRename(trimmed);
+    else setVal(room.name);
+    setEditing(false);
+  }
+
+  return (
+    <div className="room-row">
+      <span className="room-row-idx">{String(idx + 1).padStart(2, '0')}</span>
+      {editing ? (
+        <input
+          className="room-name-input"
+          value={val}
+          autoFocus
+          onChange={e => setVal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setVal(room.name); setEditing(false); } }}
+        />
+      ) : (
+        <span className="room-row-name" onDoubleClick={() => setEditing(true)} title="Double-click to rename">{room.name}</span>
+      )}
+      <button className="room-ord-btn" onClick={() => onMove(-1)} disabled={idx === 0} title="Move up">↑</button>
+      <button className="room-ord-btn" onClick={() => onMove(1)} disabled={idx === total - 1} title="Move down">↓</button>
+      <button className="room-del-btn" onClick={onDelete} title="Remove">×</button>
+    </div>
+  );
+}
+
 function ProjectEditor({ project, onClose, onSave }) {
-  const [draft, setDraft] = React.useState(project);
+  const [draft, setDraft] = React.useState({ rooms: [], ...project });
   function set(k, v) { setDraft(d => ({ ...d, [k]: v })); }
 
   React.useEffect(() => {
@@ -1716,77 +1802,89 @@ function ProjectEditor({ project, onClose, onSave }) {
   const stages = ['Concept', 'Documentation', 'Construction', 'Handover'];
 
   return (
-    <div onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(20,20,20,0.55)',
-        zIndex: 100,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 30,
-      }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--ink)',
-          width: 'min(680px, 100%)',
-          maxHeight: '92vh', overflowY: 'auto',
-        }}>
-        <div style={{ padding: '22px 28px 16px', borderBottom: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+    <div className="ae-modal-bg" onClick={onClose}>
+      <div className="ae-modal" onClick={e => e.stopPropagation()}>
+        <div className="ae-modal-head">
           <div>
             <Eyebrow>{project._isNew ? 'New project' : 'Edit project'}</Eyebrow>
-            <Serif size={24} style={{ marginTop: 4, display: 'block' }}>
-              {draft.name || 'Untitled project'}
-            </Serif>
+            <span className="ae-modal-head-title">{draft.name || 'Untitled project'}</span>
           </div>
-          <TextButton onClick={onClose}>Close ×</TextButton>
+          <button className="ae-modal-close" onClick={onClose}>Close ×</button>
         </div>
-        <div style={{ padding: '24px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <EditorField label="Project name" full>
-            <input value={draft.name} onChange={e => set('name', e.target.value)} style={fieldStyle()} />
-          </EditorField>
-          <EditorField label="Code">
-            <input value={draft.code} onChange={e => set('code', e.target.value)} style={fieldStyle('mono')} placeholder="25·03" />
-          </EditorField>
-          <EditorField label="Lead">
-            <input value={draft.lead} onChange={e => set('lead', e.target.value)} style={fieldStyle('mono')} placeholder="initials" />
-          </EditorField>
-          <EditorField label="Client">
-            <input value={draft.client} onChange={e => set('client', e.target.value)} style={fieldStyle()} />
-          </EditorField>
-          <EditorField label="Location">
-            <input value={draft.location} onChange={e => set('location', e.target.value)} style={fieldStyle()} />
-          </EditorField>
-          <EditorField label="Type" full>
-            <input value={draft.type} onChange={e => set('type', e.target.value)} style={fieldStyle()} placeholder="New build — single dwelling" />
-          </EditorField>
-          <EditorField label="Stage">
-            <select value={draft.stage} onChange={e => set('stage', e.target.value)} style={fieldStyle()}>
-              {stages.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </EditorField>
-          <EditorField label="Budget">
-            <input value={draft.budget} onChange={e => set('budget', e.target.value)} style={fieldStyle('mono')} placeholder="A$1.2M" />
-          </EditorField>
-          <EditorField label="Commenced">
-            <input value={draft.commenced} onChange={e => set('commenced', e.target.value)} style={fieldStyle('mono')} placeholder="2025-03" />
-          </EditorField>
-          <EditorField label="Completion">
-            <input value={draft.completion} onChange={e => set('completion', e.target.value)} style={fieldStyle('mono')} placeholder="2026-12" />
-          </EditorField>
-          <EditorField label="Description" full>
-            <textarea value={draft.description} onChange={e => set('description', e.target.value)}
-              rows={3}
-              style={{ ...fieldStyle(), padding: '8px 10px', resize: 'vertical',
-                fontFamily: "'Newsreader', serif", fontSize: 14, lineHeight: 1.45 }} />
-          </EditorField>
+
+        <div className="ae-modal-body">
+          <div className="ae-modal-section">
+            <div className="ae-modal-section-label">Identity</div>
+            <div className="edit-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div className="edit-label">Project name</div>
+                <input className="edit-input" value={draft.name || ''} onChange={e => set('name', e.target.value)} />
+              </div>
+              <div>
+                <div className="edit-label">Code</div>
+                <input className="edit-input mono" value={draft.code || ''} onChange={e => set('code', e.target.value)} placeholder="25·03" />
+              </div>
+              <div>
+                <div className="edit-label">Lead</div>
+                <input className="edit-input mono" value={draft.lead || ''} onChange={e => set('lead', e.target.value)} placeholder="initials" />
+              </div>
+              <div>
+                <div className="edit-label">Client</div>
+                <input className="edit-input" value={draft.client || ''} onChange={e => set('client', e.target.value)} />
+              </div>
+              <div>
+                <div className="edit-label">Location</div>
+                <input className="edit-input" value={draft.location || ''} onChange={e => set('location', e.target.value)} />
+              </div>
+              <div>
+                <div className="edit-label">Stage</div>
+                <select className="edit-input" value={draft.stage || 'Concept'} onChange={e => set('stage', e.target.value)}>
+                  {stages.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="ae-modal-section">
+            <div className="ae-modal-section-label">Programme</div>
+            <div className="edit-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div className="edit-label">Type</div>
+                <input className="edit-input" value={draft.type || ''} onChange={e => set('type', e.target.value)} placeholder="New build — single dwelling" />
+              </div>
+              <div>
+                <div className="edit-label">Budget</div>
+                <input className="edit-input mono" value={draft.budget || ''} onChange={e => set('budget', e.target.value)} placeholder="A$1.2M" />
+              </div>
+              <div>
+                <div className="edit-label">Commenced</div>
+                <input className="edit-input mono" value={draft.commenced || ''} onChange={e => set('commenced', e.target.value)} placeholder="2025-03" />
+              </div>
+              <div>
+                <div className="edit-label">Completion</div>
+                <input className="edit-input mono" value={draft.completion || ''} onChange={e => set('completion', e.target.value)} placeholder="2026-12" />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div className="edit-label">Description</div>
+                <textarea className="tarea-d" value={draft.description || ''} onChange={e => set('description', e.target.value)} rows={3} />
+              </div>
+            </div>
+          </div>
+
+          <div className="ae-modal-section">
+            <div className="ae-modal-section-label">Rooms</div>
+            <ProjectRoomsEditor
+              rooms={draft.rooms}
+              onChange={rooms => set('rooms', rooms)}
+            />
+          </div>
         </div>
-        <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'flex-end', gap: 20 }}>
-          <TextButton onClick={onClose}>Cancel</TextButton>
-          <TextButton onClick={() => onSave(draft)} accent>
+
+        <div className="ae-modal-foot">
+          <button className="edit-cancel" onClick={onClose}>Cancel</button>
+          <button className="edit-save" onClick={() => onSave(draft)}>
             {project._isNew ? 'Create project' : 'Save changes'}
-          </TextButton>
+          </button>
         </div>
       </div>
     </div>
