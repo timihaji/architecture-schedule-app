@@ -181,14 +181,8 @@ function LibraryGallery({
   }, [filtered, group]);
 
   return (
-    <div style={{ minWidth: 0 }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 12,
-          marginBottom: 18,
-        }}>
+    <div className="lib-gallery">
+        <div className="lib-controls">
           {compareIds.length >= 2 && (
             <Tag tone="accent">Comparing {compareIds.length}</Tag>
           )}
@@ -211,21 +205,15 @@ function LibraryGallery({
           />
         )}
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(220px, 1fr) auto auto',
-          gap: 28,
-          alignItems: 'end',
-          marginBottom: 26,
-        }}>
+        <div className="lib-filter-row">
           <SearchField value={query} onChange={setQuery} placeholder="Search name, code, supplier, finish…" />
-          <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+          <div className="lib-filter-group">
             <span style={{ ...ui.label, marginRight: 6 }}>Group</span>
             {['category', 'supplier', 'cost'].map(g => (
               <GroupChip key={g} active={group === g} onClick={() => setGroup(g)}>{g}</GroupChip>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+          <div className="lib-filter-group">
             <span style={{ ...ui.label, marginRight: 6 }}>Sort</span>
             {['code', 'name', 'cost', 'lead'].map(s => (
               <GroupChip key={s} active={sort === s} onClick={() => setSort(s)}>{s}</GroupChip>
@@ -234,7 +222,7 @@ function LibraryGallery({
         </div>
 
         {grouped.length === 0 && (
-          <div style={{ padding: '60px 0', textAlign: 'center' }}>
+          <div className="lib-empty">
             <Mono size={12} color="var(--ink-4)" style={{ display: 'block', marginBottom: 14 }}>
               {query ? 'No materials match your search' : 'This library is empty'}
             </Mono>
@@ -251,16 +239,10 @@ function LibraryGallery({
             : -1;
           const openMaterial = openIdx >= 0 ? items[openIdx] : null;
           return (
-            <section key={key} style={{ marginBottom: 36 }}>
-              {/* .reg-section: italic serif title — thin rule — count */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 14,
-                marginBottom: 14,
-              }}>
+            <section key={key} className="lib-section">
+              <div className="lib-section-head">
                 <Serif size={22} style={{ fontStyle: 'italic', color: 'var(--ink)' }}>{key}</Serif>
-                <div style={{ flex: 1, height: 1, background: 'var(--rule)', alignSelf: 'center' }} />
+                <div className="lib-section-rule" />
                 <Mono size={11} color="var(--ink-4)">
                   {items.length} {items.length === 1 ? 'item' : 'items'}
                 </Mono>
@@ -271,12 +253,7 @@ function LibraryGallery({
                   from a coloured grid bg — that lets short rows end cleanly
                   without phantom empty cells. Container provides the top +
                   left edges; the detail panel spans gridColumn 1/-1. */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${GALLERY_COLS}, 1fr)`,
-                borderTop: '1px solid var(--rule)',
-                borderLeft: '1px solid var(--rule)',
-              }}>
+              <div className="lib-grid">
                 {items.map((m, idx) => (
                   <React.Fragment key={m.id}>
                     <GalleryCard
@@ -301,7 +278,7 @@ function LibraryGallery({
                       onDuplicate={() => { onDuplicate && onDuplicate(m.id); setMenuForId(null); }}
                     />
                     {idx === detailAfterIdx && openMaterial && (
-                      <div style={{ gridColumn: '1 / -1', background: 'var(--paper)' }}>
+                      <div className="lib-expand-wrap">
                         <MaterialDetail
                           material={openMaterial}
                           materials={materials}
