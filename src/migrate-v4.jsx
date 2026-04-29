@@ -479,7 +479,9 @@
       });
       try {
         localStorage.setItem('aml-pre-v4-snapshot', JSON.stringify(snapshotPayload));
-      } catch (_) { /* over quota — fine, we're also downloading */ }
+      } catch (err) {
+        console.error('[migrateV4] snapshot localStorage write failed (likely quota); JSON download is the canonical recovery path', err);
+      }
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       downloadJson(snapshotPayload, `hollis-arne-pre-v4-${stamp}.json`);
     } catch (err) {

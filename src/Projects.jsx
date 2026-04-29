@@ -55,6 +55,7 @@ function ProjectRow({ project: p, materials, onOpen, onEdit, onDelete }) {
   return (
     <div className="reg-row">
       <div className="proj-reg-row-grid" onClick={onOpen}>
+        {/* TODO: wire drag-and-drop reordering for project rows */}
         <div className="reg-row-drag proj-drag-handle">⠿</div>
         <Mono size={11} color="var(--ink-4)">{p.code || '—'}</Mono>
         <div>

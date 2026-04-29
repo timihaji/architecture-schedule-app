@@ -438,7 +438,7 @@ function CstGroupedTotalsFooter({ schedule, cellTotal }) {
       {optionTotals.map(({ opt, total }) => (
         <span key={opt.id} className="cst-totals-opt">
           <span className="cst-totals-opt-name">{opt.name}</span>
-          <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 400, fontFeatureSettings: '"tnum","zero"', fontSize: 13, fontWeight: 500, color: total === min ? 'var(--ink)' : 'var(--ink-2)' }}>
+          <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 500, fontFeatureSettings: '"tnum","zero"', fontSize: 13, color: total === min ? 'var(--ink)' : 'var(--ink-2)' }}>
             ${Math.round(total).toLocaleString()}
           </span>
           {total !== min && (
