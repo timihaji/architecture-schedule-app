@@ -300,20 +300,26 @@ function App() {
     setKindPickerOpen(true);
   }
 
-  function createNewItem(kindId) {
+  // Register's "+ Add to {Category}" path — bypasses the kind picker and
+  // opens the editor directly with kind=material and the chosen category.
+  function addMaterialInCategory(category) {
+    createNewItem('material', category);
+  }
+
+  function createNewItem(kindId, categoryOverride) {
     const preselectLib = activeLibraryId && activeLibraryId !== 'all' ? [activeLibraryId] : ['lib-master'];
     const kindRec = (window.KINDS || []).find(k => k.id === kindId) || { id: 'material', defaultTrade: 'Paints & Finishes' };
     const isMaterial = kindRec.id === 'material';
+    const category = isMaterial ? (categoryOverride || 'Timber') : 'Timber';
     setKindPickerOpen(false);
     setEditingMaterial({
       id: 'm-' + Date.now(),
       kind: kindRec.id,
       trade: kindRec.defaultTrade,
       tags: [],
-      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, kindRec.id, isMaterial ? 'Timber' : undefined) : null) || '',
+      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, kindRec.id, isMaterial ? category : undefined) : null) || '',
       name: '',
-      // Category only makes sense for finishes/material kind
-      category: isMaterial ? 'Timber' : 'Timber', // placeholder until P3 strips this
+      category,
       supplier: '',
       origin: '',
       finish: '',
@@ -620,6 +626,7 @@ function App() {
             activeLibraryId={activeLibraryId}
             setActiveLibraryId={setActiveLibraryId}
             onAdd={addMaterial}
+            onAddInCategory={addMaterialInCategory}
             onEdit={setEditingMaterial}
             onDelete={deleteMaterial}
             onAddLibrary={addLibrary}

@@ -104,6 +104,8 @@
   .edit-input { width: 100%; background: var(--paper); border: 1px solid var(--rule-2); padding: 5px 8px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
   .edit-input:focus { border-color: var(--ink-3); }
   .edit-input.mono { font-family: var(--font-mono); font-size: 11px; }
+  .edit-select { width: 100%; background: var(--paper); border: 1px solid var(--rule-2); padding: 5px 24px 5px 8px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+  .edit-select:focus { border-color: var(--ink-3); }
 
   /* LAYOUT A: REGISTER — lifted from design/handoff/v2/Library.html lines 124-207. */
   /* No nested block-comments inside this section — keep prose only. */
@@ -138,6 +140,64 @@
   .lib-add-row { padding: 7px 12px; }
   .lib-add-row button { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; white-space: nowrap; }
   .lib-add-row button:hover { color: var(--ink-2); }
+
+  /* Library switcher dropdown — lifted from design/handoff/v2/Library.html
+     lines 423-444. Anchored by LibraryMasthead's positioned wrapper. */
+  .lib-dropdown { position: absolute; top: calc(100% + 8px); left: 0; width: 340px; background: var(--paper); border: 1px solid var(--ink); box-shadow: 0 12px 40px rgba(20,20,20,0.15); z-index: 200; }
+  .lib-dropdown-head { padding: 10px 14px 8px; border-bottom: 1px solid var(--rule); display: flex; align-items: baseline; justify-content: space-between; }
+  .lib-dropdown-label { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
+  .lib-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--rule); cursor: pointer; transition: background 0.1s; position: relative; }
+  .lib-row:hover { background: var(--tint); }
+  .lib-row.active { background: rgba(20,20,20,0.03); }
+  .lib-row-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rule-2); flex-shrink: 0; margin-top: 1px; }
+  .lib-row.active .lib-row-dot { background: var(--ink); }
+  .lib-row-body { flex: 1; min-width: 0; }
+  .lib-row-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); line-height: 1.3; }
+  .lib-row.active .lib-row-name { font-weight: 500; }
+  .lib-row-desc { font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-row-counts { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.06em; flex-shrink: 0; white-space: nowrap; }
+  .lib-row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.1s; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: var(--paper); padding-left: 6px; }
+  .lib-row:hover .lib-row-actions { opacity: 1; }
+  .lib-row-act { background: none; border: 1px solid var(--rule-2); padding: 2px 7px; cursor: pointer; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+  .lib-row-act:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .lib-row-act.del { color: #a04545; border-color: rgba(160,69,69,0.3); }
+  .lib-row-act.del:hover { border-color: #a04545; }
+  .lib-dropdown-foot { padding: 8px 14px; }
+  .lib-add-btn { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+  .lib-add-btn:hover { color: var(--ink); }
+  .lib-row-rename-input { flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 2px 0; color: var(--ink); }
+  .lib-add-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 4px 0; color: var(--ink); }
+
+  /* Register-specific toolbar + column popover. Scoped with reg- prefix so
+     Gallery/Split filter chrome stays unchanged. Mockup ref:
+     design/handoff/v2/Library.html lines 56-122. */
+  .reg-toolbar { display: flex; align-items: center; gap: 8px; padding: 14px 0 10px; flex-wrap: wrap; }
+  .reg-toolbar-search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 200px; max-width: 340px; border: 1px solid var(--rule-2); padding: 5px 10px; }
+  .reg-toolbar-search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
+  .reg-vbar { width: 1px; height: 18px; background: var(--rule-2); flex-shrink: 0; }
+  .reg-filter-sel { background: transparent; border: 1px solid var(--rule-2); padding: 5px 24px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+  .reg-tb-toggle { background: transparent; border: 1px solid var(--rule-2); padding: 5px 10px; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+  .reg-tb-toggle:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .reg-tb-grow { flex: 1; }
+  .reg-tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .reg-col-popover { position: absolute; top: calc(100% + 4px); right: 0; background: var(--paper); border: 1px solid var(--ink); padding: 12px 14px; min-width: 200px; z-index: 60; box-shadow: 0 8px 24px rgba(20,20,20,0.12); }
+  .reg-col-popover-h { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
+  .reg-col-popover-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; user-select: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); }
+  .reg-col-popover-row:hover { color: var(--ink); }
+  .reg-col-popover-row.locked { color: var(--ink-4); cursor: not-allowed; }
+  .reg-col-popover-lock { margin-left: auto; font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
+  .reg-col-popover-foot { display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+  .reg-col-popover-foot button { background: none; border: none; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; padding: 0; }
+  .reg-col-popover-foot button:hover { color: var(--ink); }
+
+  /* Register row chrome — header cells + click-target padding */
+  .reg-head { display: grid; gap: 14px; padding: 6px 12px; border-bottom: 1px solid var(--ink); }
+  .reg-head-cell { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); }
+  .reg-row { display: grid; gap: 14px; padding: 11px 12px; align-items: center; }
+  .reg-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); line-height: 1.3; }
+  .reg-brand { font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); margin-top: 1px; }
+  .reg-meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
+  .reg-price { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); text-align: right; }
 
   /* ADD PRODUCT DRAWER — lifted from design/handoff/v2/Library.html lines 463-524.
      Phase C2 chrome. Body-side helpers (.lbl-d, .inp-d, .sel-d, .tarea-d, .row-2,
@@ -917,6 +977,7 @@
 <script type="text/babel" src="src/LibraryMasthead.jsx"></script>
 <script type="text/babel" src="src/Library.jsx?v=d7"></script>
 <script type="text/babel" src="src/LibraryLayoutC.jsx"></script>
+<script type="text/babel" src="src/LibraryRegister.jsx"></script>
 <script type="text/babel" src="src/DataTable.jsx"></script>
 <script type="text/babel" src="src/LibraryColumns.jsx"></script>
 <script type="text/babel" src="src/LibraryTable.jsx"></script>

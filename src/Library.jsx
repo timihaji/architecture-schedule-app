@@ -7,7 +7,7 @@ function Library({
   labelTemplates, setLabelTemplates, onOpenLabelBuilder,
   mode = 'gallery', setMode,
   activeLibraryId, setActiveLibraryId,
-  onEdit, onAdd, onDelete,
+  onEdit, onAdd, onAddInCategory, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   onFindDupes,
@@ -55,6 +55,18 @@ function Library({
           mode={mode} setMode={setMode}
           activeLibraryId={activeLibraryId}
           onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          selected={selected} setSelected={setSelected}
+        />
+      ) : mode === 'register' ? (
+        <window.LibraryRegister
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          onEdit={onEdit} onAdd={onAdd}
+          onAddInCategory={onAddInCategory}
+          onDelete={onDelete}
           selected={selected} setSelected={setSelected}
         />
       ) : (
@@ -864,9 +876,10 @@ Object.assign(window, { Library });
 // signature.
 function ModeToggle({ mode, setMode, modes }) {
   const items = modes || [
-    { id: 'gallery', label: 'Gallery', icon: '▦' },
-    { id: 'table',   label: 'Table',   icon: '≡' },
-    { id: 'split',   label: 'Split',   icon: '◫' },
+    { id: 'gallery',  label: 'Gallery',  icon: '▦' },
+    { id: 'register', label: 'Register', icon: '☰' },
+    { id: 'table',    label: 'Table',    icon: '≡' },
+    { id: 'split',    label: 'Split',    icon: '◫' },
   ];
   return (
     <window.SegmentedToggle
