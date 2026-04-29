@@ -99,76 +99,34 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onUpdate
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.42)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-      zIndex: 8000,
-    }} onClick={onClose}>
-      <div style={{
-        width: 680, height: '100vh', background: 'var(--paper)',
-        borderLeft: '1px solid var(--ink)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }} onClick={e => e.stopPropagation()}>
+    <div className="fd-panel-bg" onClick={onClose}>
+      <div className="fd-panel" onClick={e => e.stopPropagation()}>
 
-        {/* Header — eyebrow + serif title, .ae aesthetic */}
-        <div style={{
-          padding: '18px 24px 14px',
-          borderBottom: '1px solid var(--rule)',
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          gap: 12,
-        }}>
+        <div className="fd-panel-head">
           <div>
-            <div style={{
-              fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 10,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--ink-3)', marginBottom: 4,
-            }}>Codes &amp; duplicates</div>
-            <div style={{
-              fontFamily: 'var(--font-serif)', fontSize: 20,
-              color: 'var(--ink)', lineHeight: 1.2,
-            }}>Find duplicates</div>
-            <div style={{
-              fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-              fontSize: 13, color: 'var(--ink-3)', marginTop: 4,
-            }}>
+            <div className="fd-panel-eyebrow">Codes &amp; duplicates</div>
+            <div className="fd-panel-title">Find duplicates</div>
+            <div className="fd-panel-sub">
               {pairs.length === 0 ? 'No duplicates found' : `${pairs.length} pair${pairs.length !== 1 ? 's' : ''} found`}
               {dismissed.size > 0 && ` · ${dismissed.size} dismissed`}
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close"
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 18, color: 'var(--ink-3)', padding: 4, lineHeight: 1 }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="fd-panel-close">×</button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
+        <div className="fd-panel-body">
           {pairs.length === 0 ? (
-            <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-              fontSize: 14, color: 'var(--ink-3)', marginTop: 32, textAlign: 'center' }}>
-              Your library looks clean.
-            </div>
+            <div className="fd-empty">Your library looks clean.</div>
           ) : (
             groups.map(level => {
               const group = byLevel[level];
               if (!group?.length) return null;
               return (
-                <div key={level} style={{ marginBottom: 32 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 9.5,
-                    letterSpacing: '0.14em', textTransform: 'uppercase',
-                    color: 'var(--ink-4)', paddingBottom: 8,
-                    borderBottom: '1px solid var(--rule)', marginBottom: 12,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  }}>
+                <div key={level} className="fd-group">
+                  <div className="fd-group-head">
                     <span>{groupLabels[level]} &middot; {group.length}</span>
                     {level === 'exact' && group.length > 1 && (
-                      <button type="button" onClick={() => mergeAll(group)}
-                        style={{
-                          padding: '3px 9px', fontSize: 10, cursor: 'pointer',
-                          border: '1px solid var(--ink)', background: 'var(--ink)',
-                          color: 'var(--paper)', fontFamily: 'var(--font-sans)',
-                          letterSpacing: '0.04em', textTransform: 'none',
-                        }}>
+                      <button type="button" className="fd-merge-all-btn" onClick={() => mergeAll(group)}>
                         Merge all ({group.length})
                       </button>
                     )}
@@ -196,39 +154,21 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onUpdate
 
 function DupePair({ pair, matA, matB, onMergeLeft, onMergeRight, onKeepBoth }) {
   if (!matA || !matB) return null;
-
-  const btnStyle = {
-    padding: '5px 10px', fontSize: 11.5, cursor: 'pointer',
-    border: '1px solid var(--rule-2)', background: 'transparent',
-    fontFamily: 'var(--font-sans)', letterSpacing: '0.01em',
-    color: 'var(--ink-3)',
-  };
-  const mergeBtnStyle = {
-    ...btnStyle, background: 'var(--ink)', color: 'var(--paper)',
-    border: '1px solid var(--ink)',
-  };
-
   return (
-    <div style={{
-      border: '1px solid var(--rule)', marginBottom: 10,
-      background: 'var(--paper)',
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--rule)' }}>
+    <div className="fd-pair">
+      <div className="fd-pair-cols">
         <MaterialCard mat={matA} side="left" />
         <MaterialCard mat={matB} side="right" />
       </div>
-      <div style={{
-        display: 'flex', gap: 6, padding: '8px 12px',
-        alignItems: 'center', background: 'var(--tint)',
-      }}>
-        <button style={mergeBtnStyle} onClick={onMergeLeft} title="Keep left, remove right">
+      <div className="fd-pair-actions">
+        <button className="fd-merge-btn" onClick={onMergeLeft} title="Keep left, remove right">
           Merge into left
         </button>
-        <button style={mergeBtnStyle} onClick={onMergeRight} title="Keep right, remove left">
+        <button className="fd-merge-btn" onClick={onMergeRight} title="Keep right, remove left">
           Merge into right
         </button>
         <div style={{ flex: 1 }} />
-        <button style={btnStyle} onClick={onKeepBoth}>
+        <button className="fd-dismiss-btn" onClick={onKeepBoth}>
           Not a duplicate
         </button>
       </div>
@@ -238,30 +178,17 @@ function DupePair({ pair, matA, matB, onMergeLeft, onMergeRight, onKeepBoth }) {
 
 function MaterialCard({ mat, side }) {
   const label = window.formatLabel ? window.formatLabel(mat, window._labelTemplatesCache) : mat.name;
-  const borderSide = side === 'left'
-    ? { borderRight: '1px solid var(--rule)' }
-    : {};
   return (
-    <div style={{ padding: '10px 14px', ...borderSide, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+    <div className={'fd-mat-card' + (side === 'left' ? ' left' : '')}>
+      <div className="fd-mat-top">
         {mat.swatch && (
-          <div style={{
-            width: 16, height: 16, flexShrink: 0,
-            background: mat.swatch.tone || 'var(--paper-2)',
-            border: '1px solid var(--rule-2)',
-          }} />
+          <div className="fd-mat-swatch"
+            style={{ background: mat.swatch.tone || 'var(--paper-2)' }} />
         )}
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5,
-          color: 'var(--ink-3)', flexShrink: 0 }}>{mat.code}</span>
+        <span className="fd-mat-code">{mat.code}</span>
       </div>
-      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 500,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {label}
-      </div>
-      {mat.supplier && (
-        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5,
-          color: 'var(--ink-3)', marginTop: 2 }}>{mat.supplier}</div>
-      )}
+      <div className="fd-mat-name">{label}</div>
+      {mat.supplier && <div className="fd-mat-supplier">{mat.supplier}</div>}
     </div>
   );
 }

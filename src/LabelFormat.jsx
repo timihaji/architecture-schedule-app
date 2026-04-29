@@ -59,32 +59,16 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
   const previewMaterial = materials.find(m => m.id === previewId);
 
   return (
-    <div onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(20,20,20,0.55)',
-        zIndex: 110,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 30,
-      }}>
-      <div onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--paper)',
-          border: '1px solid var(--ink)',
-          width: 'min(940px, 100%)',
-          maxHeight: '92vh',
-          display: 'flex', flexDirection: 'column',
-        }}>
+    <div className="lf-modal-bg" onClick={onClose}>
+      <div className="lf-modal" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ padding: '22px 28px 12px', borderBottom: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div className="lf-modal-head">
           <div>
             <Eyebrow>Display label format</Eyebrow>
             <Serif size={24} style={{ marginTop: 4, display: 'block' }}>
               Build how entries are labelled across the archive
             </Serif>
-            <div style={{ ...ui.serif, fontStyle: 'italic', fontSize: 13,
-              color: 'var(--ink-3)', marginTop: 4, maxWidth: '70ch' }}>
+            <div className="lf-modal-head-desc">
               Compose a template from field tokens and separators. Each material's label is rendered from this template — unless it has a custom name set.
             </div>
           </div>
@@ -92,55 +76,32 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
         </div>
 
         {/* Tabs */}
-        <div style={{ padding: '12px 28px 0', display: 'flex', gap: 0,
-          borderBottom: '1px solid var(--rule)' }}>
+        <div className="lf-tabs">
           {CATEGORY_TABS.map(t => {
             const active = tab === t;
             const override = t !== 'Global' && !!templates.byCategory?.[t];
             return (
-              <button key={t} type="button" onClick={() => setTab(t)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '9px 16px',
-                  fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase',
-                  color: active ? 'var(--ink)' : 'var(--ink-4)',
-                  fontWeight: active ? 500 : 400,
-                  borderBottom: '1px solid ' + (active ? 'var(--ink)' : 'transparent'),
-                  marginBottom: -1,
-                  position: 'relative',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}>
+              <button key={t} type="button"
+                className={'lf-tab' + (active ? ' active' : '')}
+                onClick={() => setTab(t)}>
                 {t}
-                {override && (
-                  <span style={{ width: 4, height: 4, background: 'var(--accent)',
-                    borderRadius: '50%', display: 'inline-block' }} />
-                )}
+                {override && <span className="lf-tab-dot" />}
               </button>
             );
           })}
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 24px' }}>
+        <div className="lf-modal-body">
           {/* Preview */}
-          <div style={{ marginBottom: 18, padding: '14px 16px',
-            background: 'var(--paper-2)', border: '1px solid var(--rule-2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between',
-              alignItems: 'baseline', marginBottom: 10, gap: 14, flexWrap: 'wrap' }}>
+          <div className="lf-preview">
+            <div className="lf-preview-bar">
               <Eyebrow>Preview</Eyebrow>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ ...ui.mono, fontSize: 10, color: 'var(--ink-4)',
-                  letterSpacing: '0.08em' }}>SAMPLE ENTRY</span>
+                <Mono size={10} color="var(--ink-4)" style={{ letterSpacing: '0.08em' }}>SAMPLE ENTRY</Mono>
                 <select value={previewId || ''}
                   onChange={e => setPreviewId(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none', borderBottom: '1px solid var(--rule-2)',
-                    fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
-                    padding: '2px 14px 2px 0', outline: 'none',
-                    color: 'var(--ink-2)', cursor: 'pointer',
-                  }}>
+                  className="lf-preview-select">
                   {materials.map(m => (
                     <option key={m.id} value={m.id}>
                       {m.code} · {m.category} · {m.name}
@@ -150,15 +111,11 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
               </div>
             </div>
             {previewMaterial && parts?.length ? (
-              <div style={{
-                ...ui.serif, fontSize: 22, lineHeight: 1.25, color: 'var(--ink)',
-                padding: '4px 0',
-              }}>
+              <div className="lf-preview-label">
                 {renderPreview(parts, previewMaterial)}
               </div>
             ) : (
-              <div style={{ ...ui.serif, fontStyle: 'italic', fontSize: 14,
-                color: 'var(--ink-4)' }}>
+              <div className="lf-preview-empty">
                 {parts?.length ? 'Pick a sample entry to preview' : 'Add at least one token below'}
               </div>
             )}
@@ -166,46 +123,33 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
 
           {/* Inherit banner for category tabs */}
           {!isGlobal && inheriting && (
-            <div style={{ marginBottom: 16, padding: '11px 14px',
-              background: 'var(--tint)', borderLeft: '2px solid var(--ink-4)',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              gap: 14, flexWrap: 'wrap' }}>
-              <div style={{ ...ui.serif, fontStyle: 'italic', fontSize: 13,
-                color: 'var(--ink-2)', lineHeight: 1.4 }}>
+            <div className="lf-inherit-banner">
+              <div className="lf-inherit-text">
                 <strong style={{ fontStyle: 'normal', fontWeight: 500 }}>{tab}</strong> entries use the Global template. Override to customise.
               </div>
               <TextButton onClick={enableOverride} accent>Override for {tab}</TextButton>
             </div>
           )}
           {!isGlobal && !inheriting && (
-            <div style={{ marginBottom: 12,
-              display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
               <TextButton onClick={clearOverride}>↺ Inherit from Global</TextButton>
             </div>
           )}
 
           {/* Mode toggle */}
-          <div style={{ display: 'flex', justifyContent: 'space-between',
-            alignItems: 'baseline', marginBottom: 10 }}>
+          <div className="lf-mode-row">
             <Eyebrow>{isGlobal ? 'Global template' : `${tab} template`}</Eyebrow>
-            <div style={{ display: 'flex', gap: 0, border: '1px solid var(--rule-2)' }}>
+            <div className="lf-mode-toggle">
               {['visual', 'text'].map(m => (
-                <button key={m} type="button" onClick={() => setMode(m)}
-                  style={{
-                    background: mode === m ? 'var(--ink)' : 'transparent',
-                    color: mode === m ? 'var(--paper)' : 'var(--ink-3)',
-                    border: 'none',
-                    padding: '4px 10px',
-                    fontFamily: "'Inter Tight', sans-serif",
-                    fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    cursor: 'pointer', fontWeight: 500,
-                  }}>{m}</button>
+                <button key={m} type="button"
+                  className={'lf-mode-btn' + (mode === m ? ' active' : '')}
+                  onClick={() => setMode(m)}>{m}</button>
               ))}
             </div>
           </div>
 
           {/* Composer */}
-          <div style={{ opacity: inheriting ? 0.5 : 1, pointerEvents: inheriting ? 'none' : 'auto' }}>
+          <div className={'lf-composer-wrap' + (inheriting ? ' inheriting' : '')}>
             {mode === 'visual' ? (
               <ChipComposer parts={parts || []} setParts={setParts} />
             ) : (
@@ -214,25 +158,22 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
           </div>
 
           {/* Token palette */}
-          <div style={{ marginTop: 22, opacity: inheriting ? 0.5 : 1,
-            pointerEvents: inheriting ? 'none' : 'auto' }}>
+          <div style={{ marginTop: 22 }} className={inheriting ? 'lf-composer-wrap inheriting' : ''}>
             <Eyebrow style={{ marginBottom: 8 }}>Insert field</Eyebrow>
             <TokenPalette
               onInsert={(id) => setParts(ps => [...ps, { kind: 'token', id }])} />
           </div>
 
-          <div style={{ marginTop: 18, opacity: inheriting ? 0.5 : 1,
-            pointerEvents: inheriting ? 'none' : 'auto' }}>
+          <div style={{ marginTop: 18 }} className={inheriting ? 'lf-composer-wrap inheriting' : ''}>
             <Eyebrow style={{ marginBottom: 8 }}>Insert separator</Eyebrow>
             <SeparatorPalette
               onInsert={(text) => setParts(ps => [...ps, { kind: 'sep', text }])} />
           </div>
 
           {/* Presets */}
-          <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px dotted var(--rule-2)',
-            opacity: inheriting ? 0.5 : 1, pointerEvents: inheriting ? 'none' : 'auto' }}>
+          <div className={'lf-presets' + (inheriting ? ' lf-composer-wrap inheriting' : '')}>
             <Eyebrow style={{ marginBottom: 8 }}>Presets</Eyebrow>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="lf-presets-row">
               {window.PRESETS.map(p => (
                 <PresetChip key={p.id} preset={p}
                   onApply={() => setParts(p.parts.slice())} />
@@ -246,13 +187,11 @@ function LabelFormatModal({ templates, setTemplates, materials, onClose, initial
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 28px', borderTop: '1px solid var(--ink)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20 }}>
-          <Mono size={10} color="var(--ink-4)"
-            style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <div className="lf-modal-foot">
+          <Mono size={10} color="var(--ink-4)" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Changes apply live · Esc to close
           </Mono>
-          <div style={{ display: 'flex', gap: 22 }}>
+          <div className="lf-modal-foot-actions">
             <TextButton onClick={() => {
               if (window.confirm('Reset all label templates to defaults?')) {
                 setTemplates(JSON.parse(JSON.stringify(window.DEFAULT_TEMPLATES)));
