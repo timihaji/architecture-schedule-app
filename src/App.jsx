@@ -113,47 +113,29 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 function RenumberModal({ state, onLeaveGap, onCloseGap, onCancel }) {
   const { toRenumber } = state;
-  const backdrop = { position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.5)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 };
-  const card = { background: 'var(--paper)', width: 460,
-    boxShadow: '0 24px 56px rgba(20,20,20,0.2)', display: 'flex', flexDirection: 'column',
-    overflow: 'hidden' };
-  const btnBase = { padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-    border: '1px solid var(--rule-2)', background: 'transparent',
-    fontFamily: 'var(--font-sans)' };
-  const btnPrimary = { ...btnBase, background: 'var(--ink)', color: 'var(--paper)',
-    border: '1px solid var(--ink)' };
-
   return (
-    <div style={backdrop} onClick={onCancel}>
-      <div style={card} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: '16px 22px', background: 'var(--tint)',
-          borderBottom: '1px solid var(--rule)' }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13 }}>
-            Close gap?
-          </div>
-          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-            fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>
+    <div className="rn-backdrop" onClick={onCancel}>
+      <div className="rn-card" onClick={e => e.stopPropagation()}>
+        <div className="rn-head">
+          <div className="rn-head-title">Close gap?</div>
+          <div className="rn-head-sub">
             {toRenumber.length} material{toRenumber.length !== 1 ? 's' : ''} in this series will be renumbered.
             Previously exported PDFs will not update.
           </div>
         </div>
-        <div style={{ padding: '14px 22px', maxHeight: 260, overflowY: 'auto' }}>
+        <div className="rn-list">
           {toRenumber.map(r => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10,
-              padding: '4px 0', fontSize: 12.5, fontFamily: 'var(--font-mono)',
-              borderBottom: '1px dotted var(--rule-2)' }}>
-              <span style={{ color: 'var(--ink-3)', minWidth: 80 }}>{r.from}</span>
-              <span style={{ color: 'var(--ink-4)' }}>&rarr;</span>
+            <div key={r.id} className="rn-row">
+              <span className="rn-row-from">{r.from}</span>
+              <span className="rn-row-sep">&rarr;</span>
               <span>{r.to}</span>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end',
-          padding: '14px 22px', borderTop: '1px solid var(--rule)' }}>
-          <button style={btnBase} onClick={onCancel}>Cancel</button>
-          <button style={btnBase} onClick={onLeaveGap}>Leave gap</button>
-          <button style={btnPrimary} onClick={onCloseGap}>Close gap</button>
+        <div className="rn-foot">
+          <button className="rn-btn" onClick={onCancel}>Cancel</button>
+          <button className="rn-btn" onClick={onLeaveGap}>Leave gap</button>
+          <button className="rn-btn-pri" onClick={onCloseGap}>Close gap</button>
         </div>
       </div>
     </div>
@@ -162,23 +144,10 @@ function RenumberModal({ state, onLeaveGap, onCloseGap, onCancel }) {
 
 function ImportSummaryBanner({ summary, onFindDupes, onDismiss }) {
   return (
-    <div style={{
-      position: 'fixed', bottom: 48, left: '50%', transform: 'translateX(-50%)',
-      background: 'var(--ink)', color: 'var(--paper)',
-      padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 14,
-      boxShadow: '0 8px 24px rgba(20,20,20,0.22)', zIndex: 8500,
-      fontFamily: 'var(--font-sans)', fontSize: 13, whiteSpace: 'nowrap',
-    }}>
+    <div className="import-banner">
       <span>Archive imported &middot; {summary.dupeCount} material{summary.dupeCount !== 1 ? 's' : ''} may be duplicates</span>
-      <button onClick={onFindDupes} style={{
-        background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
-        color: 'var(--paper)', padding: '3px 10px', fontSize: 12, cursor: 'pointer',
-        fontFamily: 'var(--font-sans)',
-      }}>Review</button>
-      <button onClick={onDismiss} style={{
-        background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
-        cursor: 'pointer', fontSize: 16, padding: '0 2px', lineHeight: 1,
-      }}>×</button>
+      <button onClick={onFindDupes} className="import-banner-btn">Review</button>
+      <button onClick={onDismiss} className="import-banner-close">×</button>
     </div>
   );
 }
@@ -201,44 +170,23 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
   const accentBg = level === 'exact' ? '#8a3020' : '#b85c3a';
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(20,20,20,0.55)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 9000,
-    }} onClick={onCancel}>
-      <div style={{
-        background: 'var(--paper)', width: 440,
-        boxShadow: '0 28px 64px rgba(20,20,20,0.24)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }} onClick={e => e.stopPropagation()}>
+    <div className="dupe-modal-bg" onClick={onCancel}>
+      <div className="dupe-modal-card" onClick={e => e.stopPropagation()}>
 
-        {/* Coloured header band */}
-        <div style={{
-          background: accentBg, padding: '16px 22px',
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <span style={{ fontSize: 16, color: '#fff', lineHeight: 1 }}>!</span>
-          <span style={{
-            fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 13,
-            color: '#fff', letterSpacing: '0.02em',
-          }}>
+        {/* Coloured header band — background is dynamic */}
+        <div className="dupe-modal-head" style={{ background: accentBg }}>
+          <span className="dupe-modal-icon">!</span>
+          <span className="dupe-modal-head-title">
             {headings[level] || 'Possible duplicate'}
           </span>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-            fontSize: 14, color: 'var(--ink-2)', lineHeight: 1.55 }}>
-            {bodies[level]}
-          </div>
+        <div className="dupe-modal-body">
+          <div className="dupe-modal-body-text">{bodies[level]}</div>
 
           {existing && (
-            <div style={{
-              padding: '10px 14px', fontSize: 13, lineHeight: 1.4,
-              background: 'rgba(184,92,58,0.08)',
-              borderLeft: '3px solid ' + accentBg,
-            }}>
+            <div className="dupe-modal-existing" style={{ borderLeft: '3px solid ' + accentBg }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11,
                 color: 'var(--ink-3)', marginRight: 8 }}>{existing.code}</span>
               <span style={{ fontWeight: 500 }}>{existing.name}</span>
@@ -250,17 +198,9 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-            <button style={{
-              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-              border: '1px solid var(--rule-2)', background: 'transparent',
-              fontFamily: 'var(--font-sans)',
-            }} onClick={onCancel}>Cancel</button>
-            <button style={{
-              padding: '7px 14px', fontSize: 13, cursor: 'pointer',
-              border: '1px solid var(--rule-2)', background: 'transparent',
-              fontFamily: 'var(--font-sans)',
-            }} onClick={onUseExisting}>Use existing</button>
+          <div className="dupe-modal-foot">
+            <button className="dupe-modal-btn" onClick={onCancel}>Cancel</button>
+            <button className="dupe-modal-btn" onClick={onUseExisting}>Use existing</button>
             {!isBlock && (
               <button style={{
                 padding: '7px 14px', fontSize: 13, cursor: 'pointer',
@@ -653,7 +593,7 @@ function App() {
     <div
       data-accent={settings.accent}
       data-density={settings.density}
-      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+      className="app-shell"
     >
       <Nav view={view} setView={setView} settings={settings} />
       {(() => {
@@ -969,10 +909,7 @@ function CostScheduleHost(props) {
   const Current = version === 'v2' ? window.CostScheduleV2 : window.CostSchedule;
   return (
     <div>
-      <div style={{
-        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
-        gap: 8, marginBottom: 10,
-      }}>
+      <div className="ver-toggle-row">
         <VersionToggle version={version} setVersion={setV} />
       </div>
       {Current && <Current {...props} />}
@@ -982,19 +919,8 @@ function CostScheduleHost(props) {
 
 function VersionToggle({ version, setVersion }) {
   return (
-    <div style={{
-      display: 'inline-flex', alignItems: 'center',
-      border: '1px solid var(--rule-2)',
-      padding: 2,
-      background: 'var(--paper-2, var(--paper))',
-    }}>
-      <span style={{
-        ...ui.mono, fontSize: 9, color: 'var(--ink-4)',
-        letterSpacing: '0.14em', textTransform: 'uppercase',
-        padding: '0 8px 0 6px',
-      }}>
-        Schedule
-      </span>
+    <div className="ver-toggle">
+      <span className="ver-toggle-label">Schedule</span>
       {[
         { key: 'v1', label: 'v1 · legacy' },
         { key: 'v2', label: 'v2 · new' },
@@ -1002,17 +928,11 @@ function VersionToggle({ version, setVersion }) {
         const active = version === opt.key;
         return (
           <button key={opt.key} type="button" onClick={() => setVersion(opt.key)}
+            className="ver-toggle-btn"
             style={{
               background: active ? 'var(--ink)' : 'transparent',
               color: active ? 'var(--paper)' : 'var(--ink-3)',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px 10px',
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 10.5, letterSpacing: '0.08em',
-              textTransform: 'uppercase',
               fontWeight: active ? 500 : 400,
-              transition: 'all 0.12s ease',
             }}>{opt.label}</button>
         );
       })}
@@ -1046,28 +966,17 @@ function RevisionBadge() {
   const dot = <span style={{ color: 'var(--rule-2)', padding: '0 2px' }}>·</span>;
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9000,
-      background: 'var(--paper-2, var(--paper))',
-      borderTop: '1px solid var(--rule)',
-      display: 'flex', alignItems: 'center', gap: 0,
-      padding: '3px 16px',
-      ...mono, fontSize: 10, color: 'var(--ink-4)',
-      userSelect: 'none',
-    }}>
+    <div className="rev-badge">
       {info ? (
         <>
           <a href={'https://github.com/' + REPO + '/commit/' + info.sha}
             target="_blank" rel="noreferrer"
-            style={{ color: 'var(--ink-3)', textDecoration: 'none', fontWeight: 500, marginRight: 8 }}>
+            className="rev-badge-sha">
             {info.sha}
           </a>
           {dot}
-          <span style={{ marginLeft: 8 }}>{info.date}</span>
-          {info.msg && <>{dot}<span style={{
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            maxWidth: 480, marginLeft: 8,
-          }}>{info.msg}</span></>}
+          <span className="rev-badge-date">{info.date}</span>
+          {info.msg && <>{dot}<span className="rev-badge-msg">{info.msg}</span></>}
           <span style={{ flex: 1 }} />
           {window.SaveStatusIndicator ? (
             <>
@@ -1076,7 +985,7 @@ function RevisionBadge() {
             </>
           ) : null}
           <a href={'https://github.com/' + REPO} target="_blank" rel="noreferrer"
-            style={{ color: 'var(--ink-4)', textDecoration: 'none', opacity: 0.7 }}>
+            className="rev-badge-gh">
             github.com/{REPO}
           </a>
         </>
@@ -1160,13 +1069,7 @@ function GearIcon({ size = 14 }) {
 
 function Footer({ settings }) {
   return (
-    <footer style={{
-      borderTop: '1px solid var(--rule)',
-      padding: '18px 56px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      color: 'var(--ink-4)',
-    }}>
+    <footer className="app-footer">
       <Mono size={10} style={{ letterSpacing: '0.1em', textTransform: 'uppercase' }}>
         {settings?.firmFooterLeft || 'Hollis & Arne · Architecture'}
       </Mono>
@@ -1195,7 +1098,7 @@ function DuplicatePicker({ products = [], onPick }) {
     : products;
 
   return (
-    <div style={{ paddingTop: 14 }}>
+    <div className="dup-pick-wrap">
       <input
         className="inp-d"
         autoFocus
@@ -1205,60 +1108,26 @@ function DuplicatePicker({ products = [], onPick }) {
         style={{ marginBottom: 12 }}
       />
       {visible.length === 0 ? (
-        <div style={{
-          padding: '40px 4px',
-          textAlign: 'center',
-          fontFamily: 'var(--font-serif)',
-          fontStyle: 'italic',
-          color: 'var(--ink-4)',
-          fontSize: 14,
-        }}>
+        <div className="dup-pick-empty">
           {products.length === 0
             ? 'No products to duplicate yet — create one in Manual mode first.'
             : 'No products match.'}
         </div>
       ) : (
-        <div style={{ borderTop: '1px solid var(--rule-2)' }}>
+        <div className="dup-pick-list">
           {visible.map(p => (
             <button key={p.id} type="button"
               onClick={() => onPick(p)}
-              style={{
-                width: '100%', textAlign: 'left',
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '10px 4px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: '1px dotted var(--rule-2)',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <div style={{
-                width: 32, height: 32, flexShrink: 0,
-                background: p.swatch?.tone || 'var(--paper-2)',
-                outline: '1px solid rgba(20,20,20,0.15)',
-              }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-serif)', fontSize: 14,
-                  color: 'var(--ink)',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {p.colourName || p.name || '—'}
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 9.5,
-                  color: 'var(--ink-4)', letterSpacing: '0.06em',
-                  marginTop: 2,
-                }}>
+              className="dup-pick-row">
+              <div className="dup-pick-swatch"
+                style={{ background: p.swatch?.tone || 'var(--paper-2)' }} />
+              <div className="dup-pick-info">
+                <div className="dup-pick-name">{p.colourName || p.name || '—'}</div>
+                <div className="dup-pick-meta">
                   {[p.code, p.brand || p.supplier].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              <span style={{
-                fontFamily: 'var(--font-sans)', fontSize: 9.5,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--ink-3)',
-              }}>Use →</span>
+              <span className="dup-pick-use">Use →</span>
             </button>
           ))}
         </div>

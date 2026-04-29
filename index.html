@@ -660,6 +660,72 @@
   .lib-section-rule { flex: 1; height: 1px; background: var(--rule); align-self: center; }
   .lib-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
   .lib-expand-wrap { grid-column: 1 / -1; background: var(--paper); }
+
+  /* APP CHROME (D8) */
+
+  /* RenumberModal */
+  .rn-backdrop { position: fixed; inset: 0; background: rgba(20,20,20,0.5); display: flex; align-items: center; justify-content: center; z-index: 9000; }
+  .rn-card { background: var(--paper); width: 460px; box-shadow: 0 24px 56px rgba(20,20,20,0.2); display: flex; flex-direction: column; overflow: hidden; }
+  .rn-head { padding: 16px 22px; background: var(--tint); border-bottom: 1px solid var(--rule); }
+  .rn-head-title { font-family: var(--font-sans); font-weight: 600; font-size: 13px; }
+  .rn-head-sub { font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-3); margin-top: 3px; }
+  .rn-list { padding: 14px 22px; max-height: 260px; overflow-y: auto; }
+  .rn-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; font-family: var(--font-mono); border-bottom: 1px dotted var(--rule-2); }
+  .rn-row-from { color: var(--ink-3); min-width: 80px; }
+  .rn-row-sep { color: var(--ink-4); }
+  .rn-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 14px 22px; border-top: 1px solid var(--rule); }
+  .rn-btn { padding: 7px 14px; font-size: 13px; cursor: pointer; border: 1px solid var(--rule-2); background: transparent; font-family: var(--font-sans); }
+  .rn-btn-pri { padding: 7px 14px; font-size: 13px; cursor: pointer; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font-family: var(--font-sans); }
+
+  /* ImportSummaryBanner */
+  .import-banner { position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 18px; display: flex; align-items: center; gap: 14px; box-shadow: 0 8px 24px rgba(20,20,20,0.22); z-index: 8500; font-family: var(--font-sans); font-size: 13px; white-space: nowrap; }
+  .import-banner-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: var(--paper); padding: 3px 10px; font-size: 12px; cursor: pointer; font-family: var(--font-sans); }
+  .import-banner-close { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 16px; padding: 0 2px; line-height: 1; }
+
+  /* DupeMaterialModal */
+  .dupe-modal-bg { position: fixed; inset: 0; background: rgba(20,20,20,0.55); display: flex; align-items: center; justify-content: center; z-index: 9000; }
+  .dupe-modal-card { background: var(--paper); width: 440px; box-shadow: 0 28px 64px rgba(20,20,20,0.24); display: flex; flex-direction: column; overflow: hidden; }
+  .dupe-modal-head { padding: 16px 22px; display: flex; align-items: center; gap: 10px; }
+  .dupe-modal-icon { font-size: 16px; color: #fff; line-height: 1; }
+  .dupe-modal-head-title { font-family: var(--font-sans); font-weight: 600; font-size: 13px; color: #fff; letter-spacing: 0.02em; }
+  .dupe-modal-body { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .dupe-modal-body-text { font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+  .dupe-modal-existing { padding: 10px 14px; font-size: 13px; line-height: 1.4; background: rgba(184,92,58,0.08); }
+  .dupe-modal-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .dupe-modal-btn { padding: 7px 14px; font-size: 13px; cursor: pointer; border: 1px solid var(--rule-2); background: transparent; font-family: var(--font-sans); }
+
+  /* App shell */
+  .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* CostScheduleHost version toggle row */
+  .ver-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+  /* VersionToggle */
+  .ver-toggle { display: inline-flex; align-items: center; border: 1px solid var(--rule-2); padding: 2px; background: var(--paper-2, var(--paper)); }
+  .ver-toggle-label { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; padding: 0 8px 0 6px; }
+  .ver-toggle-btn { border: none; cursor: pointer; padding: 4px 10px; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.12s ease; }
+
+  /* RevisionBadge */
+  .rev-badge { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9000; background: var(--paper-2, var(--paper)); border-top: 1px solid var(--rule); display: flex; align-items: center; padding: 3px 16px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); user-select: none; }
+  .rev-badge-sha { color: var(--ink-3); text-decoration: none; font-weight: 500; margin-right: 8px; }
+  .rev-badge-date { margin-left: 8px; }
+  .rev-badge-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 480px; margin-left: 8px; }
+  .rev-badge-gh { color: var(--ink-4); text-decoration: none; opacity: 0.7; }
+
+  /* Footer */
+  .app-footer { border-top: 1px solid var(--rule); padding: 18px 56px; display: flex; justify-content: space-between; color: var(--ink-4); }
+
+  /* DuplicatePicker */
+  .dup-pick-wrap { padding-top: 14px; }
+  .dup-pick-empty { padding: 40px 4px; text-align: center; font-family: var(--font-serif); font-style: italic; color: var(--ink-4); font-size: 14px; }
+  .dup-pick-list { border-top: 1px solid var(--rule-2); }
+  .dup-pick-row { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 10px 4px; background: transparent; border: none; border-bottom: 1px dotted var(--rule-2); cursor: pointer; }
+  .dup-pick-row:hover { background: var(--tint); }
+  .dup-pick-swatch { width: 32px; height: 32px; flex-shrink: 0; outline: 1px solid rgba(20,20,20,0.15); }
+  .dup-pick-info { flex: 1; min-width: 0; }
+  .dup-pick-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dup-pick-meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.06em; margin-top: 2px; }
+  .dup-pick-use { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
@@ -726,6 +792,6 @@
 <script type="text/babel" src="src/SettingsPage.jsx"></script>
 <script type="text/babel" src="src/Tweaks.jsx"></script>
 <script type="text/babel" src="src/ProductFieldBlocks.jsx"></script>
-<script type="text/babel" src="src/App.jsx"></script>
+<script type="text/babel" src="src/App.jsx?v=d8"></script>
 </body>
 </html>
