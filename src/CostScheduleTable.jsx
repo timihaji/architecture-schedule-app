@@ -433,21 +433,16 @@ function CstGroupedTotalsFooter({ schedule, cellTotal }) {
   }));
   const min = optionTotals.length ? Math.min(...optionTotals.map(o => o.total)) : 0;
   return (
-    <div style={{
-      borderTop: '2px solid var(--rule)', background: 'var(--paper-2)',
-      padding: '12px 14px', display: 'flex', alignItems: 'baseline', gap: 24, flexWrap: 'wrap',
-    }}>
-      <span style={{ ...ui.mono, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-4)' }}>
-        Totals
-      </span>
+    <div className="cst-totals-footer">
+      <span className="cst-totals-label">Totals</span>
       {optionTotals.map(({ opt, total }) => (
-        <span key={opt.id} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-3)' }}>{opt.name}</span>
-          <span style={{ ...ui.mono, fontSize: 13, fontWeight: 500, color: total === min ? 'var(--ink)' : 'var(--ink-2)' }}>
+        <span key={opt.id} className="cst-totals-opt">
+          <span className="cst-totals-opt-name">{opt.name}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontWeight: 400, fontFeatureSettings: '"tnum","zero"', fontSize: 13, fontWeight: 500, color: total === min ? 'var(--ink)' : 'var(--ink-2)' }}>
             ${Math.round(total).toLocaleString()}
           </span>
           {total !== min && (
-            <span style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)' }}>
+            <span className="cst-totals-delta">
               +${Math.round(total - min).toLocaleString()}
             </span>
           )}
@@ -594,7 +589,7 @@ function CostScheduleTable({
   }, [rowShape, flatRows, schedule.components, schedule.options, cellTotal]);
 
   return (
-    <div style={{ border: '1px solid var(--rule)', background: 'var(--paper)' }}>
+    <div className="cst-root">
       <CstTableTopBar
         rowShape={rowShape} setRowShape={setRowShapePersist}
         query={query} setQuery={setQuery} searchRef={searchRef}
@@ -734,48 +729,28 @@ function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, row
   onAddComponent, options, renameOption, reorderOption, removeOption }) {
   const hasOptions = options && options.length > 0 && renameOption;
   return (
-    <div style={{ borderBottom: '1px solid var(--rule)', background: 'var(--paper-2)' }}>
+    <div className="cst-topbar">
       {/* Main toolbar row */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '10px 14px',
-        minHeight: 44,
-      }}>
+      <div className="cst-topbar-row">
         <input ref={searchRef}
           placeholder="/  Search components, materials, suppliers…"
           value={query} onChange={e => setQuery(e.target.value)}
-          style={{
-            flex: 1, maxWidth: 420,
-            background: 'transparent', border: '1px solid var(--rule)',
-            padding: '6px 10px', outline: 'none',
-            fontFamily: "'Inter Tight', sans-serif", fontSize: 12,
-            color: 'var(--ink)',
-          }} />
+          className="cst-search-input" />
 
-        <div style={{ flex: 1 }} />
+        <div className="cst-flex-1" />
 
-        <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
-          textTransform: 'uppercase', color: 'var(--ink-4)' }}>
+        <span className="cst-row-count">
           {rowCount} rows · grand total ${Math.round(grandTotal).toLocaleString()}
         </span>
 
         {onAddComponent && (
-          <button onClick={onAddComponent} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 10, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: 'var(--ink-3)',
-            padding: '4px 8px',
-          }}>
+          <button onClick={onAddComponent} className="cst-add-btn">
             + Add component
           </button>
         )}
 
       {/* Row-shape toggle */}
-      <div style={{
-        display: 'flex', border: '1px solid var(--rule-2)',
-        background: 'var(--paper)',
-      }}>
+      <div className="cst-shape-toggle">
         {[
           { id: 'flat', label: 'Flat' },
           { id: 'grouped', label: 'Grouped' },
@@ -785,13 +760,10 @@ function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, row
             title={opt.id === 'flat'
               ? 'One row per (component × option) — sortable, filterable'
               : 'One row per component; each option is a column'}
+            className="cst-shape-btn"
             style={{
               background: rowShape === opt.id ? 'var(--ink)' : 'transparent',
               color: rowShape === opt.id ? 'var(--paper)' : 'var(--ink-3)',
-              border: 'none', cursor: 'pointer',
-              padding: '5px 12px',
-              fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
-              letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500,
             }}>
             {opt.label}
           </button>
@@ -801,16 +773,8 @@ function CstTableTopBar({ rowShape, setRowShape, query, setQuery, searchRef, row
 
       {/* Options bar — rename and reorder */}
       {hasOptions && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
-          padding: '6px 14px 8px',
-          borderTop: '1px solid var(--rule)',
-        }}>
-          <span style={{
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'var(--ink-4)', marginRight: 4, flexShrink: 0,
-          }}>Options</span>
+        <div className="cst-options-bar">
+          <span className="cst-options-label">Options</span>
           {options.map((opt, i) => (
             <CstOptionChip
               key={opt.id}
@@ -843,19 +807,9 @@ function CstOptionChip({ opt, index, total, onRename, onMoveUp, onMoveDown, onRe
     setEditing(false);
   }
 
-  const chipBase = {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    border: '1px solid var(--rule-2)', background: 'var(--paper)',
-    padding: '3px 6px',
-  };
-
   return (
-    <div style={{ ...chipBase, gap: 0 }}>
-      <span style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase',
-        color: 'var(--ink-4)', marginRight: 5, flexShrink: 0,
-      }}>OPT·{String(index + 1).padStart(2, '0')}</span>
+    <div className="cst-opt-chip">
+      <span className="cst-opt-chip-idx">OPT·{String(index + 1).padStart(2, '0')}</span>
 
       {editing ? (
         <input
@@ -875,31 +829,19 @@ function CstOptionChip({ opt, index, total, onRename, onMoveUp, onMoveDown, onRe
         <span
           onClick={() => { setDraft(opt.name); setEditing(true); }}
           title="Click to rename"
-          style={{
-            fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
-            color: 'var(--ink-2)', cursor: 'text', padding: '0 2px',
-          }}>
+          className="cst-opt-chip-name">
           {opt.name}
         </span>
       )}
 
       {onMoveUp && index > 0 && (
-        <button onClick={onMoveUp} title="Move left"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: 'var(--ink-4)', fontSize: 10, lineHeight: 1 }}>
-          ←
-        </button>
+        <button onClick={onMoveUp} title="Move left" className="cst-opt-chip-btn">←</button>
       )}
       {onMoveDown && index < total - 1 && (
-        <button onClick={onMoveDown} title="Move right"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: 'var(--ink-4)', fontSize: 10, lineHeight: 1 }}>
-          →
-        </button>
+        <button onClick={onMoveDown} title="Move right" className="cst-opt-chip-btn">→</button>
       )}
       {onRemove && (
-        <button onClick={onRemove} title="Remove option"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px 0 4px', color: 'var(--ink-4)', fontSize: 11, lineHeight: 1 }}>
-          ×
-        </button>
+        <button onClick={onRemove} title="Remove option" className="cst-opt-chip-rm">×</button>
       )}
     </div>
   );
@@ -911,7 +853,6 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
   setCellMaterial, removeComponent, duplicateComponent, setComp }) {
   const [moveToOpen, setMoveToOpen] = React.useState(false);
   const [dupToOpen, setDupToOpen] = React.useState(false);
-  const [qtyPromptOpen, setQtyPromptOpen] = React.useState(false);
   const count = selected.size;
   const ids = Array.from(selected);
 
@@ -1033,51 +974,34 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
     setSelected(new Set());
   }
 
-  const btnStyle = {
-    background: 'transparent', border: '1px solid var(--rule-2)',
-    color: 'var(--ink)', cursor: 'pointer',
-    padding: '6px 10px',
-    fontFamily: "'Inter Tight', sans-serif", fontSize: 10.5,
-    letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 500,
-  };
-
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 14px',
-      borderTop: '1px solid var(--rule)',
-      background: 'var(--paper-2)',
-      position: 'sticky', bottom: 0, zIndex: 3,
-    }}>
-      <span style={{ ...ui.mono, fontSize: 10, letterSpacing: '0.1em',
-        textTransform: 'uppercase', color: 'var(--ink)' }}>
-        {count} selected
-      </span>
-      <div style={{ flex: 1 }} />
+    <div className="cst-bulk-bar">
+      <span className="cst-bulk-count">{count} selected</span>
+      <div className="cst-flex-1" />
 
       {rowShape === 'flat' && (
         <>
           <div style={{ position: 'relative' }}>
-            <button style={btnStyle} onClick={() => { setDupToOpen(!dupToOpen); setMoveToOpen(false); }}>
+            <button className="cst-bulk-btn" onClick={() => { setDupToOpen(!dupToOpen); setMoveToOpen(false); }}>
               Duplicate to option ▾
             </button>
             {dupToOpen && (
-              <div style={cstMenuStyle}>
+              <div className="cst-menu">
                 {schedule.options.map(o => (
-                  <button key={o.id} style={cstMenuItemStyle}
+                  <button key={o.id} className="cst-menu-item"
                     onClick={() => duplicateTo(o.id)}>{o.name}</button>
                 ))}
               </div>
             )}
           </div>
           <div style={{ position: 'relative' }}>
-            <button style={btnStyle} onClick={() => { setMoveToOpen(!moveToOpen); setDupToOpen(false); }}>
+            <button className="cst-bulk-btn" onClick={() => { setMoveToOpen(!moveToOpen); setDupToOpen(false); }}>
               Move to option ▾
             </button>
             {moveToOpen && (
-              <div style={cstMenuStyle}>
+              <div className="cst-menu">
                 {schedule.options.map(o => (
-                  <button key={o.id} style={cstMenuItemStyle}
+                  <button key={o.id} className="cst-menu-item"
                     onClick={() => moveTo(o.id)}>{o.name}</button>
                 ))}
               </div>
@@ -1086,33 +1010,14 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
         </>
       )}
 
-      <button style={btnStyle} onClick={setCommonQty}>Set size…</button>
-      <button style={btnStyle} onClick={copySupplierList}>Copy as supplier list</button>
-      <button style={{ ...btnStyle, color: 'var(--accent-ink)' }} onClick={deleteRows}>
-        Delete rows
-      </button>
-      <button style={{ ...btnStyle, color: 'var(--accent-ink)' }} onClick={clearAssignments}>
-        Clear assignment
-      </button>
-      <button style={{ ...btnStyle, border: 'none', color: 'var(--ink-3)' }}
-        onClick={() => setSelected(new Set())}>×</button>
+      <button className="cst-bulk-btn" onClick={setCommonQty}>Set size…</button>
+      <button className="cst-bulk-btn" onClick={copySupplierList}>Copy as supplier list</button>
+      <button className="cst-bulk-btn cst-bulk-btn--danger" onClick={deleteRows}>Delete rows</button>
+      <button className="cst-bulk-btn cst-bulk-btn--danger" onClick={clearAssignments}>Clear assignment</button>
+      <button className="cst-bulk-btn cst-bulk-btn--muted" onClick={() => setSelected(new Set())}>×</button>
     </div>
   );
 }
-
-const cstMenuStyle = {
-  position: 'absolute', top: '100%', right: 0, marginTop: 4,
-  background: 'var(--paper)', border: '1px solid var(--rule)',
-  minWidth: 160, zIndex: 20,
-  boxShadow: '0 4px 18px rgba(0,0,0,0.08)',
-};
-const cstMenuItemStyle = {
-  display: 'block', width: '100%', textAlign: 'left',
-  background: 'transparent', border: 'none', cursor: 'pointer',
-  padding: '8px 12px',
-  fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
-  color: 'var(--ink)',
-};
 
 // ───────── Filters bar ─────────
 
@@ -1140,13 +1045,8 @@ function CstFiltersBar({ filters, setFilters, schedule, rowShape }) {
 
   if (filters.length === 0 && !adding) {
     return (
-      <div style={{ padding: '5px 14px', borderBottom: '1px solid var(--rule)', background: 'var(--paper-2)', display: 'flex' }}>
-        <button onClick={() => setAdding(true)} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
-          letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)',
-          padding: '3px 0',
-        }}>+ Add filter</button>
+      <div className="cst-filters-bar">
+        <button onClick={() => setAdding(true)} className="cst-filter-add-btn">+ Add filter</button>
       </div>
     );
   }
@@ -1157,46 +1057,30 @@ function CstFiltersBar({ filters, setFilters, schedule, rowShape }) {
     || (draft.field === 'option' ? schedule.options.map(o => o.name) : null);
 
   return (
-    <div style={{
-      padding: '6px 14px', borderBottom: '1px solid var(--rule)',
-      background: 'var(--paper-2)', display: 'flex', alignItems: 'center',
-      gap: 6, flexWrap: 'wrap', minHeight: 36,
-    }}>
-      <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 9, letterSpacing: '0.1em',
-        textTransform: 'uppercase', color: 'var(--ink-4)', marginRight: 2 }}>Filter</span>
+    <div className="cst-filters-bar cst-filters-bar--active">
+      <span className="cst-filter-label">Filter</span>
 
       {filters.map((f, i) => {
         const fd = CST_FILTER_FIELDS.find(x => x.id === f.field);
         return (
-          <div key={i} style={{
-            display: 'inline-flex', alignItems: 'center',
-            border: '1px solid var(--rule-2)', background: 'var(--paper)',
-            fontFamily: "'Inter Tight', sans-serif", fontSize: 11,
-          }}>
-            <span style={{ padding: '3px 6px', color: 'var(--ink-3)' }}>{fd?.label || f.field}</span>
-            <span style={{ padding: '3px 3px', color: 'var(--ink-4)', fontSize: 10 }}>
-              {f.op === 'is' ? '=' : '~'}
-            </span>
-            <span style={{ padding: '3px 6px', color: 'var(--ink)' }}>{f.value}</span>
-            <button onClick={() => removeChip(i)} style={{
-              background: 'none', border: 'none', borderLeft: '1px solid var(--rule)',
-              cursor: 'pointer', padding: '3px 6px', color: 'var(--ink-4)', fontSize: 12,
-            }}>×</button>
+          <div key={i} className="cst-filter-chip">
+            <span className="cst-filter-chip-field">{fd?.label || f.field}</span>
+            <span className="cst-filter-chip-op">{f.op === 'is' ? '=' : '~'}</span>
+            <span className="cst-filter-chip-val">{f.value}</span>
+            <button onClick={() => removeChip(i)} className="cst-filter-chip-rm">×</button>
           </div>
         );
       })}
 
       {adding ? (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <div className="cst-filter-adding">
           <select value={draft.field} onChange={e => setDraft({ field: e.target.value, value: '' })}
-            style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 4px',
-              border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)' }}>
+            className="cst-filter-select">
             {fields.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
           {valueChoices ? (
             <select value={draft.value} onChange={e => setDraft(d => ({ ...d, value: e.target.value }))}
-              style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 4px',
-                border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)' }}>
+              className="cst-filter-select">
               <option value="">— pick —</option>
               {valueChoices.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
@@ -1204,26 +1088,13 @@ function CstFiltersBar({ filters, setFilters, schedule, rowShape }) {
             <input value={draft.value} onChange={e => setDraft(d => ({ ...d, value: e.target.value }))}
               onKeyDown={e => { if (e.key === 'Enter') addChip(); if (e.key === 'Escape') setAdding(false); }}
               placeholder="value…" autoFocus
-              style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, padding: '3px 6px',
-                border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)',
-                width: 120, outline: 'none' }} />
+              className="cst-filter-input" />
           )}
-          <button onClick={addChip} style={{
-            background: 'var(--ink)', color: 'var(--paper)', border: 'none', cursor: 'pointer',
-            padding: '3px 8px', fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
-          }}>Add</button>
-          <button onClick={() => setAdding(false)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: "'Inter Tight', sans-serif", fontSize: 11, color: 'var(--ink-4)',
-          }}>×</button>
+          <button onClick={addChip} className="cst-filter-submit">Add</button>
+          <button onClick={() => setAdding(false)} className="cst-filter-cancel">×</button>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: "'Inter Tight', sans-serif", fontSize: 10,
-          letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-4)',
-          padding: '3px 0',
-        }}>+ Add filter</button>
+        <button onClick={() => setAdding(true)} className="cst-filter-add-btn">+ Add filter</button>
       )}
     </div>
   );
@@ -1261,46 +1132,23 @@ function CstCheatsheet({ onClose, rowShape }) {
   }, [onClose]);
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{
-        background: 'var(--paper)', border: '1px solid var(--rule)',
-        padding: '24px 28px', maxWidth: 480, width: '90vw',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-          <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: 16 }}>
-            Cost Schedule — Keyboard Shortcuts
-          </span>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: "'Inter Tight', sans-serif", fontSize: 18, color: 'var(--ink-3)',
-          }}>×</button>
+    <div className="cst-cheatsheet-overlay" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="cst-cheatsheet">
+        <div className="cst-cheatsheet-head">
+          <span className="cst-cheatsheet-title">Cost Schedule — Keyboard Shortcuts</span>
+          <button onClick={onClose} className="cst-cheatsheet-close">×</button>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="cst-cheatsheet-table">
           <tbody>
             {shortcuts.map(([key, label]) => (
-              <tr key={key} style={{ borderBottom: '1px solid var(--rule)' }}>
-                <td style={{
-                  padding: '5px 12px 5px 0', whiteSpace: 'nowrap',
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
-                  color: 'var(--ink-2)',
-                }}>{key}</td>
-                <td style={{
-                  padding: '5px 0', fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 12, color: 'var(--ink-3)',
-                }}>{label}</td>
+              <tr key={key}>
+                <td className="cst-cheatsheet-key">{key}</td>
+                <td className="cst-cheatsheet-val">{label}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div style={{
-          marginTop: 14, fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 10, color: 'var(--ink-4)',
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-        }}>Press ? or Esc to close</div>
+        <div className="cst-cheatsheet-hint">Press ? or Esc to close</div>
       </div>
     </div>
   );
@@ -1335,42 +1183,20 @@ function CstRowMenu({ items }) {
         ref={btnRef}
         onClick={toggle}
         title="Row actions"
-        style={{
-          background: 'none', border: '1px solid transparent',
-          cursor: 'pointer', borderRadius: 3,
-          padding: '2px 5px', lineHeight: 1,
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 14, color: 'var(--ink-3)',
-          letterSpacing: '0.05em',
-        }}
-        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--rule)'}
-        onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}
+        className="cst-row-menu-btn"
       >
         ···
       </button>
       {open && (
-        <div style={{
-          position: 'fixed',
-          top: pos.top, left: pos.left,
-          background: 'var(--paper)', border: '1px solid var(--rule)',
-          minWidth: 168, zIndex: 1000,
-          boxShadow: '0 4px 18px rgba(0,0,0,0.12)',
-        }}>
+        <div className="cst-row-menu-dropdown" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
           {items.map((item, i) =>
             item.separator ? (
-              <div key={i} style={{ height: 1, background: 'var(--rule)', margin: '3px 0' }} />
+              <div key={i} className="cst-row-menu-sep" />
             ) : (
               <button key={i}
                 onClick={(e) => { e.stopPropagation(); item.onClick(); setOpen(false); }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  padding: '8px 12px',
-                  fontFamily: "'Inter Tight', sans-serif", fontSize: 11.5,
-                  color: item.danger ? 'var(--accent, #c0392b)' : 'var(--ink)',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                className="cst-row-menu-item"
+                style={{ color: item.danger ? 'var(--accent, #c0392b)' : 'var(--ink)' }}
               >
                 {item.label}
               </button>
@@ -1422,53 +1248,28 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
   const optIdx = option ? schedule.options.indexOf(option) : -1;
 
   return (
-    <div style={{
-      borderLeft: '1px solid var(--rule)',
-      background: 'var(--paper)',
-      overflowY: 'auto',
-      display: 'flex', flexDirection: 'column',
-      minHeight: 0,
-    }}>
+    <div className="cst-side-panel">
       {/* Header */}
-      <div style={{
-        padding: '12px 14px', borderBottom: '1px solid var(--rule)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-        position: 'sticky', top: 0, background: 'var(--paper)', zIndex: 1, gap: 8,
-      }}>
+      <div className="cst-side-panel-header">
         <div style={{ minWidth: 0 }}>
-          <div style={{
-            fontFamily: "'Source Serif 4', serif",
-            fontSize: 14, lineHeight: 1.2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{comp.name || '(unnamed)'}</div>
-          <div style={{ marginTop: 5, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="cst-side-panel-name">{comp.name || '(unnamed)'}</div>
+          <div className="cst-side-panel-tags">
             {comp.category && (
-              <span style={{
-                fontFamily: "'Inter Tight', sans-serif",
-                fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-                color: 'var(--ink-3)',
-              }}>{comp.category}</span>
+              <span className="cst-side-panel-cat">{comp.category}</span>
             )}
             {option && (
-              <span style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
-                padding: '1px 5px', border: '1px solid var(--rule-2)',
-                color: 'var(--ink-3)', background: 'var(--paper-2)', whiteSpace: 'nowrap',
-              }}>OPT·{String(optIdx + 1).padStart(2, '0')} {option.name}</span>
+              <span className="cst-side-panel-opt-badge">
+                OPT·{String(optIdx + 1).padStart(2, '0')} {option.name}
+              </span>
             )}
           </div>
         </div>
-        <button onClick={onClose} style={{
-          background: 'none', border: '1px solid var(--rule-2)',
-          cursor: 'pointer', padding: '3px 8px', flexShrink: 0,
-          fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink-3)',
-        }}>×</button>
+        <button onClick={onClose} className="cst-side-panel-close">×</button>
       </div>
 
       {/* Material section — flat mode shows the specific cell's material */}
       {rowShape === 'flat' ? (
-        <div style={{ padding: '14px 14px 0' }}>
+        <div className="cst-side-panel-mat">
           {material ? (
             <>
               {material.swatch?.tone && (
@@ -1479,10 +1280,7 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
                   outline: '1px solid rgba(20,20,20,0.08)',
                 }} />
               )}
-              <div style={{
-                fontFamily: "'Source Serif 4', serif",
-                fontSize: 17, lineHeight: 1.2, marginBottom: 10,
-              }}>{label}</div>
+              <div className="cst-side-panel-mat-label">{label}</div>
               <CstKV label="Code"      value={material.code} />
               <CstKV label="Supplier"  value={material.supplier} />
               <CstKV label="Finish"    value={material.finish} />
@@ -1493,45 +1291,25 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
               )}
             </>
           ) : (
-            <div style={{
-              textAlign: 'center', padding: '24px 0',
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic',
-            }}>No material assigned</div>
+            <div className="cst-side-panel-empty">No material assigned</div>
           )}
           <button
             onClick={() => { if (option) onOpenPicker(option.id, comp.id); }}
-            style={{
-              marginTop: 12, marginBottom: 14, width: '100%',
-              background: 'var(--paper-2)', border: '1px solid var(--rule)',
-              cursor: 'pointer', padding: '8px 10px',
-              fontFamily: "'Inter Tight', sans-serif", fontSize: 10.5,
-              letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--ink-2)',
-            }}>
+            className="cst-side-panel-mat-btn">
             {material ? 'Change material…' : 'Assign material…'}
           </button>
         </div>
       ) : (
         /* Grouped mode — list all options for this component */
-        <div style={{ padding: '14px' }}>
-          <div style={{
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'var(--ink-4)', marginBottom: 8,
-          }}>Options</div>
+        <div className="cst-side-panel-opts">
+          <div className="cst-side-panel-opts-label">Options</div>
           {schedule.options.map((opt, i) => {
             const cell = schedule.cells[opt.id + ':' + comp.id];
             const mat = cell?.materialId ? matById.get(cell.materialId) : null;
             const lbl = mat ? (window.formatLabel ? window.formatLabel(mat, labelTemplates) : mat.name) : null;
             return (
-              <div key={opt.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 0', borderBottom: '1px solid var(--rule)',
-              }}>
-                <span style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontSize: 9, color: 'var(--ink-4)', flexShrink: 0, width: 38,
-                }}>OPT·{String(i + 1).padStart(2, '0')}</span>
+              <div key={opt.id} className="cst-side-panel-opt-row">
+                <span className="cst-side-panel-opt-idx">OPT·{String(i + 1).padStart(2, '0')}</span>
                 {mat?.swatch?.tone && (
                   <span style={{
                     width: 14, height: 14, flexShrink: 0,
@@ -1546,12 +1324,9 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
                   color: mat ? 'var(--ink)' : 'var(--ink-4)',
                   fontStyle: mat ? 'normal' : 'italic',
                 }}>{lbl || 'unassigned'}</span>
-                <button onClick={() => onOpenPicker(opt.id, comp.id)} style={{
-                  background: 'none', border: '1px solid var(--rule-2)',
-                  cursor: 'pointer', padding: '2px 6px',
-                  fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 9, color: 'var(--ink-4)',
-                }}>{mat ? '↻' : '+'}</button>
+                <button onClick={() => onOpenPicker(opt.id, comp.id)} className="cst-side-panel-opt-btn">
+                  {mat ? '↻' : '+'}
+                </button>
               </div>
             );
           })}
@@ -1559,16 +1334,8 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
       )}
 
       {/* Component-level schedule fields (shared across options) */}
-      <div style={{
-        padding: '12px 14px',
-        borderTop: '1px solid var(--rule)',
-        marginTop: 'auto',
-      }}>
-        <div style={{
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: 'var(--ink-4)', marginBottom: 10,
-        }}>Schedule</div>
+      <div className="cst-side-panel-sched">
+        <div className="cst-side-panel-sched-label">Schedule</div>
         <CstFieldRow label="Count" field="count" value={comp.count} type="number"
           editingField={editingField} draftVal={draftVal}
           setDraftVal={setDraftVal} startEdit={startEdit} commitEdit={commitEdit} />
@@ -1586,15 +1353,9 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
 function CstKV({ label, value }) {
   if (!value) return null;
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'baseline' }}>
-      <span style={{
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-        color: 'var(--ink-4)', width: 68, flexShrink: 0,
-      }}>{label}</span>
-      <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink-2)' }}>
-        {value}
-      </span>
+    <div className="cst-kv">
+      <span className="cst-kv-label">{label}</span>
+      <span className="cst-kv-value">{value}</span>
     </div>
   );
 }
@@ -1602,12 +1363,8 @@ function CstKV({ label, value }) {
 function CstFieldRow({ label, field, value, type, editingField, draftVal, setDraftVal, startEdit, commitEdit }) {
   const isEditing = editingField === field;
   return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-      <span style={{
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
-        color: 'var(--ink-4)', width: 50, flexShrink: 0,
-      }}>{label}</span>
+    <div className="cst-field-row">
+      <span className="cst-field-row-label">{label}</span>
       {isEditing ? (
         <input
           autoFocus type={type} value={draftVal}
@@ -1617,11 +1374,7 @@ function CstFieldRow({ label, field, value, type, editingField, draftVal, setDra
             if (e.key === 'Enter') commitEdit(field);
             if (e.key === 'Escape') setDraftVal('');
           }}
-          style={{
-            flex: 1, background: 'var(--paper-2)', border: '1px solid var(--ink-3)',
-            padding: '3px 6px', fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 12, color: 'var(--ink)', outline: 'none',
-          }}
+          className="cst-field-row-input"
         />
       ) : (
         <span
