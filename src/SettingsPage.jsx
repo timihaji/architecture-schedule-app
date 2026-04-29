@@ -6,6 +6,7 @@ function SettingsPage({
   settings, setSettings,
   materials, projects, libraries, labelTemplates,
   onRestoreSeed, onImport, onClose,
+  onOpenLabelBuilder, onFindDupes,
 }) {
   const cs = window.useCloudState();
   const section = cs.ui.settingsSection || 'appearance';
@@ -37,74 +38,41 @@ function SettingsPage({
 
   const sectionProps = { settings, set, setSettings,
     materials, projects, libraries, labelTemplates,
-    onRestoreSeed, onImport };
+    onRestoreSeed, onImport, onOpenLabelBuilder, onFindDupes };
 
   return (
-    <div data-screen-label="Settings" style={{
-      display: 'grid',
-      gridTemplateColumns: '260px 1fr',
-      gap: 64,
-      minHeight: 'calc(100vh - 140px)',
-    }}>
+    <div data-screen-label="Settings" className="st-layout">
       {/* ───────── Left rail ───────── */}
-      <aside style={{
-        borderRight: '1px var(--rule-style, solid) var(--rule)',
-        paddingRight: 32,
-      }}>
-        <div style={{ marginBottom: 28 }}>
-          <Eyebrow>Section</Eyebrow>
-          <Serif size={32} style={{ marginTop: 6, display: 'block', lineHeight: 1.05 }}>
+      <aside className="st-rail">
+        <div className="st-rail-head">
+          <div className="st-rail-eyebrow">Section</div>
+          <Serif size={28} style={{ marginTop: 6, display: 'block', lineHeight: 1.05 }}>
             Settings
           </Serif>
-          <div style={{ marginTop: 6, ...ui.serif, fontStyle: 'italic',
-            fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.4 }}>
-            Customise the studio archive. Changes apply immediately and are
-            kept in your browser.
+          <div className="st-rail-sub">
+            Customise the studio archive. Changes apply immediately.
           </div>
         </div>
 
         {groups.map(g => (
-          <div key={g} style={{ marginBottom: 22 }}>
-            <div style={{ ...ui.mono, fontSize: 9, color: 'var(--ink-4)',
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              marginBottom: 8, paddingBottom: 6,
-              borderBottom: '1px dotted var(--rule-2)' }}>
-              {g}
-            </div>
+          <div key={g} className="st-nav-group">
+            <div className="st-nav-group-label">{g}</div>
             <nav style={{ display: 'flex', flexDirection: 'column' }}>
-              {sections.filter(s => s.group === g).map(s => {
-                const active = section === s.key;
-                return (
-                  <button key={s.key} type="button"
-                    onClick={() => setSection(s.key)}
-                    style={{
-                      background: active ? 'var(--tint)' : 'transparent',
-                      border: 'none',
-                      borderLeft: '2px solid ' + (active ? 'var(--accent)' : 'transparent'),
-                      padding: '8px 10px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'baseline', gap: 10,
-                      color: active ? 'var(--ink)' : 'var(--ink-3)',
-                      fontFamily: "'Inter Tight', var(--font-sans, system-ui), sans-serif",
-                      fontSize: 13,
-                      fontWeight: active ? 500 : 400,
-                    }}>
-                    <span style={{ ...ui.mono, fontSize: 9.5,
-                      color: active ? 'var(--ink-3)' : 'var(--ink-4)' }}>
-                      {s.num}
-                    </span>
-                    {s.label}
-                  </button>
-                );
-              })}
+              {sections.filter(s => s.group === g).map(s => (
+                <button key={s.key} type="button"
+                  className={'st-nav-btn' + (section === s.key ? ' active' : '')}
+                  onClick={() => setSection(s.key)}>
+                  <span className="st-nav-num">{s.num}</span>
+                  {s.label}
+                </button>
+              ))}
             </nav>
           </div>
         ))}
       </aside>
 
       {/* ───────── Right pane ───────── */}
-      <div style={{ paddingRight: 8, paddingBottom: 60 }}>
+      <div className="st-main">
         {section === 'firm'       && <FirmSection {...sectionProps} />}
         {section === 'appearance' && <AppearanceSection {...sectionProps} />}
         {section === 'typography' && <TypographySection {...sectionProps} />}
@@ -126,29 +94,18 @@ function SettingsPage({
 
 function SectionHeader({ kicker, title, subtitle }) {
   return (
-    <div style={{
-      marginBottom: 32, paddingBottom: 18,
-      borderBottom: '1px var(--rule-style, solid) var(--rule)',
-    }}>
-      {kicker && <Eyebrow>{kicker}</Eyebrow>}
-      <Serif size={34} style={{ marginTop: 6, display: 'block',
-        lineHeight: 1.1, letterSpacing: '-0.01em' }}>
-        {title}
-      </Serif>
-      {subtitle && (
-        <div style={{ marginTop: 10, ...ui.serif, fontStyle: 'italic',
-          fontSize: 15, color: 'var(--ink-3)', lineHeight: 1.45, maxWidth: 620 }}>
-          {subtitle}
-        </div>
-      )}
+    <div className="st-sec-head">
+      {kicker && <div className="st-sec-head-kicker">{kicker}</div>}
+      <span className="st-sec-head-title">{title}</span>
+      {subtitle && <div className="st-sec-head-sub">{subtitle}</div>}
     </div>
   );
 }
 
 function SubRow({ label, children }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 24, alignItems: 'center' }}>
-      <div style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'var(--font-sans)' }}>{label}</div>
+    <div className="st-sub-row">
+      <div className="st-sub-row-label">{label}</div>
       <div>{children}</div>
     </div>
   );
@@ -156,22 +113,10 @@ function SubRow({ label, children }) {
 
 function SettingRow({ label, description, children }) {
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '240px 1fr',
-      gap: 40,
-      padding: '22px 0',
-      borderBottom: '1px dotted var(--rule-2)',
-      alignItems: 'start',
-    }}>
+    <div className="st-setting-row">
       <div>
-        <div style={{ ...ui.label, color: 'var(--ink)', marginBottom: 5 }}>{label}</div>
-        {description && (
-          <div style={{ ...ui.serif, fontStyle: 'italic',
-            fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.4 }}>
-            {description}
-          </div>
-        )}
+        <div className="st-row-label">{label}</div>
+        {description && <div className="st-row-desc">{description}</div>}
       </div>
       <div style={{ minWidth: 0 }}>{children}</div>
     </div>
@@ -179,46 +124,21 @@ function SettingRow({ label, description, children }) {
 }
 
 function SubsectionHeader({ children }) {
-  return (
-    <div style={{
-      ...ui.mono, fontSize: 10, color: 'var(--ink-4)',
-      letterSpacing: '0.14em', textTransform: 'uppercase',
-      marginTop: 44, marginBottom: 4,
-      paddingBottom: 10, borderBottom: '1px solid var(--rule)',
-    }}>{children}</div>
-  );
+  return <div className="st-subsec-head">{children}</div>;
 }
 
 // Segmented option bar (reusable)
 function Segmented({ options, value, onChange }) {
   return (
-    <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 0 }}>
-      {options.map((o, i) => {
-        const active = value === o.key;
-        return (
-          <button key={o.key} type="button"
-            onClick={() => onChange(o.key)}
-            style={{
-              padding: '7px 14px',
-              border: '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)'),
-              borderLeft: i === 0 || active
-                ? '1px solid ' + (active ? 'var(--ink)' : 'var(--rule-2)')
-                : 'none',
-              background: active ? 'var(--ink)' : 'transparent',
-              color: active ? 'var(--paper)' : 'var(--ink-3)',
-              fontFamily: "'Inter Tight', var(--font-sans, system-ui), sans-serif",
-              fontSize: 11.5, letterSpacing: '0.04em',
-              cursor: 'pointer', fontWeight: 500,
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-            {o.label}
-            {o.meta && (
-              <span style={{ ...ui.mono, fontSize: 9,
-                opacity: active ? 0.7 : 0.5 }}>{o.meta}</span>
-            )}
-          </button>
-        );
-      })}
+    <div className="st-seg">
+      {options.map((o) => (
+        <button key={o.key} type="button"
+          className={'st-seg-btn' + (value === o.key ? ' on' : '')}
+          onClick={() => onChange(o.key)}>
+          {o.label}
+          {o.meta && <span className="st-seg-meta">{o.meta}</span>}
+        </button>
+      ))}
     </div>
   );
 }
@@ -717,7 +637,8 @@ function FirmSection({ settings, set }) {
   );
 }
 
-function LibraryDefaultsSection({ settings, set }) {
+function LibraryDefaultsSection({ settings, set, labelTemplates, onOpenLabelBuilder }) {
+  const tplCount = labelTemplates ? Object.keys(labelTemplates).length : 0;
   return (
     <>
       <SectionHeader kicker="06" title="Library defaults"
@@ -745,6 +666,23 @@ function LibraryDefaultsSection({ settings, set }) {
             { key: 'sheet', label: 'Sheet' },
           ]} />
       </SettingRow>
+
+      <SubsectionHeader>Display rules</SubsectionHeader>
+
+      <SettingRow label="Label templates"
+        description="Custom name-building rules per category. Compose chip patterns and manage per-category overrides.">
+        <div>
+          <button className="st-data-btn"
+            onClick={() => onOpenLabelBuilder && onOpenLabelBuilder('Global')}>
+            Open label composer
+          </button>
+          {tplCount > 0 && (
+            <Mono size={10} color="var(--ink-4)" style={{ display: 'block', marginTop: 8 }}>
+              {tplCount} template{tplCount !== 1 ? 's' : ''} defined
+            </Mono>
+          )}
+        </div>
+      </SettingRow>
     </>
   );
 }
@@ -758,7 +696,7 @@ const PRESET_DESCRIPTIONS = {
   D: 'Free-form. Duplicates are warned but never blocked. Codes default to blank on new materials.',
 };
 
-function CodesSection({ settings, set }) {
+function CodesSection({ settings, set, onFindDupes }) {
   const policy = settings.dupePolicy || window.DUPE_PRESET_A || {};
   const preset = policy.preset || 'A';
   const isCustom = preset === 'custom';
@@ -954,6 +892,16 @@ function CodesSection({ settings, set }) {
           </SettingRow>
         </>
       )}
+
+      <SubsectionHeader>Find duplicates</SubsectionHeader>
+      <SettingRow label="Find duplicates now"
+        description="Scans all materials in the library for similar names and codes, then lets you merge or dismiss pairs.">
+        <button className="st-data-btn"
+          onClick={() => onFindDupes && onFindDupes()}
+          disabled={!window.FindDuplicatesPanel}>
+          Find duplicates…
+        </button>
+      </SettingRow>
     </>
   );
 }
@@ -1521,7 +1469,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
 
   return (
     <>
-      <SectionHeader kicker="09" title="Data"
+      <SectionHeader kicker="10" title="Data"
         subtitle="Back up, restore, or reset the archive. Everything lives in your browser — export regularly." />
 
       <SettingRow label="Export archive"
@@ -1650,23 +1598,9 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
 }
 
 function DataButton({ children, onClick, danger, disabled }) {
-  const [hover, setHover] = React.useState(false);
-  const showHover = hover && !disabled;
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: '9px 18px',
-        background: showHover ? 'var(--ink)' : 'transparent',
-        color: showHover ? 'var(--paper)' : 'var(--ink)',
-        border: '1px solid ' + (disabled ? 'var(--rule-2)' : 'var(--ink)'),
-        opacity: disabled ? 0.5 : 1,
-        fontFamily: "'Inter Tight', var(--font-sans, system-ui), sans-serif",
-        fontSize: 11.5, fontWeight: 500,
-        letterSpacing: '0.06em', textTransform: 'uppercase',
-        cursor: disabled ? 'wait' : 'pointer',
-      }}>
+      className={'st-data-btn' + (danger ? ' danger' : '')}>
       {children}
     </button>
   );
@@ -1716,7 +1650,7 @@ function KeyboardSection() {
   ];
   return (
     <>
-      <SectionHeader kicker="10" title="Keyboard"
+      <SectionHeader kicker="11" title="Keyboard"
         subtitle="Shortcuts throughout the archive. Press ? from anywhere to open a quick overlay." />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
@@ -1776,7 +1710,7 @@ function AboutSection() {
   ];
   return (
     <>
-      <SectionHeader kicker="11" title="About"
+      <SectionHeader kicker="12" title="About"
         subtitle="Hollis & Arne — Studio Archive. Built in-house." />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, paddingTop: 8 }}>

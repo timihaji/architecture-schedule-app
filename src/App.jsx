@@ -757,6 +757,8 @@ function App() {
             projects={projects}
             libraries={libraries}
             labelTemplates={labelTemplates}
+            onOpenLabelBuilder={(tab) => { setLabelBuilderTab(tab || 'Global'); setLabelBuilderOpen(true); }}
+            onFindDupes={() => setFindDupesOpen(true)}
             onRestoreSeed={() => {
               if (!window.confirm(
                 'This will wipe ALL materials, projects, and libraries and ' +

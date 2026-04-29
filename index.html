@@ -449,6 +449,46 @@
   .rooms-add-input:focus { border-color: var(--ink-3); }
   .rooms-add-btn { background: var(--ink); color: var(--paper); border: none; padding: 5px 13px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
   .rooms-add-btn:disabled { background: var(--ink-4); cursor: not-allowed; }
+
+  /* SETTINGS PAGE (D4) — left-rail nav, section headers, setting rows, segmented controls, data buttons. */
+  .st-layout { display: grid; grid-template-columns: 220px 1fr; gap: 56px; min-height: calc(100vh - 140px); }
+  .st-rail { border-right: 1px solid var(--rule); padding-right: 28px; }
+  .st-rail-head { margin-bottom: 24px; }
+  .st-rail-eyebrow { font-family: var(--font-sans); font-weight: 500; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 4px; }
+  .st-rail-sub { margin-top: 6px; font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+  .st-nav-group { margin-bottom: 20px; }
+  .st-nav-group-label { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dotted var(--rule-2); }
+  .st-nav-btn { width: 100%; background: transparent; border: none; border-left: 2px solid transparent; padding: 8px 10px; text-align: left; cursor: pointer; display: flex; align-items: baseline; gap: 10px; font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--ink-3); }
+  .st-nav-btn.active { background: var(--tint); border-left-color: var(--ink); color: var(--ink); font-weight: 500; }
+  .st-nav-num { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); }
+  .st-nav-btn.active .st-nav-num { color: var(--ink-3); }
+  .st-main { padding-right: 8px; padding-bottom: 60px; }
+  .st-sec-head { margin-bottom: 30px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  .st-sec-head-kicker { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; margin-bottom: 4px; }
+  .st-sec-head-title { font-family: var(--font-serif); font-size: 34px; font-weight: 400; display: block; line-height: 1.1; letter-spacing: -0.01em; margin-top: 4px; }
+  .st-sec-head-sub { margin-top: 10px; font-family: var(--font-serif); font-style: italic; font-size: 14px; color: var(--ink-3); line-height: 1.45; max-width: 620px; }
+  .st-setting-row { display: grid; grid-template-columns: 220px 1fr; gap: 36px; padding: 20px 0; border-bottom: 1px dotted var(--rule-2); align-items: start; }
+  .st-row-label { font-family: var(--font-sans); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); font-weight: 500; margin-bottom: 4px; }
+  .st-row-desc { font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-3); line-height: 1.4; margin-top: 4px; }
+  .st-subsec-head { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 40px; margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .st-seg { display: inline-flex; flex-wrap: wrap; }
+  .st-seg-btn { padding: 6px 13px; border: 1px solid var(--rule-2); border-left: none; background: transparent; color: var(--ink-3); font-family: var(--font-sans); font-size: 11.5px; letter-spacing: 0.04em; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+  .st-seg-btn:first-child { border-left: 1px solid var(--rule-2); }
+  .st-seg-btn.on { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .st-seg-btn.on + .st-seg-btn { border-left: 1px solid var(--rule-2); }
+  .st-seg-meta { font-family: var(--font-mono); font-size: 9px; opacity: 0.6; }
+  .st-data-btn { display: inline-block; padding: 8px 16px; background: transparent; color: var(--ink); border: 1px solid var(--ink); font-family: var(--font-sans); font-size: 11.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background 0.1s, color 0.1s; }
+  .st-data-btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+  .st-data-btn:disabled { opacity: 0.5; cursor: wait; }
+  .st-data-btn.danger { border-color: rgba(160,69,69,0.4); color: #a04545; }
+  .st-data-btn.danger:hover:not(:disabled) { background: #a04545; color: var(--paper); border-color: #a04545; }
+  .st-sub-row { display: grid; grid-template-columns: 200px 1fr; gap: 20px; align-items: center; }
+  .st-sub-row-label { font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); }
+  .st-msg { margin-top: 10px; padding: 8px 12px; font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+  .st-msg.ok { border-left: 2px solid var(--accent); background: var(--tint); }
+  .st-msg.err { border-left: 2px solid var(--ink); background: var(--tint); }
+  .st-progress { margin-top: 28px; padding: 14px 18px; border: 1px solid var(--rule); background: var(--tint); font-size: 13px; line-height: 1.5; }
+  .st-progress.err { background: rgba(197,74,59,0.08); border-color: rgba(197,74,59,0.3); }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
