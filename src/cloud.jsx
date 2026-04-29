@@ -13,9 +13,7 @@
 //   • aml-table-density, aml-dt-* (table density / column widths)
 //   • aml-desktop-view, aml-kind-filter
 //   • aml-cs-*, aml-cs-mode, aml-cs-rowshape (schedule/gallery filters)
-//   • aml-spec-mode (spec view — List vs Register; per-device preference)
-//   • aml-spec-cols (legacy; migrated to appState.ui.specV2Cols on first load)
-// Everything else (settings, ui, collections, schedules, specs) lives in Supabase.
+// Everything else (settings, ui, collections, schedules) lives in Supabase.
 
 (function () {
   if (typeof window.supabase === 'undefined') {
@@ -265,7 +263,7 @@
     debouncedSave('app_state:singleton', () => saveAppStateNow(blob));
   }
 
-  // ───── Per-project blobs (schedules, specs) ─────
+  // ───── Per-project blobs (schedules) ─────
   async function loadPerProject(table, projectId) {
     const { data, error } = await sb.from(table)
       .select('data, version')
@@ -300,9 +298,6 @@
   const loadSchedule    = projectId        => loadPerProject('schedules', projectId);
   const saveSchedule    = (projectId, data) => savePerProject('schedules', projectId, data);
   const saveScheduleNow = (projectId, data) => savePerProjectNow('schedules', projectId, data);
-  const loadSpec        = projectId        => loadPerProject('specs',     projectId);
-  const saveSpec        = (projectId, data) => savePerProject('specs',     projectId, data);
-  const saveSpecNow     = (projectId, data) => savePerProjectNow('specs',     projectId, data);
 
   async function deleteSchedule(projectId) {
     const key = `schedules:${projectId}`;
@@ -311,14 +306,6 @@
     const { error } = await sb.from('schedules').delete().eq('project_id', projectId);
     if (error) throw error;
     versionCache.delete(vkey('schedules', projectId));
-  }
-  async function deleteSpec(projectId) {
-    const key = `specs:${projectId}`;
-    const pending = pendingSaves.get(key);
-    if (pending) { clearTimeout(pending.timer); pendingSaves.delete(key); }
-    const { error } = await sb.from('specs').delete().eq('project_id', projectId);
-    if (error) throw error;
-    versionCache.delete(vkey('specs', projectId));
   }
 
   // ───── Manual flush (used by sign-out) ─────
@@ -349,7 +336,6 @@
     loadAppState, saveAppState, saveAppStateNow,
     loadCollection, upsertItem, upsertItemNow, deleteItem,
     loadSchedule, saveSchedule, saveScheduleNow, deleteSchedule,
-    loadSpec,     saveSpec,     saveSpecNow,     deleteSpec,
     onSaveStatus,
     flushPending,
     ConflictError,

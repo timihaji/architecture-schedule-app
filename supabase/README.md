@@ -46,7 +46,7 @@ To confirm RLS is working: use the Supabase API explorer with an authenticated t
 
 **Supabase (shared across all devices):**
 - Materials, projects, libraries, label templates
-- Per-project cost schedules and specs
+- Per-project cost schedules
 - App settings, UI state, seed version
 
 **Browser localStorage only (per-device ephemeral prefs):**
@@ -55,8 +55,6 @@ To confirm RLS is working: use the Supabase API explorer with an authenticated t
 - `aml-desktop-view` — viewport mode toggle
 - `aml-gallery-sidebar`, `aml-kind-filter` — gallery filter state
 - `aml-cs-*`, `aml-cs-mode`, `aml-cs-rowshape` — schedule/gallery display filters
-- `aml-spec-mode` — spec view: List vs Register (per-device preference)
-- `aml-spec-cols` — legacy; migrated to `appState.ui.specV2Cols` on first load (now cloud-synced)
 
 ## Emergency: reset the workspace
 
@@ -67,6 +65,19 @@ delete from projects;
 delete from libraries;
 delete from label_templates;
 delete from schedules;
-delete from specs;
 update app_state set data = '{}'::jsonb where id = 'singleton';
 ```
+
+## Migration: drop the legacy `specs` table (Spec page removed)
+
+The Spec page (Volume V) was retired. Existing deployments still have a `specs`
+table left over from the old schema. Run this once in the Supabase SQL editor
+to drop it (irreversible — exports any spec data you want to keep first):
+
+```sql
+drop trigger if exists _bump_specs on specs;
+drop table if exists specs;
+```
+
+Fresh deploys built from the current `schema.sql` never create the table, so
+this only applies to instances provisioned before the removal.

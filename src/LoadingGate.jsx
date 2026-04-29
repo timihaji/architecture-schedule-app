@@ -31,7 +31,7 @@
 //   • aml-desktop-view (viewport mode toggle)
 //   • aml-kind-filter, aml-cs-*, aml-cs-mode, aml-cs-rowshape
 //     (gallery/schedule ephemeral filters)
-// Everything else (settings, ui.*, collections, schedules, specs) is in cloud.
+// Everything else (settings, ui.*, collections, schedules) is in cloud.
 
 (function () {
   const { useState, useEffect, useCallback, useMemo, useRef, useContext, createContext } = React;
@@ -237,20 +237,20 @@
 
   // ─────────────────────────────────────────────
   // Per-project blob hooks (Phase 4)
-  // Used by CostSchedule, CostScheduleV2, ProjectSpec to lazily load each
-  // project's schedule/spec from cloud on mount or project change.
+  // Used by CostSchedule / CostScheduleV2 to lazily load each project's
+  // schedule from cloud on mount or project change.
   //
   // Race guard: if the user switches projects A → B mid-load, A's response
   // is dropped (cancelled flag) so it can't overwrite B's state.
   //
   // Auto-migration: if the cloud row is missing AND localStorage has the
-  // legacy aml-schedule-<id> / aml-spec-<id> blob, push the local data to
-  // cloud once (saveScheduleNow / saveSpecNow) and use it. After this runs,
-  // cloud is the source of truth — subsequent loads ignore localStorage.
+  // legacy aml-schedule-<id> blob, push the local data to cloud once
+  // (saveScheduleNow) and use it. After this runs, cloud is the source of
+  // truth — subsequent loads ignore localStorage.
   //
-  // Setter: the wrapped setSchedule / setSpec writes to cloud via the
-  // debounced saveSchedule / saveSpec — keyed on projectId. Switching
-  // projects mid-debounce does NOT lose the pending save (per-key debounce).
+  // Setter: the wrapped setSchedule writes to cloud via the debounced
+  // saveSchedule — keyed on projectId. Switching projects mid-debounce does
+  // NOT lose the pending save (per-key debounce).
   //
   // Caller passes:
   //   • projectId  — the row key (cloud column = project_id)
@@ -336,18 +336,6 @@
     });
   }
 
-  function useProjectSpec(projectId, fallback, transform) {
-    return useProjectBlob({
-      projectId,
-      lsKey: projectId ? ('aml-spec-' + projectId) : null,
-      cloudLoad:    (id) => window.cloud.loadSpec(id),
-      cloudSaveNow: (id, data) => window.cloud.saveSpecNow(id, data),
-      cloudSave:    (id, data) => window.cloud.saveSpec(id, data),
-      fallback,
-      transform,
-    });
-  }
-
   // ─────────────────────────────────────────────
   // Hydration orchestration
   // ─────────────────────────────────────────────
@@ -378,32 +366,15 @@
       const ui = collectLegacyUiKeys();
       if (Object.keys(ui).length > 0) { appState.ui = ui; appStateChanged = true; }
     }
-    // Migrate specV2Cols: aml-spec-cols (old per-device localStorage blob) →
-    // appState.ui.specV2Cols (cloud-synced, workspace-wide). Only runs once:
-    // once the key is in cloud the condition is false. Does NOT delete the
-    // localStorage key — leave that to the existing "Clear browser leftovers" flow.
-    if (!(appState.ui && appState.ui.specV2Cols)) {
-      const raw = readLSRaw('aml-spec-cols');
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') {
-            appState = {
-              ...appState,
-              ui: {
-                ...(appState.ui || {}),
-                specV2Cols: {
-                  // Keep in sync with DEFAULT_GLOBAL_COLS in ProjectSpecV2.jsx
-                  global: ['finish', 'rooms', 'supplier', 'price'],
-                  byTrade: parsed,
-                },
-              },
-            };
-            appStateChanged = true;
-          }
-        } catch {}
+    // One-time cleanup: with the Spec page removed, purge any orphaned
+    // aml-spec* keys (per-project blobs, view-mode preference, legacy
+    // column-visibility blob) so they don't linger in localStorage.
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('aml-spec')) localStorage.removeItem(k);
       }
-    }
+    } catch {}
     if (appState.seed_version == null) {
       const ver = readLSRaw('aml-seed-version');
       if (ver) {
@@ -474,7 +445,7 @@
         console.log('[LoadingGate] running v4 migration…');
         const result = await window.migrateV4.runLive({
           appState, materials, projects, libraries,
-          loadSpec:        (id) => window.cloud.loadSpec(id),
+          loadSpec:        () => Promise.resolve(null),
           loadSchedule:    (id) => window.cloud.loadSchedule(id),
           saveSchedule:    (id, data) => window.cloud.saveScheduleNow(id, data),
           upsertItem:      (table, id, item) => window.cloud.upsertItemNow(table, id, item),
@@ -711,5 +682,5 @@
     );
   }
 
-  Object.assign(window, { LoadingGate, useCloudState, useProjectSchedule, useProjectSpec });
+  Object.assign(window, { LoadingGate, useCloudState, useProjectSchedule });
 })();

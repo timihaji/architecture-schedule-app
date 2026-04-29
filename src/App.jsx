@@ -218,7 +218,7 @@ function DupeMaterialModal({ state, onUseExisting, onSaveAnyway, onCancel }) {
 function App() {
   // Phase 3: settings, UI singleton keys, AND collections all come from the
   // cloud-backed app_state + per-collection rows via LoadingGate's
-  // CloudStateContext. Per-project schedules/specs still come from
+  // CloudStateContext. Per-project schedules still come from
   // localStorage — Phase 4 moves those.
   const cs = window.useCloudState();
   const settings = cs.settings;
@@ -409,7 +409,7 @@ function App() {
     if (!loser) return;
 
     // Phase 4: rewrite materialId references in every project's cloud
-    // schedule + spec. Best-effort: load each, swap, push back. Async and
+    // schedule. Best-effort: load each, swap, push back. Async and
     // fire-and-forget — the materials list update below is what the user sees
     // immediately; the cross-references catch up in the background.
     if (window.cloud && Array.isArray(projects)) {
@@ -424,11 +424,6 @@ function App() {
           const next = swap(sched);
           if (next) window.cloud.saveScheduleNow(p.id, next).catch(err =>
             console.error('[mergeMaterials] schedule rewrite failed:', p.id, err));
-        }).catch(() => {});
-        window.cloud.loadSpec(p.id).then(spec => {
-          const next = swap(spec);
-          if (next) window.cloud.saveSpecNow(p.id, next).catch(err =>
-            console.error('[mergeMaterials] spec rewrite failed:', p.id, err));
         }).catch(() => {});
       });
     }
@@ -491,17 +486,14 @@ function App() {
   function deleteProject(id) {
     if (!window.confirm('Delete this project? Its cost schedule will also be removed.')) return;
     setProjects(list => list.filter(p => p.id !== id));
-    // Drop the cloud schedule + spec rows. Cloud delete is best-effort —
+    // Drop the cloud schedule row. Cloud delete is best-effort —
     // the project itself is already gone from the user's perspective.
     if (window.cloud) {
       window.cloud.deleteSchedule(id).catch(err =>
         console.error('[deleteProject] schedule delete failed:', err));
-      window.cloud.deleteSpec(id).catch(err =>
-        console.error('[deleteProject] spec delete failed:', err));
     }
-    // Also clear the legacy localStorage rows so they don't re-migrate.
+    // Also clear the legacy localStorage row so it doesn't re-migrate.
     try { localStorage.removeItem('aml-schedule-' + id); } catch {}
-    try { localStorage.removeItem('aml-spec-' + id); } catch {}
   }
 
   // ───────── Library CRUD ─────────
@@ -656,18 +648,6 @@ function App() {
             onDelete={deleteProject}
           />
         )}
-        {view === 'spec' && window.ProjectSpec && (
-          <window.ProjectSpec
-            materials={materials}
-            projects={projects}
-            libraries={libraries}
-            labelTemplates={labelTemplates}
-            activeProjectId={activeProjectId}
-            setActiveProjectId={setActiveProjectId}
-            onUpdateProject={saveProject}
-            density={settings.density}
-          />
-        )}
         {view === 'schedule' && window.SchedulePage && (
           <window.SchedulePage
             materials={materials}
@@ -716,7 +696,6 @@ function App() {
               if (window.cloud) {
                 (projects || []).forEach(p => {
                   window.cloud.deleteSchedule(p.id).catch(() => {});
-                  window.cloud.deleteSpec(p.id).catch(() => {});
                 });
               }
             }}
@@ -734,17 +713,11 @@ function App() {
               if (data.libraries) setLibraries(data.libraries);
               if (data.labelTemplates) setLabelTemplates(data.labelTemplates);
               if (data.settings) setSettings({ ...window.SETTINGS_DEFAULTS, ...data.settings });
-              // Phase 4: per-project schedules + specs go to cloud.
+              // Phase 4: per-project schedules go to cloud.
               if (window.cloud && data.schedules && typeof data.schedules === 'object') {
                 Object.entries(data.schedules).forEach(([pid, sched]) => {
                   window.cloud.saveScheduleNow(pid, sched).catch(err =>
                     console.error('[onImport] schedule save failed:', pid, err));
-                });
-              }
-              if (window.cloud && data.specs && typeof data.specs === 'object') {
-                Object.entries(data.specs).forEach(([pid, spec]) => {
-                  window.cloud.saveSpecNow(pid, spec).catch(err =>
-                    console.error('[onImport] spec save failed:', pid, err));
                 });
               }
             }}
@@ -1002,7 +975,6 @@ function Nav({ view, setView, settings }) {
     { key: 'projects', label: 'Projects', num: 'II' },
     { key: 'cost',     label: 'Cost Schedule', num: 'III' },
     { key: 'schedule', label: 'Schedule',      num: 'IV' },
-    { key: 'spec',     label: 'Spec',          num: 'V' },
   ];
   const settingsActive = view === 'settings';
   return (

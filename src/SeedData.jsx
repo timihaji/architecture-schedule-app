@@ -1,4 +1,4 @@
-// SeedData — user-authored cost schedules, specs, and extra projects baked
+// SeedData — user-authored cost schedules and extra projects baked
 // into the app so every install starts with this content. Regenerated from
 // an archive JSON export. localStorage still wins if populated.
 
@@ -417,15 +417,6 @@ const SEED_SCHEDULES = {
   }
 };
 
-const SEED_SPECS = {
-  "p-1776916148400": {
-    "title": "Project Specification",
-    "version": 1,
-    "sections": [],
-    "rows": {}
-  }
-};
-
 // Projects created in-app (not in the original PROJECTS seed). Merged into
 // PROJECTS so every install knows about them.
 const SEED_EXTRA_PROJECTS = [
@@ -459,4 +450,4 @@ if (window.PROJECTS && Array.isArray(SEED_EXTRA_PROJECTS)) {
   });
 }
 
-Object.assign(window, { SEED_SCHEDULES, SEED_SPECS, SEED_EXTRA_PROJECTS });
+Object.assign(window, { SEED_SCHEDULES, SEED_EXTRA_PROJECTS });

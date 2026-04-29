@@ -984,7 +984,7 @@ function CloudSection({ materials, projects, libraries, labelTemplates }) {
   // we can call them with progress callbacks scoped to this component.
   async function migrateBrowserToCloud() {
     const summary = { settings: 0, ui: 0, seedVersion: 0, labelTemplates: 0,
-      materials: 0, projects: 0, libraries: 0, schedules: 0, specs: 0 };
+      materials: 0, projects: 0, libraries: 0, schedules: 0 };
 
     setProgress({ line: 'Reading workspace from cloud…' });
     const appStateCloud = (await window.cloud.loadAppState()) || {};
@@ -1049,11 +1049,11 @@ function CloudSection({ materials, projects, libraries, labelTemplates }) {
       summary.libraries = todo.length;
     }
 
-    // Per-project schedules + specs. Use the resulting projects list to scope.
+    // Per-project schedules. Use the resulting projects list to scope.
     const finalProjects = lsProjects || projectsCloud.map(r => r); // best-effort
     for (let i = 0; i < finalProjects.length; i++) {
       const p = finalProjects[i];
-      setProgress({ line: 'Uploading schedules + specs…', current: i + 1, total: finalProjects.length });
+      setProgress({ line: 'Uploading schedules…', current: i + 1, total: finalProjects.length });
       const lsSched = readLSJson('aml-schedule-' + p.id);
       if (lsSched) {
         const existing = await window.cloud.loadSchedule(p.id);
@@ -1062,27 +1062,18 @@ function CloudSection({ materials, projects, libraries, labelTemplates }) {
           summary.schedules++;
         }
       }
-      const lsSpec = readLSJson('aml-spec-' + p.id);
-      if (lsSpec) {
-        const existing = await window.cloud.loadSpec(p.id);
-        if (!existing) {
-          await window.cloud.saveSpecNow(p.id, lsSpec);
-          summary.specs++;
-        }
-      }
     }
 
     return summary;
   }
 
   async function seedWorkspace() {
-    const summary = { materials: 0, projects: 0, libraries: 0, schedules: 0, specs: 0 };
+    const summary = { materials: 0, projects: 0, libraries: 0, schedules: 0 };
     const seeds = {
       materials: window.MATERIALS || [],
       projects:  window.PROJECTS  || [],
       libraries: window.LIBRARIES || [],
       schedules: window.SEED_SCHEDULES || {},
-      specs:     window.SEED_SPECS     || {},
     };
     const tpl = window.DEFAULT_TEMPLATES;
     if (tpl) {
@@ -1113,12 +1104,6 @@ function CloudSection({ materials, projects, libraries, labelTemplates }) {
       setProgress({ line: 'Seeding schedules…', current: i + 1, total: schedIds.length });
       await window.cloud.saveScheduleNow(schedIds[i], seeds.schedules[schedIds[i]]);
       summary.schedules++;
-    }
-    const specIds = Object.keys(seeds.specs);
-    for (let i = 0; i < specIds.length; i++) {
-      setProgress({ line: 'Seeding specs…', current: i + 1, total: specIds.length });
-      await window.cloud.saveSpecNow(specIds[i], seeds.specs[specIds[i]]);
-      summary.specs++;
     }
     return summary;
   }
@@ -1304,7 +1289,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
     try {
       const result = await window.migrateV4.runDry({
         appState, materials, projects, libraries,
-        loadSpec:     (id) => window.cloud.loadSpec(id),
+        loadSpec:     () => Promise.resolve(null),
         loadSchedule: (id) => window.cloud.loadSchedule(id),
       });
       setMigMsg({ kind: 'ok',
@@ -1326,7 +1311,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
     try {
       await window.migrateV4.snapshot({
         appState, materials, projects, libraries,
-        loadSpec:     (id) => window.cloud.loadSpec(id),
+        loadSpec:     () => Promise.resolve(null),
         loadSchedule: (id) => window.cloud.loadSchedule(id),
         label: 'manual',
       });
@@ -1352,7 +1337,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
     try {
       const result = await window.migrateV4.runLive({
         appState, materials, projects, libraries,
-        loadSpec:        (id) => window.cloud.loadSpec(id),
+        loadSpec:        () => Promise.resolve(null),
         loadSchedule:    (id) => window.cloud.loadSchedule(id),
         saveSchedule:    (id, data) => window.cloud.saveScheduleNow(id, data),
         upsertItem:      (table, id, item) => window.cloud.upsertItemNow(table, id, item),
@@ -1371,20 +1356,15 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
   }
 
   async function exportAll() {
-    // Phase 4: per-project cost schedules and specs live in the cloud.
+    // Phase 4: per-project cost schedules live in the cloud.
     // Load each project's row in parallel, then build the archive payload.
     const schedules = {};
-    const specs = {};
     if (window.cloud && Array.isArray(projects)) {
       const tasks = [];
       for (const p of projects) {
         tasks.push(
           window.cloud.loadSchedule(p.id).then(s => { if (s) schedules[p.id] = s; })
             .catch(err => console.error('[exportAll] schedule load failed:', p.id, err))
-        );
-        tasks.push(
-          window.cloud.loadSpec(p.id).then(s => { if (s) specs[p.id] = s; })
-            .catch(err => console.error('[exportAll] spec load failed:', p.id, err))
         );
       }
       await Promise.all(tasks);
@@ -1395,7 +1375,7 @@ function DataSection({ settings, materials, projects, libraries, labelTemplates,
       _version: 2,
       _exportedAt: new Date().toISOString(),
       settings, materials, projects, libraries, labelTemplates,
-      schedules, specs,
+      schedules,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)],
       { type: 'application/json' });

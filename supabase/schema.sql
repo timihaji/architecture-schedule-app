@@ -57,14 +57,6 @@ create table schedules (
   updated_by uuid references auth.users(id)
 );
 
-create table specs (
-  project_id text primary key,
-  data jsonb not null,
-  version bigint not null default 1,
-  updated_at timestamptz not null default now(),
-  updated_by uuid references auth.users(id)
-);
-
 -- Email allowlist — second line of defence on top of disabled signup
 create table allowed_emails (
   email text primary key,
@@ -103,7 +95,6 @@ create trigger _bump_projects        before update on projects        for each r
 create trigger _bump_libraries       before update on libraries       for each row execute function bump_version_updated_at();
 create trigger _bump_label_templates before update on label_templates for each row execute function bump_version_updated_at();
 create trigger _bump_schedules       before update on schedules       for each row execute function bump_version_updated_at();
-create trigger _bump_specs           before update on specs           for each row execute function bump_version_updated_at();
 
 -- ─────────────────────────────────────────────
 -- Atomic version-checked upsert RPC
@@ -155,9 +146,9 @@ begin
 end;
 $$;
 
--- Per-project variant for schedules / specs (keyed on project_id, not id)
+-- Per-project variant for schedules (keyed on project_id, not id)
 create or replace function upsert_project_blob_with_version(
-  p_table      text,   -- 'schedules' or 'specs'
+  p_table      text,   -- 'schedules'
   p_project_id text,
   p_data       jsonb,
   p_version    bigint
@@ -205,7 +196,6 @@ alter table projects        enable row level security;
 alter table libraries       enable row level security;
 alter table label_templates enable row level security;
 alter table schedules       enable row level security;
-alter table specs           enable row level security;
 alter table allowed_emails  enable row level security;
 
 -- RLS policies for the 7 main tables — allowlisted authenticated users only
@@ -214,7 +204,7 @@ declare
   t text;
 begin
   for t in select unnest(array[
-    'app_state','materials','projects','libraries','label_templates','schedules','specs'
+    'app_state','materials','projects','libraries','label_templates','schedules'
   ])
   loop
     execute format($f$
@@ -241,10 +231,10 @@ begin
   select count(*) into policy_count
   from pg_policies
   where schemaname = 'public'
-    and tablename in ('app_state','materials','projects','libraries','label_templates','schedules','specs');
+    and tablename in ('app_state','materials','projects','libraries','label_templates','schedules');
 
-  if policy_count <> 28 then
-    raise exception 'RLS policy count mismatch — expected 28 (4 × 7 tables), got %. Check for errors above.', policy_count;
+  if policy_count <> 24 then
+    raise exception 'RLS policy count mismatch — expected 24 (4 × 6 tables), got %. Check for errors above.', policy_count;
   end if;
 end$$;
 
