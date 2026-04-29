@@ -44,11 +44,12 @@
     }
 
     return (
-      <span style={wrap()}>
-        <span style={dot(dotColor, pulsing)} />
+      <span className="save-status">
+        <span className={'save-status-dot' + (pulsing ? ' pulsing' : '')}
+              style={{ background: dotColor }} />
         <span>{label}</span>
         {state.lastError ? (
-          <a href="#" style={dismissLink()}
+          <a href="#" className="save-status-dismiss"
              title={state.lastError}
              onClick={e => {
                e.preventDefault();
@@ -81,33 +82,6 @@
     if (h < 24)   return `${h}h ago`;
     const d = new Date(ts);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function wrap() {
-    return {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      color: 'inherit',
-    };
-  }
-  function dot(color, pulsing) {
-    return {
-      display: 'inline-block',
-      width: 6,
-      height: 6,
-      borderRadius: '50%',
-      background: color,
-      animation: pulsing ? 'amlSavePulse 1.2s ease-in-out infinite' : 'none',
-    };
-  }
-  function dismissLink() {
-    return {
-      marginLeft: 4,
-      color: 'var(--ink-3)',
-      textDecoration: 'none',
-      cursor: 'pointer',
-    };
   }
 
   Object.assign(window, { SaveStatusIndicator });

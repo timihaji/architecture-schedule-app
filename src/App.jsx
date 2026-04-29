@@ -1088,9 +1088,6 @@ function RevisionBadge() {
 }
 
 function Nav({ view, setView, settings }) {
-  // Slot IV is the new card-based Schedule (D1a). The legacy Spec view (now
-  // ProjectSpecV2 — Material Submittal Register) keeps a temporary slot V
-  // entry until D5 trims the nav to four slots per the integration plan.
   const items = [
     { key: 'library',  label: 'Library',  num: 'I' },
     { key: 'projects', label: 'Projects', num: 'II' },
@@ -1100,18 +1097,8 @@ function Nav({ view, setView, settings }) {
   ];
   const settingsActive = view === 'settings';
   return (
-    <header style={{
-      borderBottom: '1px solid var(--ink)',
-      padding: '20px 56px 18px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'baseline',
-      background: 'var(--paper)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 50,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
+    <header className="sched-nav">
+      <div className="sched-nav-brand">
         {window.FirmLogo
           ? <window.FirmLogo settings={settings} size={22} />
           : <div style={{ width: 22, height: 22, background: 'var(--ink)' }} />}
@@ -1122,44 +1109,21 @@ function Nav({ view, setView, settings }) {
           </Serif>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 32 }}>
-        <nav style={{ display: 'flex', gap: 32 }}>
+      <div className="sched-nav-right">
+        <nav className="sched-nav-links">
           {items.map(it => (
             <button
               key={it.key}
               type="button"
+              className={'sched-nav-btn' + (view === it.key ? ' active' : '')}
               onClick={() => setView(it.key)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px 0',
-                fontFamily: "'Inter Tight', sans-serif",
-                fontSize: 12,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: view === it.key ? 'var(--ink)' : 'var(--ink-4)',
-                fontWeight: view === it.key ? 500 : 400,
-                borderBottom: '1px solid ' + (view === it.key ? 'var(--ink)' : 'transparent'),
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: 8,
-              }}
             >
-              <span style={{
-                ...ui.mono,
-                fontSize: 10,
-                color: view === it.key ? 'var(--ink-3)' : 'var(--ink-4)',
-              }}>{it.num}</span>
+              <span className="sched-nav-num">{it.num}</span>
               {it.label}
             </button>
           ))}
         </nav>
-        <div style={{
-          width: 1, alignSelf: 'stretch',
-          background: 'var(--rule)',
-          margin: '2px 0',
-        }} />
+        <div className="sched-nav-sep" />
         <SettingsGearButton
           active={settingsActive}
           onClick={() => setView(settingsActive ? 'library' : 'settings')} />
@@ -1169,31 +1133,15 @@ function Nav({ view, setView, settings }) {
 }
 
 function SettingsGearButton({ active, onClick }) {
-  const [hover, setHover] = React.useState(false);
-  const state = active || hover;
   return (
-    <button type="button" onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <button type="button"
+      className={'sched-gear' + (active ? ' active' : '')}
+      onClick={onClick}
       title={active ? 'Close settings' : 'Open settings'}
       aria-label="Settings"
-      style={{
-        background: active ? 'var(--ink)' : 'transparent',
-        border: '1px solid ' + (state ? 'var(--ink)' : 'var(--rule-2)'),
-        padding: '5px 8px',
-        cursor: 'pointer',
-        color: active ? 'var(--paper)' : 'var(--ink-3)',
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase',
-        fontWeight: 500,
-        transition: 'all 0.14s ease',
-      }}>
+    >
       <GearIcon size={13} />
-      <span style={{ fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 9, opacity: state ? 0.8 : 0.55, letterSpacing: '0.14em' }}>
-        V
-      </span>
+      <span className="sched-gear-ver">V</span>
     </button>
   );
 }

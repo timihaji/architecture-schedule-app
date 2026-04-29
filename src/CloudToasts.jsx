@@ -41,84 +41,27 @@
     if (toasts.length === 0) return null;
 
     return (
-      <div style={stack()}>
+      <div className="cloud-toast-stack">
         {toasts.map(t => (
-          <div key={t.id} style={toastBox(t.kind)}>
+          <div key={t.id} className={'cloud-toast' + (t.kind === 'error' ? ' error' : '')}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={toastTitle(t.kind)}>
+              <div className="cloud-toast-head">
                 {t.kind === 'error' ? 'Save failed' : 'Notice'}
               </div>
-              <div style={toastBody()}>{t.message}</div>
+              <div className="cloud-toast-body">{t.message}</div>
             </div>
             {t.retry ? (
-              <button type="button" style={btn('primary')} onClick={() => { t.retry(); dismiss(t.id); }}>
+              <button type="button" className="cloud-toast-btn primary" onClick={() => { t.retry(); dismiss(t.id); }}>
                 Retry
               </button>
             ) : null}
-            <button type="button" style={btn('ghost')} onClick={() => dismiss(t.id)}>
+            <button type="button" className="cloud-toast-btn" onClick={() => dismiss(t.id)}>
               Dismiss
             </button>
           </div>
         ))}
       </div>
     );
-  }
-
-  function stack() {
-    return {
-      position: 'fixed',
-      bottom: 16,
-      right: 16,
-      zIndex: 9100,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      maxWidth: 380,
-    };
-  }
-  function toastBox(kind) {
-    const isError = kind === 'error';
-    return {
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 12,
-      padding: '12px 14px',
-      background: isError ? 'rgba(197, 74, 59, 0.96)' : 'rgba(20, 20, 20, 0.92)',
-      color: '#fff',
-      fontFamily: 'var(--font-sans)',
-      fontSize: 13,
-      lineHeight: 1.4,
-    };
-  }
-  function toastTitle() {
-    return {
-      fontFamily: 'var(--font-mono)',
-      fontSize: 11,
-      letterSpacing: '0.12em',
-      textTransform: 'uppercase',
-      opacity: 0.85,
-      marginBottom: 2,
-    };
-  }
-  function toastBody() {
-    return {
-      wordBreak: 'break-word',
-    };
-  }
-  function btn(variant) {
-    const base = {
-      padding: '4px 8px',
-      fontFamily: 'var(--font-sans)',
-      fontSize: 12,
-      cursor: 'pointer',
-      border: '1px solid rgba(255,255,255,0.4)',
-      color: '#fff',
-      whiteSpace: 'nowrap',
-    };
-    if (variant === 'primary') {
-      return { ...base, background: 'rgba(255,255,255,0.18)' };
-    }
-    return { ...base, background: 'transparent' };
   }
 
   Object.assign(window, { CloudToasts });

@@ -137,11 +137,11 @@
 
   function CenteredMessage({ title, sub, children }) {
     return (
-      <div style={shell()}>
-        <div style={card()}>
-          <div style={hLabel()}>Architecture Schedule</div>
-          <div style={hTitle()}>{title}</div>
-          {sub ? <div style={hSub()}>{sub}</div> : null}
+      <div className="auth-shell">
+        <div className="auth-card">
+          <div className="auth-eyebrow">Architecture Schedule</div>
+          <div className="auth-title">{title}</div>
+          {sub ? <div className="auth-sub">{sub}</div> : null}
           {children}
         </div>
       </div>
@@ -200,12 +200,12 @@
                       : 'Send reset link';
 
     return (
-      <div style={shell()}>
-        <form style={card()} onSubmit={onSubmit}>
-          <div style={hLabel()}>Architecture Schedule</div>
-          <div style={hTitle()}>{title}</div>
+      <div className="auth-shell">
+        <form className="auth-card" onSubmit={onSubmit}>
+          <div className="auth-eyebrow">Architecture Schedule</div>
+          <div className="auth-title">{title}</div>
 
-          <label style={fieldLabel()}>
+          <label className="auth-field">
             Email
             <input
               type="email"
@@ -213,13 +213,13 @@
               autoComplete="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              style={input()}
+              className="auth-input"
               autoFocus
             />
           </label>
 
           {mode !== 'reset' ? (
-            <label style={fieldLabel()}>
+            <label className="auth-field">
               Password
               <input
                 type="password"
@@ -227,14 +227,14 @@
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                style={input()}
+                className="auth-input"
                 minLength={mode === 'signup' ? 8 : undefined}
               />
             </label>
           ) : null}
 
           {mode === 'signup' ? (
-            <label style={fieldLabel()}>
+            <label className="auth-field">
               Confirm password
               <input
                 type="password"
@@ -242,30 +242,30 @@
                 autoComplete="new-password"
                 value={password2}
                 onChange={e => setPassword2(e.target.value)}
-                style={input()}
+                className="auth-input"
                 minLength={8}
               />
             </label>
           ) : null}
 
-          {errMsg ? <div style={errBox()}>{errMsg}</div> : null}
-          {okMsg  ? <div style={okBox()}>{okMsg}</div>   : null}
+          {errMsg ? <div className="auth-err">{errMsg}</div> : null}
+          {okMsg  ? <div className="auth-ok">{okMsg}</div>   : null}
 
-          <button type="submit" disabled={busy} style={primaryBtn(busy)}>
+          <button type="submit" disabled={busy} className="auth-submit">
             {busy ? '…' : submitLabel}
           </button>
 
-          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between' }}>
             {mode === 'signin' ? (
               <>
                 <button type="button" onClick={() => switchMode('reset')}
-                        style={linkBtn()}>Forgot password?</button>
+                        className="auth-link-btn">Forgot password?</button>
                 <button type="button" onClick={() => switchMode('signup')}
-                        style={linkBtn()}>Create an account</button>
+                        className="auth-link-btn">Create an account</button>
               </>
             ) : (
               <button type="button" onClick={() => switchMode('signin')}
-                      style={linkBtn()}>← Back to sign in</button>
+                      className="auth-link-btn">← Back to sign in</button>
             )}
           </div>
         </form>
@@ -295,25 +295,25 @@
     }
 
     return (
-      <div style={shell()}>
-        <form style={card()} onSubmit={onSubmit}>
-          <div style={hLabel()}>Architecture Schedule</div>
-          <div style={hTitle()}>Set a new password</div>
+      <div className="auth-shell">
+        <form className="auth-card" onSubmit={onSubmit}>
+          <div className="auth-eyebrow">Architecture Schedule</div>
+          <div className="auth-title">Set a new password</div>
 
-          <label style={fieldLabel()}>
+          <label className="auth-field">
             New password
             <input type="password" required value={pw1} onChange={e => setPw1(e.target.value)}
-                   style={input()} autoFocus minLength={8} />
+                   className="auth-input" autoFocus minLength={8} />
           </label>
-          <label style={fieldLabel()}>
+          <label className="auth-field">
             Confirm password
             <input type="password" required value={pw2} onChange={e => setPw2(e.target.value)}
-                   style={input()} minLength={8} />
+                   className="auth-input" minLength={8} />
           </label>
 
-          {errMsg ? <div style={errBox()}>{errMsg}</div> : null}
+          {errMsg ? <div className="auth-err">{errMsg}</div> : null}
 
-          <button type="submit" disabled={busy} style={primaryBtn(busy)}>
+          <button type="submit" disabled={busy} className="auth-submit">
             {busy ? '…' : 'Save new password'}
           </button>
         </form>
@@ -328,143 +328,19 @@
       try { await window.cloud.signOut(); } finally { setBusy(false); }
     }
     return (
-      <div style={shell()}>
-        <div style={card()}>
-          <div style={hLabel()}>Architecture Schedule</div>
-          <div style={hTitle()}>Not authorised</div>
-          <div style={hSub()}>
+      <div className="auth-shell">
+        <div className="auth-card">
+          <div className="auth-eyebrow">Architecture Schedule</div>
+          <div className="auth-title">Not authorised</div>
+          <div className="auth-sub">
             <strong>{email}</strong> isn't on the workspace allowlist. Ask the workspace owner to add your email.
           </div>
-          <button type="button" disabled={busy} onClick={onSignOut} style={primaryBtn(busy)}>
+          <button type="button" disabled={busy} onClick={onSignOut} className="auth-submit">
             {busy ? '…' : 'Sign out'}
           </button>
         </div>
       </div>
     );
-  }
-
-  // ─────────────────────────────────────────────
-  // Inline styles — uses existing CSS vars from index.html
-  // ─────────────────────────────────────────────
-  function shell() {
-    return {
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 24,
-      background: 'var(--paper)',
-    };
-  }
-  function card() {
-    return {
-      width: '100%',
-      maxWidth: 380,
-      background: 'var(--paper-2)',
-      border: '1px solid var(--rule)',
-      padding: '32px 28px',
-      display: 'flex',
-      flexDirection: 'column',
-    };
-  }
-  function hLabel() {
-    return {
-      fontFamily: 'var(--font-mono)',
-      fontSize: 11,
-      letterSpacing: '0.18em',
-      textTransform: 'uppercase',
-      color: 'var(--ink-3)',
-      marginBottom: 12,
-    };
-  }
-  function hTitle() {
-    return {
-      fontFamily: 'var(--font-serif)',
-      fontWeight: 400,
-      fontSize: 28,
-      lineHeight: 1.15,
-      color: 'var(--ink)',
-      marginBottom: 4,
-    };
-  }
-  function hSub() {
-    return {
-      fontSize: 14,
-      color: 'var(--ink-3)',
-      marginBottom: 20,
-      lineHeight: 1.4,
-    };
-  }
-  function fieldLabel() {
-    return {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-      fontFamily: 'var(--font-mono)',
-      fontSize: 11,
-      letterSpacing: '0.12em',
-      textTransform: 'uppercase',
-      color: 'var(--ink-3)',
-      marginTop: 16,
-    };
-  }
-  function input() {
-    return {
-      padding: '10px 12px',
-      fontFamily: 'var(--font-sans)',
-      fontSize: 15,
-      letterSpacing: 'normal',
-      textTransform: 'none',
-      color: 'var(--ink)',
-      background: 'var(--paper)',
-      border: '1px solid var(--rule-2)',
-      outline: 'none',
-    };
-  }
-  function primaryBtn(disabled) {
-    return {
-      marginTop: 24,
-      padding: '12px 16px',
-      fontFamily: 'var(--font-sans)',
-      fontSize: 14,
-      fontWeight: 500,
-      color: '#fff',
-      background: disabled ? 'var(--ink-4)' : 'var(--accent)',
-      border: 'none',
-      cursor: disabled ? 'wait' : 'pointer',
-      transition: 'background 0.15s ease',
-    };
-  }
-  function linkBtn() {
-    return {
-      background: 'none',
-      border: 'none',
-      padding: 0,
-      color: 'var(--accent-ink)',
-      cursor: 'pointer',
-      fontSize: 13,
-      textDecoration: 'underline',
-    };
-  }
-  function errBox() {
-    return {
-      marginTop: 14,
-      padding: '10px 12px',
-      fontSize: 13,
-      color: '#7a2412',
-      background: 'rgba(184, 92, 58, 0.12)',
-      border: '1px solid rgba(184, 92, 58, 0.3)',
-          };
-  }
-  function okBox() {
-    return {
-      marginTop: 14,
-      padding: '10px 12px',
-      fontSize: 13,
-      color: '#1f5a2e',
-      background: 'rgba(58, 138, 74, 0.12)',
-      border: '1px solid rgba(58, 138, 74, 0.3)',
-          };
   }
 
   Object.assign(window, { AuthGate });
