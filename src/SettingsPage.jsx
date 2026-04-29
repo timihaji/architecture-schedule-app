@@ -57,7 +57,7 @@ function SettingsPage({
         {groups.map(g => (
           <div key={g} className="st-nav-group">
             <div className="st-nav-group-label">{g}</div>
-            <nav style={{ display: 'flex', flexDirection: 'column' }}>
+            <nav className="st-nav">
               {sections.filter(s => s.group === g).map(s => (
                 <button key={s.key} type="button"
                   className={'st-nav-btn' + (section === s.key ? ' active' : '')}
@@ -536,28 +536,28 @@ function FirmSection({ settings, set }) {
         description="Shown at the top-left of every page, before the tagline.">
         <input type="text" value={settings.firmName || ''}
           onChange={e => set('firmName', e.target.value)}
-          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+          className="st-field" style={{ minWidth: 320 }} />
       </SettingRow>
 
       <SettingRow label="Tagline"
         description="Shown after the firm name, separated by an em dash. Leave blank to hide.">
         <input type="text" value={settings.firmTagline || ''}
           onChange={e => set('firmTagline', e.target.value)}
-          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+          className="st-field" style={{ minWidth: 320 }} />
       </SettingRow>
 
       <SettingRow label="Footer (left)"
         description="Shown at the bottom-left of every page.">
         <input type="text" value={settings.firmFooterLeft || ''}
           onChange={e => set('firmFooterLeft', e.target.value)}
-          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+          className="st-field" style={{ minWidth: 320 }} />
       </SettingRow>
 
       <SettingRow label="Footer (right)"
         description="Shown at the bottom-right — often the revision or document status.">
         <input type="text" value={settings.firmFooterRight || ''}
           onChange={e => set('firmFooterRight', e.target.value)}
-          style={{ ...fieldStyleBase(), minWidth: 320 }} />
+          className="st-field" style={{ minWidth: 320 }} />
       </SettingRow>
 
       <SettingRow label="Logo mark"
@@ -573,10 +573,7 @@ function FirmSection({ settings, set }) {
       {logoType === 'preset' && Glyph && (
         <SettingRow label="Preset glyph"
           description="Pick one of the 25 preset marks.">
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(8, 44px)', gap: 6,
-            maxWidth: 400,
-          }}>
+          <div className="st-logo-grid">
             {glyphs.map(g => {
               const active = settings.firmLogoPreset === g.id;
               return (
@@ -601,29 +598,18 @@ function FirmSection({ settings, set }) {
       {logoType === 'upload' && (
         <SettingRow label="Upload image"
           description="PNG or SVG recommended. Max 200 KB — will render at 22×22 pixels in the header.">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="st-logo-row">
             {settings.firmLogoData && (
-              <img src={settings.firmLogoData} alt=""
-                style={{ width: 44, height: 44, objectFit: 'contain',
-                  border: '1px solid var(--rule-2)', padding: 4 }} />
+              <img src={settings.firmLogoData} alt="" className="st-logo-img" />
             )}
             <input ref={fileRef} type="file" accept="image/*"
               onChange={e => handleFile(e.target.files?.[0])}
               style={{ display: 'none' }} />
-            <button type="button" onClick={() => fileRef.current?.click()}
-              style={{
-                ...fieldStyleBase(),
-                width: 'auto', padding: '6px 14px', cursor: 'pointer',
-              }}>
+            <button type="button" onClick={() => fileRef.current?.click()} className="st-field-btn">
               {settings.firmLogoData ? 'Replace image' : 'Choose image'}
             </button>
             {settings.firmLogoData && (
-              <button type="button" onClick={() => set('firmLogoData', null)}
-                style={{
-                  ...fieldStyleBase(),
-                  width: 'auto', padding: '6px 14px', cursor: 'pointer',
-                  color: 'var(--ink-3)',
-                }}>
+              <button type="button" onClick={() => set('firmLogoData', null)} className="st-field-btn st-field-btn-muted">
                 Remove
               </button>
             )}
@@ -648,10 +634,7 @@ function LibraryDefaultsSection({ settings, set, labelTemplates, onOpenLabelBuil
         description="The category pre-selected when you add a new material.">
         <select value={settings.defaultCategory}
           onChange={e => set('defaultCategory', e.target.value)}
-          style={{
-            ...fieldStyleBase(),
-            minWidth: 220,
-          }}>
+          className="st-field" style={{ minWidth: 220 }}>
           {(window.CATEGORIES || ['Timber']).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </SettingRow>
@@ -724,7 +707,7 @@ function CodesSection({ settings, set, onFindDupes }) {
 
       <SettingRow label="Office style"
         description="Each preset is a bundle of code-management behaviours suited to a particular office workflow.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="codes-preset-list">
           {presets.map(p => {
             const active = preset === p.key;
             return (
@@ -747,32 +730,20 @@ function CodesSection({ settings, set, onFindDupes }) {
                 </div>
                 <div>
                   <span style={{ fontSize: 13, fontWeight: active ? 500 : 400 }}>{p.label}</span>
-                  {p.meta && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9,
-                    color: 'var(--ink-4)', marginLeft: 8, letterSpacing: '0.08em',
-                    textTransform: 'uppercase' }}>{p.meta}</span>}
+                  {p.meta && <span className="codes-preset-meta">{p.meta}</span>}
                 </div>
               </button>
             );
           })}
         </div>
         {!isCustom && (
-          <div style={{ marginTop: 10, fontFamily: 'var(--font-serif)', fontStyle: 'italic',
-            fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-            {PRESET_DESCRIPTIONS[preset]}
-          </div>
+          <div className="codes-preset-desc">{PRESET_DESCRIPTIONS[preset]}</div>
         )}
       </SettingRow>
 
       {isCustom && (
-        <div style={{
-          margin: '0 0 2px', padding: '18px 24px',
-          background: 'var(--tint)', border: '1px solid var(--rule)',
-          display: 'flex', flexDirection: 'column', gap: 20,
-        }}>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
-            letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
-            Custom settings
-          </div>
+        <div className="codes-custom-box">
+          <div className="codes-custom-label">Custom settings</div>
 
           <SubRow label="Code scope">
             <Segmented value={policy.scope || 'project'} onChange={v => setPolicy('scope', v)}
@@ -1653,31 +1624,15 @@ function KeyboardSection() {
       <SectionHeader kicker="11" title="Keyboard"
         subtitle="Shortcuts throughout the archive. Press ? from anywhere to open a quick overlay." />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: 48, rowGap: 36, paddingTop: 8 }}>
+      <div className="kbd-grid">
         {groups.map(g => (
           <div key={g.title}>
-            <div style={{ ...ui.mono, fontSize: 10, color: 'var(--ink-4)',
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              paddingBottom: 10, borderBottom: '1px solid var(--rule)' }}>
-              {g.title}
-            </div>
+            <div className="kbd-group-label">{g.title}</div>
             {g.rows.map(([k, label], i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                padding: '9px 0',
-                borderBottom: i < g.rows.length - 1 ? '1px dotted var(--rule-2)' : 'none',
-              }}>
-                <span style={{ ...ui.serif, fontSize: 14, color: 'var(--ink-2)' }}>{label}</span>
-                <span style={{
-                  fontFamily: "'JetBrains Mono', var(--font-mono, monospace)",
-                  fontSize: 11,
-                  padding: '2px 8px',
-                  border: '1px solid var(--rule-2)',
-                  background: 'var(--tint)',
-                  letterSpacing: '0.04em',
-                  color: 'var(--ink)',
-                }}>{k}</span>
+              <div key={i} className="kbd-row"
+                style={{ borderBottom: i < g.rows.length - 1 ? '1px dotted var(--rule-2)' : 'none' }}>
+                <span className="kbd-action">{label}</span>
+                <span className="kbd-key">{k}</span>
               </div>
             ))}
           </div>
@@ -1713,7 +1668,7 @@ function AboutSection() {
       <SectionHeader kicker="12" title="About"
         subtitle="Hollis & Arne — Studio Archive. Built in-house." />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, paddingTop: 8 }}>
+      <div className="about-grid">
         <div>
           <Eyebrow>Version</Eyebrow>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 12 }}>
@@ -1732,20 +1687,16 @@ function AboutSection() {
 
         <div>
           <Eyebrow>Changelog</Eyebrow>
-          <div style={{ marginTop: 10, maxHeight: 420, overflowY: 'auto',
-            paddingRight: 10 }}>
+          <div className="about-changelog">
             {changes.map(c => (
-              <div key={c.v} style={{ marginBottom: 22, paddingBottom: 18,
-                borderBottom: '1px dotted var(--rule-2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'baseline', marginBottom: 8 }}>
+              <div key={c.v} className="about-release">
+                <div className="about-release-head">
                   <Mono size={11} color="var(--ink)">v{c.v}</Mono>
                   <Mono size={10} color="var(--ink-4)">{c.d}</Mono>
                 </div>
-                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <ul className="about-release-list">
                   {c.items.map((it, i) => (
-                    <li key={i} style={{ ...ui.serif, fontSize: 13.5,
-                      color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 3 }}>
+                    <li key={i} className="about-release-item">
                       {it}
                     </li>
                   ))}

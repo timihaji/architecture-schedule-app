@@ -726,6 +726,43 @@
   .dup-pick-name { font-family: var(--font-serif); font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dup-pick-meta { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.06em; margin-top: 2px; }
   .dup-pick-use { font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* SETTINGS PAGE SUPPLEMENTAL (D9) */
+
+  /* Nav column in left rail */
+  .st-nav { display: flex; flex-direction: column; }
+
+  /* Shared text field — replaces fieldStyleBase() */
+  .st-field { width: 100%; background: transparent; border: 1px solid var(--rule-2); padding: 6px 10px; font-family: var(--font-sans); font-size: 13px; color: var(--ink); outline: none; }
+  .st-field-btn { background: transparent; border: 1px solid var(--rule-2); padding: 6px 14px; font-family: var(--font-sans); font-size: 13px; color: var(--ink); outline: none; cursor: pointer; }
+  .st-field-btn-muted { color: var(--ink-3); }
+
+  /* Firm section — logo picker */
+  .st-logo-grid { display: grid; grid-template-columns: repeat(8, 44px); gap: 6px; max-width: 400px; }
+  .st-logo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .st-logo-img { width: 44px; height: 44px; object-fit: contain; border: 1px solid var(--rule-2); padding: 4px; }
+
+  /* Codes section */
+  .codes-preset-list { display: flex; flex-direction: column; gap: 8px; }
+  .codes-preset-meta { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); margin-left: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .codes-preset-desc { margin-top: 10px; font-family: var(--font-serif); font-style: italic; font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+  .codes-custom-box { margin: 0 0 2px; padding: 18px 24px; background: var(--tint); border: 1px solid var(--rule); display: flex; flex-direction: column; gap: 20px; }
+  .codes-custom-label { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* Keyboard section */
+  .kbd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; row-gap: 36px; padding-top: 8px; }
+  .kbd-group-label { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .kbd-row { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; }
+  .kbd-action { font-family: var(--font-serif); font-size: 14px; color: var(--ink-2); }
+  .kbd-key { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border: 1px solid var(--rule-2); background: var(--tint); letter-spacing: 0.04em; color: var(--ink); }
+
+  /* About section */
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-top: 8px; }
+  .about-changelog { margin-top: 10px; max-height: 420px; overflow-y: auto; padding-right: 10px; }
+  .about-release { margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px dotted var(--rule-2); }
+  .about-release-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .about-release-list { margin: 0; padding-left: 18px; }
+  .about-release-item { font-family: var(--font-serif); font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin-bottom: 3px; }
 </style>
 
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
@@ -789,7 +826,7 @@
 <script type="text/babel" src="src/CardVariantD.jsx"></script>
 <script type="text/babel" src="src/PickerDrawer.jsx"></script>
 <script type="text/babel" src="src/SchedulePage.jsx"></script>
-<script type="text/babel" src="src/SettingsPage.jsx"></script>
+<script type="text/babel" src="src/SettingsPage.jsx?v=d9"></script>
 <script type="text/babel" src="src/Tweaks.jsx"></script>
 <script type="text/babel" src="src/ProductFieldBlocks.jsx"></script>
 <script type="text/babel" src="src/App.jsx?v=d8"></script>
