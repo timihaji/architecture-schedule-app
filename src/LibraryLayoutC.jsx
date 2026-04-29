@@ -1,8 +1,7 @@
 // Library — Layout C (Split / Detail). Phase B6 design integration.
 // 340px left list + right detail panel. Click an item to view its detail;
-// "Edit all fields" toggles inline inputs. Selecting a different list item
-// while editing discards silently. Active item accent: terracotta for
-// products (sage reserved for v2 types behind window.SHOW_TYPES).
+// "Edit" opens the standalone material drawer. Active item accent: terracotta
+// for products (sage reserved for v2 types behind window.SHOW_TYPES).
 
 function LibraryLayoutC({
   materials, libraries,
@@ -16,8 +15,6 @@ function LibraryLayoutC({
   const [group, setGroup] = React.useState('category');
   const [sort, setSort] = React.useState('code');
   const [activeId, setActiveId] = React.useState(null);
-  const [editing, setEditing] = React.useState(false);
-  const [editState, setEditState] = React.useState({});
 
   // Library scope
   const libraryScoped = React.useMemo(() => {
@@ -67,31 +64,16 @@ function LibraryLayoutC({
     if (filtered.length === 0) { setActiveId(null); return; }
     if (!filtered.find(m => m.id === activeId)) {
       setActiveId(filtered[0].id);
-      setEditing(false);
     }
   }, [filtered, activeId]);
 
   const active = activeId ? filtered.find(m => m.id === activeId) : null;
 
-  const selectItem = (id) => { setActiveId(id); setEditing(false); };
+  const selectItem = (id) => { setActiveId(id); };
   const toggleSelect = (id) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelected(next);
-  };
-
-  const startEdit = () => { setEditState({ ...active }); setEditing(true); };
-  const cancelEdit = () => { setEditing(false); };
-  const saveEdit = () => {
-    if (window.saveMaterialCell && active) {
-      const fields = ['name', 'brand', 'supplier', 'sku', 'price'];
-      fields.forEach(f => {
-        if (editState[f] !== undefined && editState[f] !== active[f]) {
-          window.saveMaterialCell(active.id, f, editState[f]);
-        }
-      });
-    }
-    setEditing(false);
   };
 
   const handleRemove = () => {
@@ -101,7 +83,6 @@ function LibraryLayoutC({
     const next = filtered[idx + 1] || filtered[idx - 1] || null;
     onDelete(active.id, true);
     setActiveId(next ? next.id : null);
-    setEditing(false);
   };
 
   // Resolve effective swatch (paintable inheritTone path)
@@ -249,104 +230,65 @@ function LibraryLayoutC({
                       ? ` · ${active.supplier}` : ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
-                  {editing && (
-                    <window.PrimaryButton onClick={saveEdit} style={{ padding: '6px 14px', fontSize: 10 }}>
-                      Save
-                    </window.PrimaryButton>
-                  )}
-                </div>
               </div>
 
-              {!editing ? (
-                <>
-                  <div className="detail-fields">
-                    {isPaint ? (
-                      <>
-                        <div><div className="detail-label">Brand</div><div className="detail-val">{active.brand || active.supplier || '—'}</div></div>
-                        <div><div className="detail-label">Colour code</div><div className="detail-val mono">{active.colourCode || '—'}</div></div>
-                        <div><div className="detail-label">Sheen</div><div className="detail-val">{active.sheen || '—'}</div></div>
-                        <div><div className="detail-label">System</div><div className="detail-val">{active.system || '—'}</div></div>
-                        <div><div className="detail-label">Coverage</div><div className="detail-val mono">{active.coveragePerL ? `${active.coveragePerL} m²/L` : '—'}</div></div>
-                        <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
-                      </>
-                    ) : (
-                      <>
-                        <div><div className="detail-label">Type</div><div className="detail-val">{active.category || '—'}</div></div>
-                        <div><div className="detail-label">Finish</div><div className="detail-val">{active.finish || '—'}</div></div>
-                        <div><div className="detail-label">SKU</div><div className="detail-val mono">{active.sku || '—'}</div></div>
-                        <div><div className="detail-label">Price</div><div className="detail-val mono">
-                          {active.unitCost != null && window.fmtCurrency
-                            ? `${window.fmtCurrency(active.unitCost)} / ${active.unit || 'unit'}`
-                            : '—'}
-                        </div></div>
-                        <div><div className="detail-label">Supplier</div><div className="detail-val">{active.supplier || '—'}</div></div>
-                        <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
-                      </>
-                    )}
-                  </div>
+              <div className="detail-fields">
+                {isPaint ? (
+                  <>
+                    <div><div className="detail-label">Brand</div><div className="detail-val">{active.brand || active.supplier || '—'}</div></div>
+                    <div><div className="detail-label">Colour code</div><div className="detail-val mono">{active.colourCode || '—'}</div></div>
+                    <div><div className="detail-label">Sheen</div><div className="detail-val">{active.sheen || '—'}</div></div>
+                    <div><div className="detail-label">System</div><div className="detail-val">{active.system || '—'}</div></div>
+                    <div><div className="detail-label">Coverage</div><div className="detail-val mono">{active.coveragePerL ? `${active.coveragePerL} m²/L` : '—'}</div></div>
+                    <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
+                  </>
+                ) : (
+                  <>
+                    <div><div className="detail-label">Type</div><div className="detail-val">{active.category || '—'}</div></div>
+                    <div><div className="detail-label">Finish</div><div className="detail-val">{active.finish || '—'}</div></div>
+                    <div><div className="detail-label">SKU</div><div className="detail-val mono">{active.sku || '—'}</div></div>
+                    <div><div className="detail-label">Price</div><div className="detail-val mono">
+                      {active.unitCost != null && window.fmtCurrency
+                        ? `${window.fmtCurrency(active.unitCost)} / ${active.unit || 'unit'}`
+                        : '—'}
+                    </div></div>
+                    <div><div className="detail-label">Supplier</div><div className="detail-val">{active.supplier || '—'}</div></div>
+                    <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
+                  </>
+                )}
+              </div>
 
-                  {!isPaint && active.paintable && (
-                    <div style={{
-                      marginTop: 14, padding: '12px 14px',
-                      background: 'var(--paper-2)', borderLeft: '2px solid var(--accent)',
-                      display: 'flex', alignItems: 'center', gap: 12,
-                    }}>
-                      <span style={{ ...window.ui.label }}>Painted with</span>
-                      {paintedWith ? (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{
-                            width: 22, height: 22, flexShrink: 0,
-                            background: paintedWith.swatch?.tone || '#ddd',
-                            outline: '1px solid rgba(20,20,20,0.15)',
-                          }} />
-                          <span style={{ ...window.ui.mono, fontSize: 10, color: 'var(--ink-4)' }}>{paintedWith.code}</span>
-                          <span style={{ ...window.ui.serif, fontSize: 13 }}>
-                            {paintedWith.brand} {paintedWith.colourName}
-                          </span>
-                        </span>
-                      ) : (
-                        <span style={{ ...window.ui.mono, fontSize: 11, color: 'var(--ink-4)' }}>
-                          Paintable — finish unspecified
-                        </span>
-                      )}
-                    </div>
+              {!isPaint && active.paintable && (
+                <div style={{
+                  marginTop: 14, padding: '12px 14px',
+                  background: 'var(--paper-2)', borderLeft: '2px solid var(--accent)',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                }}>
+                  <span style={{ ...window.ui.label }}>Painted with</span>
+                  {paintedWith ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        width: 22, height: 22, flexShrink: 0,
+                        background: paintedWith.swatch?.tone || '#ddd',
+                        outline: '1px solid rgba(20,20,20,0.15)',
+                      }} />
+                      <span style={{ ...window.ui.mono, fontSize: 10, color: 'var(--ink-4)' }}>{paintedWith.code}</span>
+                      <span style={{ ...window.ui.serif, fontSize: 13 }}>
+                        {paintedWith.brand} {paintedWith.colourName}
+                      </span>
+                    </span>
+                  ) : (
+                    <span style={{ ...window.ui.mono, fontSize: 11, color: 'var(--ink-4)' }}>
+                      Paintable — finish unspecified
+                    </span>
                   )}
-                </>
-              ) : (
-                <div className="edit-grid">
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <div className="edit-label">Name</div>
-                    <input className="edit-input" value={editState.name || ''}
-                      onChange={e => setEditState(s => ({ ...s, name: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="edit-label">Brand</div>
-                    <input className="edit-input" value={editState.brand || ''}
-                      onChange={e => setEditState(s => ({ ...s, brand: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="edit-label">Supplier</div>
-                    <input className="edit-input" value={editState.supplier || ''}
-                      onChange={e => setEditState(s => ({ ...s, supplier: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="edit-label">SKU</div>
-                    <input className="edit-input mono" value={editState.sku || ''}
-                      onChange={e => setEditState(s => ({ ...s, sku: e.target.value }))} />
-                  </div>
-                  <div>
-                    <div className="edit-label">Price</div>
-                    <input className="edit-input mono" value={editState.price || ''}
-                      onChange={e => setEditState(s => ({ ...s, price: e.target.value }))} />
-                  </div>
                 </div>
               )}
 
               <div className="detail-actions">
                 <button
                   type="button"
-                  onClick={editing ? cancelEdit : startEdit}
+                  onClick={() => onEdit && onEdit(active)}
                   style={{
                     background: 'transparent',
                     border: '1px solid var(--rule-2)',
@@ -360,7 +302,7 @@ function LibraryLayoutC({
                     fontWeight: 500,
                   }}
                 >
-                  {editing ? 'Cancel' : 'Edit all fields'}
+                  Edit
                 </button>
                 <button
                   type="button"
