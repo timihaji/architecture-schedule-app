@@ -49,7 +49,6 @@ function LibraryTable(props) {
   const [cursorId, setCursorId] = React.useState(null);
   const [openId, setOpenId] = React.useState(null);
   const [editingCell, setEditingCell] = React.useState(null);
-  const [editingRowId, setEditingRowId] = React.useState(null);
   const [density, setDensityState] = React.useState(loadDensity);
   function setDensity(v) { setDensityState(v); saveDensity(v); }
   const [colPickerOpen, setColPickerOpen] = React.useState(false);
@@ -177,14 +176,6 @@ function LibraryTable(props) {
         }}
         onAdd={onAdd}
         onAddRow={onAdd ? (groupKey) => onAdd(groupKey ? { productType: groupKey } : undefined) : undefined}
-        editingRowId={editingRowId}
-        setEditingRowId={setEditingRowId}
-        onSaveEditRow={(id, patch) => {
-          Object.entries(patch).forEach(([field, value]) => {
-            window.saveMaterialCell(id, field, value);
-          });
-        }}
-        onDeleteEditRow={(id) => onDelete(id, true)}
         searchRef={searchRef}
         topBar={
           <LTTopBar

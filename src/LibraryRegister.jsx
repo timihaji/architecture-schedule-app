@@ -1,10 +1,9 @@
 // Library — Register layout (Layout A from design/handoff/v2/Library.html
-// lines 771–899). Editorial row list with group sections, click-to-edit
-// inline rows, sparse column subset, and a popover column picker. Sits
-// alongside Gallery / Table / Split as a fourth view.
+// lines 771–899). Editorial row list with group sections, hover-reveal
+// Edit/× buttons in the actions cell, sparse column subset, and a popover
+// column picker. Sits alongside Gallery / Table / Split as a fourth view.
 //
-// Reuses .reg-*, .cb, .lib-add-row, .edit-grid, .edit-input, .edit-foot,
-// .edit-save, .edit-cancel, .edit-remove styles already in index.html.
+// Reuses .reg-*, .reg-act-btn, .cb, .lib-add-row styles in index.html.
 // Toolbar/popover styles ported into index.html alongside this file (LAYOUT
 // A: REGISTER chrome block).
 
@@ -24,7 +23,7 @@ const REGISTER_COLS = [
   { id: 'finish',   label: 'Finish',    width: '130px',                defaultOn: false },
   { id: 'leadTime', label: 'Lead',      width: '70px',                 defaultOn: false, align: 'right', mono: true },
   { id: 'unitCost', label: 'Price',     width: '90px',                 defaultOn: true,  align: 'right' },
-  { id: 'actions',  label: '',          width: '70px',  locked: true,  defaultOn: true,  align: 'right' },
+  { id: 'actions',  label: '',          width: '80px',  locked: true,  defaultOn: true,  align: 'right' },
 ];
 
 function loadRegisterCols() {
@@ -53,8 +52,6 @@ function LibraryRegister({
   const [filterCategory, setFilterCategory] = React.useState('All');
   const [sort, setSort] = React.useState('name-asc');
   const [groupByCategory, setGroupByCategory] = React.useState(true);
-  const [editingId, setEditingId] = React.useState(null);
-  const [editState, setEditState] = React.useState({});
   const [colsOpen, setColsOpen] = React.useState(false);
   const [visibleCols, setVisibleCols] = React.useState(() =>
     loadRegisterCols() || new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
@@ -110,14 +107,6 @@ function LibraryRegister({
     return list;
   }, [libraryScoped, query, filterCategory, sort, labelTemplates]);
 
-  // Discard inline edits when the row falls out of the filter set or
-  // selection changes; never preserve dirty state silently.
-  React.useEffect(() => {
-    if (editingId && !filtered.find(m => m.id === editingId)) {
-      setEditingId(null); setEditState({});
-    }
-  }, [filtered, editingId]);
-
   // Groups
   const groups = React.useMemo(() => {
     if (!groupByCategory) return [{ key: 'all', label: null, items: filtered }];
@@ -148,42 +137,6 @@ function LibraryRegister({
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelected(next);
   }
-
-  function startEdit(m) {
-    setEditingId(m.id);
-    setEditState({
-      name: m.name || '',
-      brand: m.brand || '',
-      category: m.category || '',
-      productType: m.productType || '',
-      supplier: m.supplier || '',
-      finish: m.finish || '',
-      leadTime: m.leadTime || '',
-      unitCost: m.unitCost != null ? m.unitCost : '',
-    });
-  }
-  function cancelEdit() { setEditingId(null); setEditState({}); }
-  function saveEdit(m) {
-    if (!window.saveMaterialCell) { cancelEdit(); return; }
-    const fields = ['name','brand','category','productType','supplier','finish','leadTime','unitCost'];
-    fields.forEach(f => {
-      if (editState[f] === undefined) return;
-      let v = editState[f];
-      if (f === 'unitCost') v = v === '' ? null : Number(v);
-      if (v !== m[f]) window.saveMaterialCell(m.id, f, v);
-    });
-    setEditingId(null); setEditState({});
-  }
-  function removeFromEdit(m) {
-    if (!window.confirm('Delete ' + (m.name || m.code || 'this material') + '?')) return;
-    onDelete(m.id, true);
-    setEditingId(null); setEditState({});
-  }
-
-  const productTypes = React.useMemo(() => {
-    const tx = window.DEFAULT_TAXONOMIES?.productTypes || [];
-    return tx.map(t => ({ id: t.id, label: t.label }));
-  }, []);
 
   function categoryAdd(category) {
     if (onAddInCategory) onAddInCategory(category);
@@ -346,85 +299,12 @@ function LibraryRegister({
 
           {group.items.map(m => {
             const sel = selected.has(m.id);
-            const editing = editingId === m.id;
-            if (editing) {
-              return (
-                <div key={m.id} className="reg-edit-row">
-                  <div className="edit-grid" style={{ padding: '0 12px' }}>
-                    <div>
-                      <div className="edit-label">Name</div>
-                      <input className="edit-input"
-                        value={editState.name}
-                        onChange={e => setEditState(s => ({ ...s, name: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Brand</div>
-                      <input className="edit-input"
-                        value={editState.brand}
-                        onChange={e => setEditState(s => ({ ...s, brand: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Category</div>
-                      <input className="edit-input"
-                        value={editState.category}
-                        onChange={e => setEditState(s => ({ ...s, category: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Type</div>
-                      <select className="edit-select"
-                        value={editState.productType}
-                        onChange={e => setEditState(s => ({ ...s, productType: e.target.value }))}>
-                        <option value="">—</option>
-                        {productTypes.map(pt =>
-                          <option key={pt.id} value={pt.id}>{pt.label}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <div className="edit-label">Supplier</div>
-                      <input className="edit-input"
-                        value={editState.supplier}
-                        onChange={e => setEditState(s => ({ ...s, supplier: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Finish</div>
-                      <input className="edit-input"
-                        value={editState.finish}
-                        onChange={e => setEditState(s => ({ ...s, finish: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Lead time</div>
-                      <input className="edit-input mono"
-                        value={editState.leadTime}
-                        onChange={e => setEditState(s => ({ ...s, leadTime: e.target.value }))} />
-                    </div>
-                    <div>
-                      <div className="edit-label">Unit cost</div>
-                      <input className="edit-input mono"
-                        type="number"
-                        value={editState.unitCost}
-                        onChange={e => setEditState(s => ({ ...s, unitCost: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="edit-foot" style={{ padding: '0 12px' }}>
-                    <button className="edit-save" onClick={() => saveEdit(m)}>Save</button>
-                    <button className="edit-cancel" onClick={cancelEdit}>Cancel</button>
-                    {onEdit && (
-                      <button className="edit-cancel"
-                        onClick={() => { cancelEdit(); onEdit(m); }}>
-                        Open editor
-                      </button>
-                    )}
-                    <button className="edit-remove" onClick={() => removeFromEdit(m)}>Delete</button>
-                  </div>
-                </div>
-              );
-            }
             return (
               <div key={m.id}
                 className={'reg-row' + (sel ? ' selected' : '')}
                 style={{ gridTemplateColumns: gridTemplate }}
-                onClick={() => startEdit(m)}>
-                {visibleColDefs.map(c => regCell(c, m, sel, materials, labelTemplates, toggleOne))}
+                onClick={() => toggleOne(m.id)}>
+                {visibleColDefs.map(c => regCell(c, m, sel, materials, labelTemplates, toggleOne, onEdit, onDelete))}
               </div>
             );
           })}
@@ -449,7 +329,7 @@ function LibraryRegister({
 }
 
 // Per-cell renderer kept outside component so the row map stays terse.
-function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne) {
+function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onDelete) {
   if (c.id === 'check') return (
     <div key="check" className={'cb' + (sel ? ' checked' : '')}
       onClick={e => { e.stopPropagation(); toggleOne(m.id); }}>
@@ -525,7 +405,17 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne) {
       </div>
     );
   }
-  if (c.id === 'actions') return <div key="actions"></div>;
+  if (c.id === 'actions') return (
+    <div key="actions" className="reg-actions">
+      <button className="reg-act-btn"
+        onClick={e => { e.stopPropagation(); onEdit && onEdit(m); }}>Edit</button>
+      <button className="reg-act-btn remove"
+        onClick={e => {
+          e.stopPropagation();
+          if (window.confirm('Delete ' + (m.name || m.code || 'this material') + '?')) onDelete(m.id, true);
+        }}>×</button>
+    </div>
+  );
   return <div key={c.id}></div>;
 }
 

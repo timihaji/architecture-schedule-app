@@ -129,13 +129,12 @@
   .cb.checked { background: var(--ink); border-color: var(--ink); }
   .cb.indeterminate { background: var(--ink-3); border-color: var(--ink-3); }
   .cb svg { display: block; }
-  /* Inline edit row — scope edit-grid override to register so Layout C's 2-col edit-grid is not affected. */
-  .reg-edit-row { padding: 10px 14px 14px; border-bottom: 1px solid var(--rule); background: rgba(20,20,20,0.012); }
-  .reg-edit-row .edit-grid { grid-template-columns: repeat(4, 1fr); }
   .edit-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .edit-save { background: var(--ink); color: var(--paper); border: none; padding: 6px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
   .edit-cancel { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .edit-remove { margin-left: auto; background: transparent; border: 1px solid rgba(160,69,69,0.3); color: #a04545; padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .reg-act-btn { background: none; border: 1px solid var(--rule-2); padding: 2px 7px; cursor: pointer; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+  .reg-act-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .reg-act-btn.remove { color: #a04545; border-color: rgba(160,69,69,0.3); }
   /* Per-group add row */
   .lib-add-row { padding: 7px 12px; }
   .lib-add-row button { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 0; white-space: nowrap; }

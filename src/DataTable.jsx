@@ -86,13 +86,6 @@ function DataTable({
   onDuplicateRow,
   onCheatsheet,
 
-  // Inline row-level edit (.reg-edit-row). When set, keyboard `e` and host
-  // click hooks set editingRowId via setEditingRowId; DtEditRow renders below.
-  editingRowId,
-  setEditingRowId,
-  onSaveEditRow,
-  onDeleteEditRow,
-
   // Filter matcher (per-row). Defaults to stringly-match.
   matchFilter,
   searchRef,
@@ -213,7 +206,6 @@ function DataTable({
         (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox');
       if (e.key === 'Escape') {
         if (editingCell) { setEditingCell(null); return; }
-        if (editingRowId && setEditingRowId) { setEditingRowId(null); return; }
         if (openId) { setOpenId && setOpenId(null); return; }
         if (selected && selected.size) { clearSelection(); return; }
         return;
@@ -242,10 +234,7 @@ function DataTable({
       }
       else if (e.key === 'e') {
         e.preventDefault();
-        if (cursorId) {
-          if (setEditingRowId) setEditingRowId(cursorId);
-          else if (onEditRow) onEditRow(cursorId);
-        }
+        if (cursorId && onEditRow) onEditRow(cursorId);
       }
       else if (e.key === 'x' || e.key === ' ') {
         e.preventDefault();
@@ -283,7 +272,7 @@ function DataTable({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filtered, cursorId, openId, selected, editingCell, editingRowId, setEditingRowId, onDeleteRow, onDuplicateRow, onEditRow, onOpenRow, onAdd, onCheatsheet]);
+  }, [filtered, cursorId, openId, selected, editingCell, onDeleteRow, onDuplicateRow, onEditRow, onOpenRow, onAdd, onCheatsheet]);
 
   // ───── visible cols
   const visibleCols = colPref.order
@@ -359,10 +348,6 @@ function DataTable({
           groupBy={groupBy}
           groupSubtotal={groupSubtotal}
           onAddRow={onAddRow}
-          editingRowId={editingRowId}
-          setEditingRowId={setEditingRowId}
-          onSaveEditRow={onSaveEditRow}
-          onDeleteEditRow={onDeleteEditRow}
         />
         {selected && selected.size > 0 && bulkBar}
       </div>
@@ -380,8 +365,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
   cursorId, setCursorId, openId, setOpenId,
   editingCell, setEditingCell, onSaveCell, cellCtx,
   groupBy, groupSubtotal,
-  onAddRow,
-  editingRowId, setEditingRowId, onSaveEditRow, onDeleteEditRow }) {
+  onAddRow }) {
 
   const [collapsed, setCollapsed] = React.useState(new Set());
 
@@ -407,8 +391,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
 
   function renderRow(r) {
     const id = getRowId(r);
-    const isEditingRow = editingRowId === id;
-    const node = (
+    return (
       <DtRow
         key={id}
         row={r} rowId={id}
@@ -418,7 +401,7 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         isCursor={id === cursorId}
         isSelected={selected && selected.has(id)}
         isOpen={id === openId}
-        isEditingRow={isEditingRow}
+        isEditingRow={false}
         onRowClick={(e) => {
           if (e.shiftKey) { selectRange(id); return; }
           if (e.metaKey || e.ctrlKey) { toggleSelect(id); setCursorId && setCursorId(id); return; }
@@ -432,18 +415,6 @@ function DtTable({ rows, getRowId, visibleCols, gridTemplate, rowH,
         }}
         cellCtx={cellCtx}
       />
-    );
-    if (!isEditingRow) return node;
-    return (
-      <React.Fragment key={id}>
-        {node}
-        <DtEditRow
-          row={r}
-          onSave={(patch) => { onSaveEditRow && onSaveEditRow(id, patch); setEditingRowId && setEditingRowId(null); }}
-          onCancel={() => setEditingRowId && setEditingRowId(null)}
-          onDelete={() => { onDeleteEditRow && onDeleteEditRow(id); setEditingRowId && setEditingRowId(null); }}
-        />
-      </React.Fragment>
     );
   }
 
@@ -697,75 +668,6 @@ function DtRow({ row, rowId, visibleCols, gridTemplate, rowH,
   );
 }
 
-// Inline edit row — Name (span 2), Brand, Supplier, SKU (mono), Price (mono).
-// Mounts directly below DtRow when editingRowId matches. Save dispatches a
-// patch object; host applies it (e.g. via window.saveMaterialCell per field).
-function DtEditRow({ row, onSave, onCancel, onDelete }) {
-  const [draft, setDraft] = React.useState({
-    name: row.name || '',
-    brand: row.brand || '',
-    supplier: row.supplier || '',
-    supplier_code: row.supplier_code || row.sku || '',
-    unitCost: row.unitCost == null ? '' : row.unitCost,
-  });
-  function set(field, value) { setDraft(d => ({ ...d, [field]: value })); }
-  function handleSave() {
-    const patch = {
-      name: draft.name === '' ? null : draft.name,
-      brand: draft.brand === '' ? null : draft.brand,
-      supplier: draft.supplier === '' ? null : draft.supplier,
-      supplier_code: draft.supplier_code === '' ? null : draft.supplier_code,
-      unitCost: draft.unitCost === '' || draft.unitCost == null ? null : Number(draft.unitCost),
-    };
-    onSave && onSave(patch);
-  }
-  function onKey(e) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); }
-    else if (e.key === 'Escape') { e.preventDefault(); onCancel && onCancel(); }
-  }
-  return (
-    <div className="reg-edit-row" onClick={e => e.stopPropagation()} onKeyDown={onKey}>
-      <div className="edit-grid">
-        <div style={{ gridColumn: 'span 2' }}>
-          <div className="edit-label">Name</div>
-          <input className="edit-input" autoFocus
-            value={draft.name} onChange={e => set('name', e.target.value)} />
-        </div>
-        <div>
-          <div className="edit-label">Brand</div>
-          <input className="edit-input"
-            value={draft.brand} onChange={e => set('brand', e.target.value)} />
-        </div>
-        <div>
-          <div className="edit-label">Supplier</div>
-          <input className="edit-input"
-            value={draft.supplier} onChange={e => set('supplier', e.target.value)} />
-        </div>
-        <div>
-          <div className="edit-label">SKU</div>
-          <input className="edit-input mono"
-            value={draft.supplier_code} onChange={e => set('supplier_code', e.target.value)} />
-        </div>
-        <div>
-          <div className="edit-label">Price</div>
-          <input className="edit-input mono" type="number"
-            value={draft.unitCost} onChange={e => set('unitCost', e.target.value)} />
-        </div>
-      </div>
-      <div className="edit-foot">
-        <button type="button" className="edit-save" onClick={handleSave}>Save</button>
-        <button type="button" className="edit-cancel" onClick={onCancel}>Cancel</button>
-        {onDelete && (
-          <button type="button" className="edit-remove"
-            onClick={() => { if (window.confirm('Remove this item?')) onDelete(); }}>
-            Remove
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ───────── Cell ─────────
 //
 // Each column can supply a `render(row, ctx)` fn. If it does, we render that
@@ -887,7 +789,7 @@ function defaultMatchFilter(row, f) {
 }
 
 Object.assign(window, {
-  DataTable, DtTable, DtHeader, DtRow, DtCell, DtEditRow,
+  DataTable, DtTable, DtHeader, DtRow, DtCell,
   DtResizeHandle, DtCheckbox, DtInlineInput,
   DT_DENSITY_ROW_H,
   loadDtColPref, saveDtColPref, defaultMatchFilter,
