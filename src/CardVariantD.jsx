@@ -181,7 +181,10 @@
                 ? <span className="sched-card-name empty">— pick a Product or Type —</span>
                 : <span className="sched-card-name">
                     {card.name || <em style={{ color: 'var(--ink-4)' }}>Unnamed</em>}
-                    {card.code && <span className="sched-card-code">{card.code}</span>}
+                    <CodeChip
+                      value={card.code}
+                      onCommit={(v) => onFieldChange && onFieldChange('code', v)}
+                    />
                   </span>}
               <div className="sched-card-meta">
                 {card.sku && !hidden.includes('sku') && (
@@ -281,6 +284,52 @@
           )}
         </div>
       </div>
+    );
+  }
+
+  // Inline-editable row code chip. Hidden when blank in read-mode; renders an
+  // empty-placeholder slot in edit-mode so users can click to type a code.
+  function CodeChip({ value, onCommit }) {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(value || '');
+    React.useEffect(() => { setDraft(value || ''); }, [value]);
+    if (editing) {
+      return (
+        <input className="sched-card-code"
+          autoFocus value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={() => {
+            setEditing(false);
+            const next = draft.trim();
+            if ((next || null) !== (value || null)) onCommit && onCommit(next || null);
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') e.target.blur();
+            if (e.key === 'Escape') { setDraft(value || ''); setEditing(false); }
+          }}
+          style={{
+            background: 'transparent', border: 'none',
+            borderBottom: '1px solid var(--ink)',
+            outline: 'none', padding: '0 2px', minWidth: 60, width: 90,
+          }}
+        />
+      );
+    }
+    if (!value) {
+      return (
+        <span className="sched-card-code"
+          onClick={() => setEditing(true)}
+          title="Click to add a code"
+          style={{ cursor: 'text', opacity: 0.5, fontStyle: 'italic' }}>
+          + code
+        </span>
+      );
+    }
+    return (
+      <span className="sched-card-code"
+        onClick={() => setEditing(true)}
+        title="Click to edit code"
+        style={{ cursor: 'text' }}>{value}</span>
     );
   }
 

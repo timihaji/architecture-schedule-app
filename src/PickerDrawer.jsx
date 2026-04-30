@@ -35,6 +35,10 @@
     onClose,
     onAddNewProduct,      // optional — footer "Add Product" button
     onAddNewType,         // optional — footer "Add Type" button (hidden in v1 unless typed-on)
+    codePreviewFor,       // optional (materialId, prevSelectedIds) => string|null
+                          //   Renders `→ <code>` next to candidate names. The
+                          //   picker passes selection order so multi-select
+                          //   previews can be sequential.
   }) {
     const [q, setQ] = useState('');
     const [sel, setSel] = useState(() => new Set(initialSelected));
@@ -220,26 +224,49 @@
               </div>
             )}
 
-            {matchingProducts.map(m => {
-              const isSel = sel.has(m.id);
-              const thumb = (m.swatch && m.swatch.tone) || m.color || 'var(--paper-2)';
-              return (
-                <button key={m.id} type="button"
-                  className={`pdrw-prow-product${isSel ? ' selected' : ''}`}
-                  onClick={() => toggle(m.id)}>
-                  <div className="pdrw-prow-product-thumb" style={{ background: thumb }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="pdrw-prow-product-name">{m.name || m.code || 'Unnamed'}</div>
-                    <div className="pdrw-prow-product-meta">
-                      {m.code && <span style={{ fontFamily: 'var(--font-mono)' }}>{m.code}</span>}
-                      {m.brand && <span>{m.brand}</span>}
-                      {!m.brand && m.supplier && <span>{m.supplier}</span>}
+            {(() => {
+              const selectionOrder = Array.from(sel);
+              return matchingProducts.map(m => {
+                const isSel = sel.has(m.id);
+                const thumb = (m.swatch && m.swatch.tone) || m.color || 'var(--paper-2)';
+                let preview = null;
+                if (codePreviewFor) {
+                  if (isSel) {
+                    const idx = selectionOrder.indexOf(m.id);
+                    const before = idx >= 0 ? selectionOrder.slice(0, idx) : [];
+                    preview = codePreviewFor(m.id, before);
+                  } else {
+                    preview = codePreviewFor(m.id, selectionOrder);
+                  }
+                }
+                return (
+                  <button key={m.id} type="button"
+                    className={`pdrw-prow-product${isSel ? ' selected' : ''}`}
+                    onClick={() => toggle(m.id)}>
+                    <div className="pdrw-prow-product-thumb" style={{ background: thumb }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="pdrw-prow-product-name" style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {m.name || 'Unnamed'}
+                        </span>
+                        {preview && (
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 10.5,
+                            color: 'var(--ink-3)', flexShrink: 0,
+                          }}>→ {preview}</span>
+                        )}
+                      </div>
+                      <div className="pdrw-prow-product-meta">
+                        {m.code && <span style={{ fontFamily: 'var(--font-mono)' }}>{m.code}</span>}
+                        {m.brand && <span>{m.brand}</span>}
+                        {!m.brand && m.supplier && <span>{m.supplier}</span>}
+                      </div>
                     </div>
-                  </div>
-                  <div className="pdrw-prow-product-check">{isSel && <span>✓</span>}</div>
-                </button>
-              );
-            })}
+                    <div className="pdrw-prow-product-check">{isSel && <span>✓</span>}</div>
+                  </button>
+                );
+              });
+            })()}
           </div>
 
           {/* Foot */}

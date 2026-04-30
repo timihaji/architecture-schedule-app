@@ -114,8 +114,8 @@ function buildCstFlatColumns({ materials, labelTemplates, libraries, onOpenPicke
       searchText: (r) => r.material ? window.formatLabel(r.material, labelTemplates) : '',
     },
     { id: 'code', label: 'Code', width: 82, minWidth: 60, mono: true,
-      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>{r.material?.code || '—'}</div>,
-      sortValue: (r) => r.material?.code || '',
+      render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>{r.row?.code || '—'}</div>,
+      sortValue: (r) => r.row?.code || '',
     },
     { id: 'supplier', label: 'Supplier', width: 140, minWidth: 90,
       render: (r, ctx) => <div data-dt-raw="true" style={ctx.baseStyle}>
@@ -929,7 +929,7 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
         const m = materials.find(x => x.id === cell.materialId);
         if (!m) return;
         const sup = m.supplier || '(no supplier)';
-        const matKey = m.code + '|' + (m.name || '');
+        const matKey = m.id + '|' + (m.name || '');
         if (!bySupplier.has(sup)) bySupplier.set(sup, new Map());
         const matMap = bySupplier.get(sup);
         if (!matMap.has(matKey)) matMap.set(matKey, { m, usages: [] });
@@ -941,7 +941,7 @@ function CstBulkBar({ rowShape, selected, setSelected, schedule, materials,
     Array.from(bySupplier.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([sup, matMap]) => {
       lines.push(sup.toUpperCase());
       Array.from(matMap.values()).forEach(({ m, usages }) => {
-        lines.push('  ' + (m.code || '—') + '  ' + (m.name || '(unnamed)'));
+        lines.push('  ' + (m.name || '(unnamed)'));
         usages.forEach(({ comp, opt, qty, size, unit }) => {
           const qtyStr = qty != null ? '×' + qty : '';
           const sizeStr = size != null ? ' ' + size + (unit || '') : '';
@@ -1281,7 +1281,6 @@ function CstSidePanel({ rowId, rowShape, schedule, matById, labelTemplates, libr
                 }} />
               )}
               <div className="cst-side-panel-mat-label">{label}</div>
-              <CstKV label="Code"      value={material.code} />
               <CstKV label="Supplier"  value={material.supplier} />
               <CstKV label="Finish"    value={material.finish} />
               <CstKV label="Lead time" value={material.leadTime} />
