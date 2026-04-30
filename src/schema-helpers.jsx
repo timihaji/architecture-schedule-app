@@ -185,9 +185,17 @@
     return refs;
   }
 
+  // ─── Empty-bucket label ────────────────────────────────────────────────────
+  // Single source of truth for the "no value" bucket label. bucketItems falls
+  // back to this for missing keys; CostSchedule consumers use it directly.
+  const EMPTY_BUCKET_LABEL = 'Unspecified';
+
   // ─── Group-by helpers ──────────────────────────────────────────────────────
   // Return the field defs that make sense as a "Group by" axis given a set
-  // of items. Always includes Category and Group as synthetic axes.
+  // of items. Always includes Category and Group as synthetic axes. Schema
+  // select fields are only returned if at least one of the passed items has
+  // a non-empty value for that field — keeps the menu scannable instead of
+  // dumping the entire field catalogue.
   function groupableFields(items) {
     const synthetic = [
       { id: '_category', label: 'Category', type: 'synthetic' },
@@ -196,16 +204,139 @@
       { id: '_supplier', label: 'Supplier', type: 'synthetic' },
     ];
     const s = schemaActive();
-    // Tag axes are always groupable.
+    const fv = window.getFieldValue;
+    const itemList = items || [];
+    // Tag axes — surface as soon as ANY item has any tag value for the axis.
+    // The axis is then a meaningful split between tagged / untagged items
+    // even if everything tagged shares one value (only 2 buckets — still
+    // informative). Hidden entirely only when zero items have touched the
+    // axis, so the dormant axes don't clutter the menu.
     const tagAxes = Object.keys(s.tagAxes || {}).map(axis => ({
       id: '_tag_' + axis,
       label: axis.replace(/^./, c => c.toUpperCase()).replace(/([A-Z])/g, ' $1').trim() + ' tag',
       type: 'tag',
       tagAxis: axis,
-    }));
-    // Any select field present on the items is groupable.
-    const selectFields = (s.fields || []).filter(f => f.type === 'select' && !f.multiple);
+    })).filter(ax => {
+      for (let i = 0; i < itemList.length; i++) {
+        const it = itemList[i];
+        const tags = (it && it.fields && it.fields.tags && it.fields.tags[ax.tagAxis]) || [];
+        if (tags.length > 0) return true;
+      }
+      return false;
+    });
+    // Only schema select fields with:
+    //   • not in the hardcoded NEVER_GROUPABLE blacklist (catches measurement-y
+    //     fields whether or not the live taxonomies got the `groupable: false`
+    //     flag — appState.taxonomies is cloud-synced and may pre-date the
+    //     flag), AND
+    //   • opt-in via `groupable !== false` flag (clean contract for future
+    //     fields), AND
+    //   • value isn't the same on every item (distinct count > 1 — a single-
+    //     bucket axis isn't actually grouping anything), AND
+    //   • populated on at least MIN_FIELD_COVERAGE share of the visible items
+    //     — a field where 95% of items would land in "Unspecified" isn't a
+    //     useful grouping axis even if the populated 5% have varied values.
+    //     This is what makes group-by adapt to filterCategory: on "All" only
+    //     broadly-populated fields surface; on a specific category, that
+    //     category's fields become useful because they're widely populated
+    //     within the filtered scope.
+    const fieldStats = (id) => {
+      const set = new Set();
+      let withValue = 0;
+      for (let i = 0; i < itemList.length; i++) {
+        const v = fv ? fv(itemList[i], id) : (itemList[i] && itemList[i].fields && itemList[i].fields[id]);
+        if (v != null && v !== '') {
+          set.add(String(v));
+          withValue++;
+        }
+      }
+      return {
+        distinct: set.size,
+        coverage: itemList.length > 0 ? withValue / itemList.length : 0,
+      };
+    };
+    const selectFields = (s.fields || [])
+      .filter(f => f.type === 'select' && !f.multiple && !f.tagAxis)
+      .filter(f => !NEVER_GROUPABLE.has(f.id))
+      .filter(f => f.groupable !== false)
+      .filter(f => {
+        const stats = fieldStats(f.id);
+        return stats.distinct > 1 && stats.coverage >= MIN_FIELD_COVERAGE;
+      });
     return [].concat(synthetic, tagAxes, selectFields);
+  }
+  // Minimum share of visible items that must have a non-empty value for a
+  // schema select field to surface as a Group-by axis. 0.2 = 20%. Tune up if
+  // the menu still feels noisy, down if useful axes are getting hidden.
+  const MIN_FIELD_COVERAGE = 0.2;
+  // Field ids that should never appear as a Group-by axis regardless of the
+  // schema flag or item cardinality. Measurement-y / count-y / dimension-y
+  // fields where the bucket label ("ea", "1 gang", "4° angle", "20mm") is
+  // meaningless to a designer. Future-prune rule: ids ending in
+  // _mm / _count / _gangs / _poles / _diameter / _slope / _angle usually
+  // belong here; ids ending in _type / _material / _finish / _profile /
+  // _pattern / _grade / _mounting / _fixing usually don't.
+  const NEVER_GROUPABLE = new Set([
+    // Measurement scale
+    'unit',
+    // Counts / cardinality
+    'basin_taphole_count', 'outlet_gangs', 'phases', 'poles',
+    'rack_width', 'sink_bowl_count', 'switch_gangs', 'tapware_handle_count',
+    // Dimensions
+    'counter_height_mm', 'emitter_spacing_mm',
+    'grab_rail_diameter', 'hose_diameter',
+    // Geometric scalars
+    'escalator_angle', 'irrigation_arc', 'linear_drain_slope',
+    'playground_age_range', 'ramp_gradient', 'travelator_slope',
+    // Power
+    'smoke_det_power',
+  ]);
+
+  // Number of distinct buckets a given axis would produce over `items`.
+  // Used to annotate group-by options with "(N buckets)".
+  function bucketCountForAxis(axis, items) {
+    if (!axis) return 0;
+    const set = new Set();
+    (items || []).forEach(item => {
+      const keys = bucketKeysFor(axis, item);
+      const arr = Array.isArray(keys) ? keys : [keys];
+      if (arr.length === 0) { set.add(EMPTY_BUCKET_LABEL); return; }
+      arr.forEach(k => set.add((k == null || k === '') ? EMPTY_BUCKET_LABEL : String(k)));
+    });
+    return set.size;
+  }
+
+  // Count of items per category id. Used by the Filter dropdown to annotate
+  // each category option with "(N)".
+  function itemCountByCategory(items) {
+    const out = {};
+    (items || []).forEach(it => {
+      const c = it && it.category;
+      if (!c) return;
+      out[c] = (out[c] || 0) + 1;
+    });
+    return out;
+  }
+
+  // Given an array of category ids, return Dropdown-shaped sections grouped by
+  // the parent group, ordered by group sortOrder. Categories not in the schema
+  // are dropped silently. Used by the Filter dropdown.
+  function categorySectionsForIds(catIds) {
+    const s = schemaActive();
+    const groups = (s.groups || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    const seen = new Set(catIds || []);
+    const out = [];
+    groups.forEach(g => {
+      const cats = (s.categories || [])
+        .filter(c => c.groupId === g.id && !c.hidden && seen.has(c.id))
+        .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      if (!cats.length) return;
+      out.push({
+        title: g.label,
+        options: cats.map(c => ({ value: c.id, label: c.label })),
+      });
+    });
+    return out;
   }
 
   // Given an axis spec from groupableFields() and an item, return the bucket
@@ -253,7 +384,7 @@
 
     const out = new Map();
     function push(key, item) {
-      const k = (key == null || key === '') ? '—' : String(key);
+      const k = (key == null || key === '') ? EMPTY_BUCKET_LABEL : String(key);
       if (!out.has(k)) out.set(k, []);
       out.get(k).push(item);
     }
@@ -261,7 +392,7 @@
     (items || []).forEach(item => {
       const keys = bucketKeysFor(axis, item);
       const arr = Array.isArray(keys) ? keys : [keys];
-      if (arr.length === 0) push('—', item);
+      if (arr.length === 0) push(EMPTY_BUCKET_LABEL, item);
       else arr.forEach(k => push(k, item));
     });
 
@@ -330,4 +461,8 @@
   window.findReferencesToCategory = findReferencesToCategory;
   window.groupableFields = groupableFields;
   window.bucketKeysFor = bucketKeysFor;
+  window.bucketCountForAxis = bucketCountForAxis;
+  window.itemCountByCategory = itemCountByCategory;
+  window.categorySectionsForIds = categorySectionsForIds;
+  window.EMPTY_BUCKET_LABEL = EMPTY_BUCKET_LABEL;
 })();

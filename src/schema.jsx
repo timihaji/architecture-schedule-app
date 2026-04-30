@@ -66,7 +66,7 @@
   fText('supplier', 'Supplier');
   fText('country_of_origin', 'Country of origin');
   fText('lead_time', 'Lead time', { helpText: 'e.g. "2–3 wk"' });
-  fSel('unit', 'Unit', ['ea', 'm²', 'm', 'lm', 'kg', 'set', 'item', 'L', 'm³']);
+  fSel('unit', 'Unit', ['ea', 'm²', 'm', 'lm', 'kg', 'set', 'item', 'L', 'm³'], { groupable: false });
   fCur('unit_cost', 'Unit cost');
   fSwatch('swatch', 'Swatch');
   fUrl('image_ref', 'Image reference');

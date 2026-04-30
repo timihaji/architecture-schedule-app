@@ -205,6 +205,31 @@
   .search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
   .vbar { width: 1px; height: 18px; background: var(--rule-2); flex-shrink: 0; }
   .filter-sel { background: transparent; border: 1px solid var(--rule-2); padding: 5px 24px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+  /* Dropdown — custom popover replacement for native <select>. Used by
+     LibraryToolbar (Filter/Sort/Group by) + CostScheduleV2 (Group by /
+     Project switcher). See src/Dropdown.jsx. */
+  .dd-wrap { position: relative; display: inline-flex; align-items: center; }
+  .dd-btn { display: inline-flex; align-items: center; gap: 5px; background: transparent; border: 1px solid var(--rule-2); padding: 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; line-height: 1.2; white-space: nowrap; }
+  .dd-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .dd-btn.is-open { border-color: var(--ink-3); color: var(--ink-2); }
+  .dd-btn.is-active { border-color: var(--ink-3); color: var(--ink); }
+  .dd-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dd-btn-chev { color: var(--ink-4); flex-shrink: 0; }
+  .dd-btn-clear { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; line-height: 1; font-size: 13px; color: var(--ink-4); cursor: pointer; flex-shrink: 0; }
+  .dd-btn-clear:hover { color: var(--ink); }
+  .dd-pop { position: absolute; top: calc(100% + 3px); left: 0; z-index: 60; min-width: 180px; max-width: 320px; background: var(--paper); border: 1px solid var(--rule-2); box-shadow: 0 4px 14px rgba(0,0,0,0.06); display: flex; flex-direction: column; max-height: 360px; }
+  .dd-pop.is-right { left: auto; right: 0; }
+  .dd-search { border: none; border-bottom: 1px solid var(--rule-2); padding: 7px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink); background: transparent; outline: none; }
+  .dd-list { overflow-y: auto; padding: 4px 0; flex: 1; min-height: 0; }
+  .dd-empty { padding: 8px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); }
+  .dd-section + .dd-section { border-top: 1px solid var(--rule-2); margin-top: 4px; padding-top: 4px; }
+  .dd-section-hdr { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; padding: 5px 9px 3px; }
+  .dd-opt { display: flex; align-items: center; gap: 8px; padding: 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-2); cursor: pointer; }
+  .dd-opt:hover, .dd-opt.is-active { background: var(--paper-2, rgba(0,0,0,0.03)); color: var(--ink); }
+  .dd-opt.is-selected { color: var(--ink); font-weight: 500; }
+  .dd-opt.is-selected::before { content: '•'; color: var(--ink); margin-right: -4px; }
+  .dd-opt-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dd-opt-count { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); flex-shrink: 0; }
   .tb-lbl { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; }
   .tb-grow { flex: 1; }
   .tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
@@ -996,6 +1021,7 @@
 <script type="text/babel" src="src/LabelFormat.jsx?v=d6"></script>
 <script type="text/babel" src="src/LibrarySwitcher.jsx"></script>
 <script type="text/babel" src="src/LibraryMasthead.jsx"></script>
+<script type="text/babel" src="src/Dropdown.jsx"></script>
 <script type="text/babel" src="src/LibraryToolbar.jsx"></script>
 <script type="text/babel" src="src/Library.jsx?v=d7"></script>
 <script type="text/babel" src="src/LibraryLayoutC.jsx"></script>

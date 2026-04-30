@@ -24,13 +24,13 @@
   // Resolve the v5 group label that owns a material's category. Used to bucket
   // cost rows into per-group sections.
   function groupLabelFor(material) {
-    if (!material) return 'Unspecified';
+    if (!material) return (window.EMPTY_BUCKET_LABEL || 'Unspecified');
     const cat = material.category;
-    if (!cat) return 'Unspecified';
+    if (!cat) return (window.EMPTY_BUCKET_LABEL || 'Unspecified');
     const catDef = window.categoryDef && window.categoryDef(cat);
-    if (!catDef) return 'Unspecified';
+    if (!catDef) return (window.EMPTY_BUCKET_LABEL || 'Unspecified');
     const grp = window.groupDef && window.groupDef(catDef.groupId);
-    return (grp && grp.label) || 'Unspecified';
+    return (grp && grp.label) || (window.EMPTY_BUCKET_LABEL || 'Unspecified');
   }
 
   // v5 read: prefer m.fields[k]; fall back to legacy top-level for any
@@ -112,19 +112,20 @@
     // first value so a row appears in exactly one section here — split-view
     // duplication is not a fit for cost row totals.
     function bucketLabelForRow(material, matKind) {
-      if (!material) return matKind === 'type' ? 'Assemblies' : 'Unspecified';
+      if (!material) return matKind === 'type' ? 'Assemblies' : (window.EMPTY_BUCKET_LABEL || 'Unspecified');
       if (!groupByAxis) return 'All';
       if (groupByAxis === '_group') return groupLabelFor(material);
       if (groupByAxis === '_category') {
         const cat = window.categoryDef && window.categoryDef(material.category);
-        return (cat && cat.label) || material.category || 'Unspecified';
+        return (cat && cat.label) || material.category || (window.EMPTY_BUCKET_LABEL || 'Unspecified');
       }
-      if (groupByAxis === '_trade') return fv(material, 'trade') || 'Unspecified';
-      if (groupByAxis === '_supplier') return fv(material, 'supplier') || material.supplier || 'Unspecified';
+      if (groupByAxis === '_trade') return fv(material, 'trade') || (window.EMPTY_BUCKET_LABEL || 'Unspecified');
+      if (groupByAxis === '_supplier') return fv(material, 'supplier') || material.supplier || (window.EMPTY_BUCKET_LABEL || 'Unspecified');
+      const EMPTY = window.EMPTY_BUCKET_LABEL || 'Unspecified';
       if (groupByAxis.indexOf('_tag_') === 0) {
         const ax = groupByAxis.substring(5);
         const tags = (material.fields && material.fields.tags && material.fields.tags[ax]) || [];
-        if (tags.length === 0) return '—';
+        if (tags.length === 0) return EMPTY;
         // Resolve to label
         const def = (window.schemaActive && window.schemaActive().tagAxes && window.schemaActive().tagAxes[ax]) || [];
         const t = def.find(x => x.id === tags[0]);
@@ -137,7 +138,7 @@
         const opt = f.options.find(o => o.value === v);
         if (opt) return opt.label;
       }
-      return v || '—';
+      return v || EMPTY;
     }
 
     const resolved = useMemo(() => {
@@ -342,33 +343,31 @@
             <span style={{
               ...window.ui.label, color: 'var(--ink-4)',
             }}>Group by</span>
-            <select
-              value={groupByAxis}
-              onChange={e => setGroupByAxis(e.target.value)}
-              style={{
-                background: 'transparent', border: '1px solid var(--rule-2)',
-                padding: '5px 26px 5px 9px',
-                fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-2)',
-                cursor: 'pointer', appearance: 'none', borderRadius: 0,
-              }}>
-              <option value="">None</option>
-              {groupByOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select>
-            {projects.length > 1 && (
-              <select
+            {window.Dropdown && (
+              <window.Dropdown
+                value={groupByAxis}
+                onChange={setGroupByAxis}
+                defaultValue="_group"
+                placeholder="None"
+                sections={(window.buildGroupBySections || (() => []))(
+                  groupByOptions, [],
+                  resolved.map(e => e.material).filter(Boolean)
+                )}
+                searchable
+                ariaLabel="Group by"
+              />
+            )}
+            {projects.length > 1 && window.Dropdown && (
+              <window.Dropdown
                 value={project.id}
-                onChange={e => setActiveProjectId(e.target.value)}
-                style={{
-                  background: 'transparent', border: '1px solid var(--rule-2)',
-                  padding: '5px 26px 5px 9px',
-                  fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-2)',
-                  cursor: 'pointer', appearance: 'none', borderRadius: 0,
-                }}>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name || p.code}</option>)}
-              </select>
+                onChange={setActiveProjectId}
+                defaultValue={project.id}
+                options={projects.map(p => ({ value: p.id, label: p.name || p.code }))}
+                ariaLabel="Project"
+              />
             )}
             <button type="button" className="sched-add-btn"
-              onClick={() => openPickerForGroup('Unspecified')}>
+              onClick={() => openPickerForGroup((window.EMPTY_BUCKET_LABEL || 'Unspecified'))}>
               + Add component
             </button>
           </div>
@@ -389,7 +388,7 @@
             <div className="sched-empty-eyebrow">No items yet</div>
             <div className="sched-empty-msg">Add a product to start costing</div>
             <button type="button" className="sched-add-btn"
-              onClick={() => openPickerForGroup('Unspecified')}
+              onClick={() => openPickerForGroup((window.EMPTY_BUCKET_LABEL || 'Unspecified'))}
               style={{ marginTop: 8 }}>
               + Add from Library
             </button>

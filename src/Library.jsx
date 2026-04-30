@@ -20,11 +20,29 @@ function Library({
   // every mode, so query/sort/group/filterCategory persist across switches.
   // Phase 4 — `groupBy` is an axis id (or '' for none). Defaults to '_category'
   // so the existing UX (group by Category) is preserved.
+  // Toolbar redesign — group-by axis is now per-category-filter: switching
+  // filterCategory restores whatever axis the user last picked for that
+  // category (session-only memory). Recent-axes list drives the "Recent"
+  // section in the Group by dropdown.
   const [query, setQuery] = React.useState('');
   const [sort, setSort] = React.useState('code');           // code|name|cost|lead
-  const [groupBy, setGroupBy] = React.useState('_category');
-  const group = !!groupBy;                                   // back-compat for old code
   const [filterCategory, setFilterCategory] = React.useState('All');
+  const DEFAULT_GROUP_BY = '_category';
+  const [groupByByCat, setGroupByByCat] = React.useState({});
+  const [recentGroupByAxes, setRecentGroupByAxes] = React.useState([]);
+  const groupBy = (groupByByCat[filterCategory] != null)
+    ? groupByByCat[filterCategory]
+    : DEFAULT_GROUP_BY;
+  const setGroupBy = React.useCallback((axis) => {
+    setGroupByByCat(prev => ({ ...prev, [filterCategory]: axis }));
+    if (axis && axis !== DEFAULT_GROUP_BY && !axis.startsWith('_')) {
+      setRecentGroupByAxes(prev => {
+        const next = [axis].concat(prev.filter(a => a !== axis));
+        return next.slice(0, 3);
+      });
+    }
+  }, [filterCategory]);
+  const group = !!groupBy;                                   // back-compat for old code
 
   // Library-scoped row set (used by toolbar derivations + every mode).
   const libraryScoped = React.useMemo(() => {
@@ -110,6 +128,7 @@ function Library({
         group={group} setGroup={(v) => setGroupBy(v ? '_category' : '')}
         groupBy={groupBy} setGroupBy={setGroupBy}
         groupableItems={libraryScoped}
+        recentGroupByAxes={recentGroupByAxes}
         count={toolbarFiltered.length}
         total={libraryScoped.length}
         onFindDupes={onFindDupes}
