@@ -502,26 +502,21 @@ function App() {
   }
 
   // ───────── Library CRUD ─────────
-  function addLibrary(name) {
+  function addLibrary(name, description = '') {
     const id = 'lib-' + Date.now();
     const clean = (name || '').trim() || 'New library';
-    setLibraries(list => [...list, { id, name: clean, description: '', system: false }]);
+    setLibraries(list => [...list, { id, name: clean, description: (description || '').trim(), system: false }]);
     setActiveLibraryId(id);
     return id;
   }
-  function renameLibrary(id, name) {
-    setLibraries(list => list.map(l => l.id === id ? { ...l, name: (name || '').trim() || l.name } : l));
-  }
-  function duplicateLibrary(id) {
-    const src = libraries.find(l => l.id === id);
-    if (!src) return;
-    const newId = 'lib-' + Date.now();
-    setLibraries(list => [...list, { id: newId, name: src.name + ' (copy)', description: src.description, system: false }]);
-    // Duplicate material tags
-    setMaterials(list => list.map(m => m.libraryIds.includes(id)
-      ? { ...m, libraryIds: [...m.libraryIds, newId] }
-      : m));
-    setActiveLibraryId(newId);
+  function renameLibrary(id, name, description) {
+    setLibraries(list => list.map(l => l.id === id
+      ? {
+          ...l,
+          name: (name || '').trim() || l.name,
+          description: description == null ? l.description : (description || '').trim(),
+        }
+      : l));
   }
   function deleteLibrary(id) {
     const lib = libraries.find(l => l.id === id);
@@ -630,7 +625,6 @@ function App() {
             onDelete={deleteMaterial}
             onAddLibrary={addLibrary}
             onRenameLibrary={renameLibrary}
-            onDuplicateLibrary={duplicateLibrary}
             onDeleteLibrary={deleteLibrary}
             onToggleMaterialInLibrary={toggleMaterialInLibrary}
             onMoveMaterial={moveMaterialToLibrary}

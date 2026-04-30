@@ -164,8 +164,12 @@
   .lib-dropdown-foot { padding: 8px 14px; }
   .lib-add-btn { background: none; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 4px 0; display: flex; align-items: center; gap: 6px; }
   .lib-add-btn:hover { color: var(--ink); }
-  .lib-row-rename-input { flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 2px 0; color: var(--ink); }
-  .lib-add-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 4px 0; color: var(--ink); }
+  .lib-modal-bg { position: fixed; inset: 0; background: rgba(20,20,20,0.4); z-index: 300; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
+  .lib-modal { background: var(--paper); border: 1px solid var(--ink); width: 420px; max-width: 96vw; box-shadow: 0 24px 64px rgba(20,20,20,0.22); }
+  .lib-modal-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--ink); display: flex; align-items: flex-end; justify-content: space-between; }
+  .lib-modal-title { font-family: var(--font-serif); font-size: 20px; font-weight: 400; }
+  .lib-modal-body { padding: 16px 20px 18px; }
+  .lib-modal-foot { padding: 12px 20px; border-top: 1px solid var(--rule); display: flex; gap: 8px; }
 
   /* Register column popover (toolbar-only chrome migrated to canonical
      .toolbar / .search / .filter-sel / .btn-ghost in Phase 2). */

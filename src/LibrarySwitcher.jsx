@@ -1,38 +1,18 @@
 // LibrarySwitcher — page-header dropdown anchored under LibraryMasthead.
 // Markup ported from design/handoff/v2/Library.html lines 1143-1311 (the
 // LibrarySwitcher with .lib-dropdown / .lib-row body). Each row shows a
-// dot + name + description + count, with hover-reveal pill actions. The
-// inline rename UX (one-shot input, Enter/Escape/blur) is preserved from
-// the previous version. CSS lives in index.html alongside the .reg-* block.
+// dot + name + description + count, with hover-reveal Edit/× actions.
+// CSS lives in index.html alongside the .reg-* block.
 
 function LibrarySwitcher({
   libraries,
   materials,
   activeLibraryId,
   onPick,
-  onAddLibrary,
-  onRenameLibrary,
-  onDuplicateLibrary,
+  onNewLibrary,
+  onEditLibrary,
   onDeleteLibrary,
 }) {
-  const [adding, setAdding] = React.useState(false);
-  const [newName, setNewName] = React.useState('');
-  const [renamingId, setRenamingId] = React.useState(null);
-  const [renameVal, setRenameVal] = React.useState('');
-
-  function submitNew() {
-    const name = newName.trim();
-    if (name) onAddLibrary(name);
-    setNewName('');
-    setAdding(false);
-  }
-  function submitRename() {
-    const name = renameVal.trim();
-    if (name) onRenameLibrary(renamingId, name);
-    setRenamingId(null);
-    setRenameVal('');
-  }
-
   const allCount = materials.length;
   const totalLibs = libraries.length;
   const userLibCount = libraries.filter(l => !l.system).length;
@@ -65,27 +45,7 @@ function LibrarySwitcher({
 
       {libraries.map(lib => {
         const active = activeLibraryId === lib.id;
-        const isRenaming = renamingId === lib.id;
         const count = libraryCount(lib.id);
-        if (isRenaming) {
-          return (
-            <div key={lib.id} className={'lib-row' + (active ? ' active' : '')}>
-              <div className="lib-row-dot"></div>
-              <input
-                autoFocus
-                className="lib-row-rename-input"
-                value={renameVal}
-                onChange={e => setRenameVal(e.target.value)}
-                onBlur={submitRename}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') submitRename();
-                  if (e.key === 'Escape') { setRenamingId(null); setRenameVal(''); }
-                }}
-              />
-              <span className="lib-row-counts">{String(count).padStart(2, '0')}</span>
-            </div>
-          );
-        }
         return (
           <div
             key={lib.id}
@@ -104,14 +64,8 @@ function LibrarySwitcher({
               <div className="lib-row-actions" onClick={e => e.stopPropagation()}>
                 <button
                   className="lib-row-act"
-                  onClick={() => { setRenamingId(lib.id); setRenameVal(lib.name); }}
-                >Rename</button>
-                {onDuplicateLibrary && (
-                  <button
-                    className="lib-row-act"
-                    onClick={() => onDuplicateLibrary(lib.id)}
-                  >Duplicate</button>
-                )}
+                  onClick={() => onEditLibrary && onEditLibrary(lib)}
+                >Edit</button>
                 {onDeleteLibrary && userLibCount > 1 && (
                   <button
                     className="lib-row-act del"
@@ -126,32 +80,85 @@ function LibrarySwitcher({
       })}
 
       <div className="lib-dropdown-foot">
-        {adding ? (
-          <input
-            autoFocus
-            className="lib-add-input"
-            value={newName}
-            placeholder="Library name"
-            onChange={e => setNewName(e.target.value)}
-            onBlur={() => { if (newName.trim()) submitNew(); else setAdding(false); }}
-            onKeyDown={e => {
-              if (e.key === 'Enter') submitNew();
-              if (e.key === 'Escape') { setAdding(false); setNewName(''); }
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            className="lib-add-btn"
-            onClick={() => { setAdding(true); setNewName(''); }}
-          >
-            <span style={{ fontSize: 16, lineHeight: 1, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>+</span>
-            New library
-          </button>
-        )}
+        <button
+          type="button"
+          className="lib-add-btn"
+          onClick={() => onNewLibrary && onNewLibrary()}
+        >
+          <span style={{ fontSize: 16, lineHeight: 1, fontFamily: 'var(--font-serif)', fontStyle: 'italic' }}>+</span>
+          New library
+        </button>
       </div>
     </div>
   );
 }
 
-Object.assign(window, { LibrarySwitcher });
+function LibraryModal({ lib, onClose, onSave }) {
+  const isEdit = !!lib?.id;
+  const [name, setName] = React.useState(lib?.name || '');
+  const [desc, setDesc] = React.useState(lib?.description || '');
+
+  React.useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  function submit() {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+    onSave({ id: lib?.id, name: cleanName, description: desc.trim() });
+    onClose();
+  }
+
+  return (
+    <div className="lib-modal-bg" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="lib-modal" role="dialog" aria-label={isEdit ? 'Edit library' : 'New library'} aria-modal="true">
+        <div className="lib-modal-head">
+          <div>
+            <div className="eyebrow">I · Library{isEdit ? ' / Edit' : ' / New'}</div>
+            <div className="lib-modal-title">{isEdit ? 'Edit library' : 'New library'}</div>
+          </div>
+          <button type="button" className="drw-close" onClick={onClose}>×</button>
+        </div>
+        <div className="lib-modal-body">
+          <div style={{ marginBottom: 12 }}>
+            <label className="lbl-d">Name<span className="req-d">*</span></label>
+            <input
+              autoFocus
+              className="inp-d"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+              placeholder="e.g. Project Blackwood"
+            />
+          </div>
+          <div>
+            <label className="lbl-d">Description</label>
+            <input
+              className="inp-d"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+              placeholder="Brief note about this library"
+            />
+          </div>
+        </div>
+        <div className="lib-modal-foot">
+          <button type="button" className="btn-sec-d" onClick={onClose}>Cancel</button>
+          <span style={{ flex: 1 }}></span>
+          <button
+            type="button"
+            className="btn-pri-d"
+            onClick={submit}
+            disabled={!name.trim()}
+          >
+            {isEdit ? 'Save changes' : 'Create library'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { LibrarySwitcher, LibraryModal });

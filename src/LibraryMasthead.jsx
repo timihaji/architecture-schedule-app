@@ -10,12 +10,12 @@ function LibraryMasthead({
   onAdd,
   onAddLibrary,
   onRenameLibrary,
-  onDuplicateLibrary,
   onDeleteLibrary,
   mode,
   setMode,
 }) {
   const [open, setOpen] = React.useState(false);
+  const [libraryModal, setLibraryModal] = React.useState(null);
   const wrapperRef = React.useRef(null);
 
   const activeLib = libraries.find(l => l.id === activeLibraryId);
@@ -44,6 +44,14 @@ function LibraryMasthead({
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
+
+  function saveLibrary(draft) {
+    if (draft.id) {
+      onRenameLibrary && onRenameLibrary(draft.id, draft.name, draft.description);
+    } else {
+      onAddLibrary && onAddLibrary(draft.name, draft.description);
+    }
+  }
 
   return (
     <div style={{
@@ -121,10 +129,16 @@ function LibraryMasthead({
             materials={materials}
             activeLibraryId={activeLibraryId}
             onPick={(id) => { setActiveLibraryId(id); setOpen(false); }}
-            onAddLibrary={onAddLibrary}
-            onRenameLibrary={onRenameLibrary}
-            onDuplicateLibrary={onDuplicateLibrary}
-            onDeleteLibrary={onDeleteLibrary}
+            onNewLibrary={() => { setOpen(false); setLibraryModal({ mode: 'add', lib: null }); }}
+            onEditLibrary={(lib) => { setOpen(false); setLibraryModal({ mode: 'edit', lib }); }}
+            onDeleteLibrary={(id) => { onDeleteLibrary && onDeleteLibrary(id); setOpen(false); }}
+          />
+        )}
+        {libraryModal && (
+          <window.LibraryModal
+            lib={libraryModal.mode === 'edit' ? libraryModal.lib : null}
+            onClose={() => setLibraryModal(null)}
+            onSave={saveLibrary}
           />
         )}
       </div>

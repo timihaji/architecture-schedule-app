@@ -8,7 +8,7 @@ function Library({
   mode = 'register', setMode,
   activeLibraryId, setActiveLibraryId,
   onEdit, onAdd, onAddInCategory, onDelete,
-  onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
+  onAddLibrary, onRenameLibrary, onDeleteLibrary,
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   onFindDupes,
   compareIds, toggleCompare, showImagery, density,
@@ -110,7 +110,6 @@ function Library({
         onAdd={onAdd}
         onAddLibrary={onAddLibrary}
         onRenameLibrary={onRenameLibrary}
-        onDuplicateLibrary={onDuplicateLibrary}
         onDeleteLibrary={onDeleteLibrary}
         mode={mode}
         setMode={setMode}
