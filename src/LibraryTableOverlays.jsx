@@ -300,7 +300,6 @@ function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, o
     { type: 'action', id: 'new', label: 'Create new entry', hint: 'C', run: onAdd },
     { type: 'action', id: 'columns', label: 'Configure columns', hint: '', run: () => onAction('columns') },
     { type: 'action', id: 'toggle-mode', label: 'Switch to Gallery mode', hint: '', run: () => onAction('toggle-mode') },
-    { type: 'action', id: 'cheatsheet', label: 'Show keyboard shortcuts', hint: '?', run: () => onAction('cheatsheet') },
   ];
 
   const results = React.useMemo(() => {
@@ -376,48 +375,7 @@ function LTCommandPalette({ materials, labelTemplates, onClose, onPick, onAdd, o
   );
 }
 
-// ───────── Cheatsheet ─────────
-function LTCheatsheet({ onClose }) {
-  const rows = [
-    ['j / ↓',      'Next row'],
-    ['k / ↑',      'Previous row'],
-    ['g / G',      'Jump to first / last row'],
-    ['o or ↵',     'Open detail panel'],
-    ['e',          'Edit entry (full editor)'],
-    ['x / space',  'Toggle selection'],
-    ['Shift+x',    'Range select to cursor'],
-    ['⌘A',         'Select all in view'],
-    ['c',          'Create new entry'],
-    ['d / Delete', 'Delete cursor row'],
-    ['Shift+D',    'Duplicate cursor row'],
-    ['/',          'Focus search'],
-    ['⌘K',         'Command palette'],
-    ['?',          'This cheatsheet'],
-    ['Esc',        'Close panel / palette / clear selection'],
-    ['Click cell', 'Inline-edit supplier / cost / lead / etc.'],
-  ];
-  return (
-    <div className="ae-backdrop" onClick={onClose}>
-      <div className="ae-panel" onClick={e => e.stopPropagation()}
-        style={{ width: 480 }}>
-        <div className="ae-head">
-          <div>
-            <div className="ae-eyebrow">Shortcuts</div>
-            <div className="ae-title">Keyboard</div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="ae-close">×</button>
-        </div>
-        <div className="cs-grid">
-          {rows.map(([k, v]) => (
-            <React.Fragment key={k}>
-              <Mono size={11} color="var(--ink-2)" className="cs-key">{k}</Mono>
-              <span className="cs-desc">{v}</span>
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+// (LTCheatsheet removed Phase 2 — `?` modal deleted along with the rest of
+// the Library table chrome. Keyboard reference now lives only in Settings → 11.)
 
-Object.assign(window, { LTSidePanel, LTColumnPicker, LTBulkBar, LTCommandPalette, LTCheatsheet });
+Object.assign(window, { LTSidePanel, LTColumnPicker, LTBulkBar, LTCommandPalette });

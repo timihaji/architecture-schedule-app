@@ -16,6 +16,64 @@ function Library({
   // Lifted to survive layout switches (Register ↔ Gallery ↔ Split). B6.
   const [selected, setSelected] = React.useState(new Set());
 
+  // Phase 2 — lifted toolbar state. Single LibraryToolbar mount drives
+  // every mode, so query/sort/group/filterCategory persist across switches.
+  const [query, setQuery] = React.useState('');
+  const [sort, setSort] = React.useState('code');           // code|name|cost|lead
+  const [group, setGroup] = React.useState(true);           // boolean: group by category
+  const [filterCategory, setFilterCategory] = React.useState('All');
+
+  // Library-scoped row set (used by toolbar derivations + every mode).
+  const libraryScoped = React.useMemo(() => {
+    if (activeLibraryId === 'all') return materials;
+    return materials.filter(m => (m.libraryIds || []).includes(activeLibraryId));
+  }, [materials, activeLibraryId]);
+
+  const categories = React.useMemo(() => {
+    const set = new Set();
+    libraryScoped.forEach(m => { if (m.category) set.add(m.category); });
+    return Array.from(set).sort();
+  }, [libraryScoped]);
+
+  // Apply category + query the same way every mode would. Sort/group are
+  // mode-scoped (Table & DataTable do their own; Split + Register render
+  // groups differently) — we still pre-filter for the toolbar count.
+  const toolbarFiltered = React.useMemo(() => {
+    let list = libraryScoped;
+    if (filterCategory !== 'All') {
+      list = list.filter(m => m.category === filterCategory);
+    }
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter(m => {
+        const display = window.formatLabel ? window.formatLabel(m, labelTemplates) : (m.name || '');
+        return (display + ' ' + (m.name || '') + ' ' + (m.code || '') + ' ' +
+                (m.category || '') + ' ' + (m.supplier || '') + ' ' +
+                (m.brand || '') + ' ' + (m.species || '') + ' ' +
+                (m.finish || '')).toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [libraryScoped, filterCategory, query, labelTemplates]);
+
+  const tabCount = libraryScoped.length;
+
+  // Mode-gated columns slot — Register and Table render their own popover-
+  // backed button via this ref. Gallery + Split leave it null. Each mode's
+  // useEffect cleanup nulls the slot on unmount, so we don't need a parent
+  // reset (which would race-clobber the new mode's setter on mode change).
+  const [columnsButton, setColumnsButton] = React.useState(null);
+
+  const toolbarState = {
+    query, setQuery,
+    sort, setSort,
+    group, setGroup,
+    filterCategory, setFilterCategory,
+    categories,
+    libraryScoped,
+    toolbarFiltered,
+  };
+
   return (
     <>
       <window.LibraryMasthead
@@ -28,6 +86,24 @@ function Library({
         onRenameLibrary={onRenameLibrary}
         onDuplicateLibrary={onDuplicateLibrary}
         onDeleteLibrary={onDeleteLibrary}
+        mode={mode}
+        setMode={setMode}
+      />
+      <div className="lib-tabs">
+        <button type="button" className="lib-tab active">
+          Products <span className="ct">{tabCount}</span>
+        </button>
+      </div>
+      <window.LibraryToolbar
+        query={query} setQuery={setQuery}
+        sort={sort} setSort={setSort}
+        filterCategory={filterCategory} setFilterCategory={setFilterCategory}
+        categories={categories}
+        group={group} setGroup={setGroup}
+        count={toolbarFiltered.length}
+        total={libraryScoped.length}
+        onFindDupes={onFindDupes}
+        columnsButton={(mode === 'register' || mode === 'table') ? columnsButton : null}
       />
       {mode === 'table' ? (
         <LibraryTable
@@ -46,6 +122,8 @@ function Library({
           onDuplicate={onDuplicate}
           onFindDupes={onFindDupes}
           selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
+          setColumnsButton={setColumnsButton}
         />
       ) : mode === 'split' ? (
         <window.LibraryLayoutC
@@ -56,6 +134,7 @@ function Library({
           activeLibraryId={activeLibraryId}
           onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
           selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
         />
       ) : mode === 'register' ? (
         <window.LibraryRegister
@@ -68,6 +147,8 @@ function Library({
           onAddInCategory={onAddInCategory}
           onDelete={onDelete}
           selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
+          setColumnsButton={setColumnsButton}
         />
       ) : (
         <LibraryGallery
@@ -87,6 +168,7 @@ function Library({
           onFindDupes={onFindDupes}
           compareIds={compareIds} toggleCompare={toggleCompare}
           showImagery={showImagery} density={density}
+          toolbarState={toolbarState}
         />
       )}
       {/* Bulk action bar (B7). Mount/unmount on selection so barUp animates
@@ -121,10 +203,9 @@ function LibraryGallery({
   onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
   onFindDupes,
   compareIds, toggleCompare, showImagery, density,
+  toolbarState,
 }) {
-  const [query, setQuery] = React.useState('');
-  const [group, setGroup] = React.useState('category');
-  const [sort, setSort] = React.useState('code');
+  const { query, setQuery, sort, group, filterCategory, libraryScoped, toolbarFiltered } = toolbarState;
   const [openId, setOpenId] = React.useState(null);
   const [menuForId, setMenuForId] = React.useState(null);
   const [flashId, setFlashId] = React.useState(null);
@@ -152,40 +233,25 @@ function LibraryGallery({
     }, 50);
   }
 
-  // Filter by active library
-  const libraryScoped = React.useMemo(() => {
-    if (activeLibraryId === 'all') return materials;
-    return materials.filter(m => m.libraryIds.includes(activeLibraryId));
-  }, [materials, activeLibraryId]);
-
+  // Apply lifted sort to the toolbar-filtered list (which already applied
+  // the lifted query + filterCategory).
   const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = libraryScoped.slice();
-    if (q) {
-      list = list.filter(m =>
-        (window.formatLabel(m, labelTemplates) + ' ' + m.name + ' ' + m.code + ' ' + m.category + ' ' + m.supplier + ' ' + (m.species || '') + ' ' + m.finish).toLowerCase().includes(q)
-      );
-    }
+    const list = toolbarFiltered.slice();
     list.sort((a, b) => {
-      if (sort === 'code') return a.code.localeCompare(b.code);
-      if (sort === 'name') return a.name.localeCompare(b.name);
-      if (sort === 'cost') return a.unitCost - b.unitCost;
-      if (sort === 'lead') return a.leadTime.localeCompare(b.leadTime);
+      if (sort === 'code') return (a.code || '').localeCompare(b.code || '');
+      if (sort === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sort === 'cost') return (a.unitCost || 0) - (b.unitCost || 0);
+      if (sort === 'lead') return (a.leadTime || '').localeCompare(b.leadTime || '');
       return 0;
     });
     return list;
-  }, [libraryScoped, query, sort]);
+  }, [toolbarFiltered, sort]);
 
   const grouped = React.useMemo(() => {
+    if (!group) return [['All', filtered]];
     const map = new Map();
     filtered.forEach(m => {
-      let key;
-      if (group === 'category') key = m.category;
-      else if (group === 'supplier') key = m.supplier;
-      else if (group === 'cost') {
-        const c = m.unitCost;
-        key = c < 150 ? 'Under $150' : c < 300 ? '$150 – $300' : c < 500 ? '$300 – $500' : '$500+';
-      } else key = 'All';
+      const key = m.category || 'Uncategorised';
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(m);
     });
@@ -194,20 +260,6 @@ function LibraryGallery({
 
   return (
     <div className="lib-gallery">
-        <div className="lib-controls">
-          {compareIds.length >= 2 && (
-            <Tag tone="accent">Comparing {compareIds.length}</Tag>
-          )}
-          <ModeToggle mode={mode} setMode={setMode} />
-          <LabelFormatQuickPick
-            templates={labelTemplates}
-            setTemplates={setLabelTemplates}
-            onOpenBuilder={() => onOpenLabelBuilder('Global')} />
-          {onFindDupes && (
-            <TextButton onClick={onFindDupes}>Find dupes</TextButton>
-          )}
-        </div>
-
         {compareIds.length >= 2 && (
           <CompareStrip
             ids={compareIds}
@@ -216,22 +268,6 @@ function LibraryGallery({
             onClose={() => compareIds.forEach(toggleCompare)}
           />
         )}
-
-        <div className="lib-filter-row">
-          <SearchField value={query} onChange={setQuery} placeholder="Search name, code, supplier, finish…" />
-          <div className="lib-filter-group">
-            <span style={{ ...ui.label, marginRight: 6 }}>Group</span>
-            {['category', 'supplier', 'cost'].map(g => (
-              <GroupChip key={g} active={group === g} onClick={() => setGroup(g)}>{g}</GroupChip>
-            ))}
-          </div>
-          <div className="lib-filter-group">
-            <span style={{ ...ui.label, marginRight: 6 }}>Sort</span>
-            {['code', 'name', 'cost', 'lead'].map(s => (
-              <GroupChip key={s} active={sort === s} onClick={() => setSort(s)}>{s}</GroupChip>
-            ))}
-          </div>
-        </div>
 
         {grouped.length === 0 && (
           <div className="lib-empty">
@@ -252,13 +288,15 @@ function LibraryGallery({
           const openMaterial = openIdx >= 0 ? items[openIdx] : null;
           return (
             <section key={key} className="lib-section">
-              <div className="lib-section-head">
-                <Serif size={22} style={{ fontStyle: 'italic', color: 'var(--ink)' }}>{key}</Serif>
-                <div className="lib-section-rule" />
-                <Mono size={11} color="var(--ink-4)">
-                  {items.length} {items.length === 1 ? 'item' : 'items'}
-                </Mono>
-              </div>
+              {group && (
+                <div className="lib-section-head">
+                  <Serif size={22} style={{ fontStyle: 'italic', color: 'var(--ink)' }}>{key}</Serif>
+                  <div className="lib-section-rule" />
+                  <Mono size={11} color="var(--ink-4)">
+                    {items.length} {items.length === 1 ? 'item' : 'items'}
+                  </Mono>
+                </div>
+              )}
 
               {/* Cards draw their own borderRight + borderBottom so the
                   inter-card rules are real card borders, not bleed-through
@@ -313,26 +351,8 @@ function LibraryGallery({
 }
 
 // (Sidebar / sidebar rail / library item code removed — see src/LibrarySwitcher.jsx)
-
-function GroupChip({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        background: 'none', border: 'none', cursor: 'pointer',
-        padding: '2px 4px',
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 11,
-        fontWeight: active ? 500 : 400,
-        color: active ? 'var(--ink)' : 'var(--ink-4)',
-        borderBottom: '1px solid ' + (active ? 'var(--ink)' : 'transparent'),
-        textTransform: 'lowercase',
-      }}>
-      {children}
-    </button>
-  );
-}
+// (GroupChip removed Phase 2 — gallery + split now consume the shared
+// LibraryToolbar's boolean group toggle; axis chips are gone.)
 
 // One gallery card — swatch with type-corner badge + meta block (code, name,
 // brand). Hover-reveal compare checkbox, ⋯ menu, chevron toggle preserved

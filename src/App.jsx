@@ -684,6 +684,7 @@ function App() {
             projects={projects}
             libraries={libraries}
             labelTemplates={labelTemplates}
+            setLabelTemplates={setLabelTemplates}
             onOpenLabelBuilder={(tab) => { setLabelBuilderTab(tab || 'Global'); setLabelBuilderOpen(true); }}
             onFindDupes={() => setFindDupesOpen(true)}
             onRestoreSeed={() => {

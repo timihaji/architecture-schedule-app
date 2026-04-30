@@ -167,18 +167,8 @@
   .lib-row-rename-input { flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 2px 0; color: var(--ink); }
   .lib-add-input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--ink); outline: none; font-family: var(--font-serif); font-size: 14px; padding: 4px 0; color: var(--ink); }
 
-  /* Register-specific toolbar + column popover. Scoped with reg- prefix so
-     Gallery/Split filter chrome stays unchanged. Mockup ref:
-     design/handoff/v2/Library.html lines 56-122. */
-  .reg-toolbar { display: flex; align-items: center; gap: 8px; padding: 14px 0 10px; flex-wrap: wrap; }
-  .reg-toolbar-search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 200px; max-width: 340px; border: 1px solid var(--rule-2); padding: 5px 10px; }
-  .reg-toolbar-search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
-  .reg-vbar { width: 1px; height: 18px; background: var(--rule-2); flex-shrink: 0; }
-  .reg-filter-sel { background: transparent; border: 1px solid var(--rule-2); padding: 5px 24px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
-  .reg-tb-toggle { background: transparent; border: 1px solid var(--rule-2); padding: 5px 10px; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; white-space: nowrap; }
-  .reg-tb-toggle:hover { border-color: var(--ink-3); color: var(--ink-2); }
-  .reg-tb-grow { flex: 1; }
-  .reg-tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  /* Register column popover (toolbar-only chrome migrated to canonical
+     .toolbar / .search / .filter-sel / .btn-ghost in Phase 2). */
   .reg-col-popover { position: absolute; top: calc(100% + 4px); right: 0; background: var(--paper); border: 1px solid var(--ink); padding: 12px 14px; min-width: 200px; z-index: 60; box-shadow: 0 8px 24px rgba(20,20,20,0.12); }
   .reg-col-popover-h { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); }
   .reg-col-popover-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; user-select: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink-2); }
@@ -197,6 +187,32 @@
   .reg-brand { font-family: var(--font-sans); font-size: 11px; color: var(--ink-4); margin-top: 1px; }
   .reg-meta { font-family: var(--font-mono); font-size: 10px; color: var(--ink-3); }
   .reg-price { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); text-align: right; }
+
+  /* Canonical Library page shell — lifted from Library Standalone reference.
+     Page header is the masthead row; lib-tabs is the strip between header and
+     toolbar; .toolbar / .search / .filter-sel / .btn-ghost / .tb-* are the
+     shared toolbar primitives that Phase 2 will swap into all four mode views. */
+  .page-header { padding-bottom: 16px; border-bottom: 1px solid var(--ink); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+  .page-meta { display: flex; gap: 16px; align-items: baseline; margin-top: 6px; flex-wrap: wrap; }
+  .meta-mono { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .lib-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); margin: 20px 0 0; }
+  .lib-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; padding: 9px 14px; font-family: var(--font-sans); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; transition: color 0.12s; display: flex; gap: 7px; align-items: baseline; }
+  .lib-tab:hover { color: var(--ink-2); }
+  .lib-tab .ct { font-family: var(--font-mono); font-size: 9.5px; }
+  .lib-tab.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+  .toolbar { display: flex; align-items: center; gap: 8px; padding: 14px 0 10px; flex-wrap: wrap; }
+  .search { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 200px; max-width: 320px; border: 1px solid var(--rule-2); padding: 5px 10px; }
+  .search input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
+  .vbar { width: 1px; height: 18px; background: var(--rule-2); flex-shrink: 0; }
+  .filter-sel { background: transparent; border: 1px solid var(--rule-2); padding: 5px 24px 5px 9px; font-family: var(--font-sans); font-size: 11px; color: var(--ink-3); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; }
+  .tb-lbl { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.14em; text-transform: uppercase; }
+  .tb-grow { flex: 1; }
+  .tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .btn-ghost { background: none; border: 1px solid var(--rule-2); padding: 5px 10px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+  .btn-ghost:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .btn-ghost.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn-add { border: none; padding: 7px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: opacity 0.1s; white-space: nowrap; background: var(--ink); color: var(--paper); }
+  .btn-add:hover { opacity: 0.85; }
 
   /* ADD PRODUCT DRAWER — lifted from design/handoff/v2/Library.html lines 463-524.
      Phase C2 chrome. Body-side helpers (.lbl-d, .inp-d, .sel-d, .tarea-d, .row-2,
@@ -974,13 +990,13 @@
 <script type="text/babel" src="src/LabelFormat.jsx?v=d6"></script>
 <script type="text/babel" src="src/LibrarySwitcher.jsx"></script>
 <script type="text/babel" src="src/LibraryMasthead.jsx"></script>
+<script type="text/babel" src="src/LibraryToolbar.jsx"></script>
 <script type="text/babel" src="src/Library.jsx?v=d7"></script>
 <script type="text/babel" src="src/LibraryLayoutC.jsx"></script>
 <script type="text/babel" src="src/LibraryRegister.jsx"></script>
 <script type="text/babel" src="src/DataTable.jsx"></script>
 <script type="text/babel" src="src/LibraryColumns.jsx"></script>
 <script type="text/babel" src="src/LibraryTable.jsx"></script>
-<script type="text/babel" src="src/LibraryTableChrome.jsx"></script>
 <script type="text/babel" src="src/LibraryTableRows.jsx"></script>
 <script type="text/babel" src="src/LibraryTableOverlays.jsx?v=d7"></script>
 <script type="text/babel" src="src/KindPicker.jsx"></script>

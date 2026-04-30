@@ -10,29 +10,14 @@ function LibraryLayoutC({
   activeLibraryId,
   onEdit, onAdd, onDelete,
   selected, setSelected,
+  toolbarState,
 }) {
-  const [query, setQuery] = React.useState('');
-  const [group, setGroup] = React.useState('category');
-  const [sort, setSort] = React.useState('code');
+  const { query, sort, group, toolbarFiltered } = toolbarState;
   const [activeId, setActiveId] = React.useState(null);
 
-  // Library scope
-  const libraryScoped = React.useMemo(() => {
-    if (activeLibraryId === 'all') return materials;
-    return materials.filter(m => (m.libraryIds || []).includes(activeLibraryId));
-  }, [materials, activeLibraryId]);
-
+  // Sort the toolbar-filtered list with the canonical sort axis.
   const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = libraryScoped.slice();
-    if (q) {
-      list = list.filter(m =>
-        ((window.formatLabel ? window.formatLabel(m, labelTemplates) : m.name) + ' ' +
-          (m.name || '') + ' ' + (m.code || '') + ' ' + (m.category || '') + ' ' +
-          (m.supplier || '') + ' ' + (m.species || '') + ' ' + (m.finish || ''))
-          .toLowerCase().includes(q)
-      );
-    }
+    const list = toolbarFiltered.slice();
     list.sort((a, b) => {
       if (sort === 'code') return (a.code || '').localeCompare(b.code || '');
       if (sort === 'name') return (a.name || '').localeCompare(b.name || '');
@@ -41,18 +26,13 @@ function LibraryLayoutC({
       return 0;
     });
     return list;
-  }, [libraryScoped, query, sort, labelTemplates]);
+  }, [toolbarFiltered, sort]);
 
   const groups = React.useMemo(() => {
+    if (!group) return [{ key: 'all', items: filtered }];
     const map = new Map();
     filtered.forEach(m => {
-      let key;
-      if (group === 'category') key = m.category || 'Other';
-      else if (group === 'supplier') key = m.supplier || 'Other';
-      else if (group === 'cost') {
-        const c = m.unitCost || 0;
-        key = c < 150 ? 'Under $150' : c < 300 ? '$150 – $300' : c < 500 ? '$300 – $500' : '$500+';
-      } else key = 'All';
+      const key = m.category || 'Other';
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(m);
     });
@@ -100,38 +80,6 @@ function LibraryLayoutC({
 
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 12,
-        marginBottom: 18,
-      }}>
-        <window.ModeToggle mode={mode} setMode={setMode} />
-      </div>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(220px, 1fr) auto auto',
-        gap: 28,
-        alignItems: 'end',
-        marginBottom: 26,
-      }}>
-        <window.SearchField value={query} onChange={setQuery} placeholder="Search name, code, supplier, finish…" />
-        <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-          <span style={{ ...window.ui.label, marginRight: 6 }}>Group</span>
-          {['category', 'supplier', 'cost'].map(g => (
-            <window.GroupChip key={g} active={group === g} onClick={() => setGroup(g)}>{g}</window.GroupChip>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
-          <span style={{ ...window.ui.label, marginRight: 6 }}>Sort</span>
-          {['code', 'name', 'cost', 'lead'].map(s => (
-            <window.GroupChip key={s} active={sort === s} onClick={() => setSort(s)}>{s}</window.GroupChip>
-          ))}
-        </div>
-      </div>
-
       <div className="split">
         {/* Left list */}
         <div className="split-list">

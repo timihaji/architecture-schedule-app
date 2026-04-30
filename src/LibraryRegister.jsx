@@ -3,9 +3,9 @@
 // Edit/× buttons in the actions cell, sparse column subset, and a popover
 // column picker. Sits alongside Gallery / Table / Split as a fourth view.
 //
-// Reuses .reg-*, .reg-act-btn, .cb, .lib-add-row styles in index.html.
-// Toolbar/popover styles ported into index.html alongside this file (LAYOUT
-// A: REGISTER chrome block).
+// Phase 2: in-toolbar chrome moved to the shared LibraryToolbar mounted by
+// Library.jsx. This file owns only the row layout, group sections, and the
+// Cols popover (whose button injects into the shared toolbar's columns slot).
 
 const REG_COL_STORAGE = 'aml-register-cols';
 
@@ -47,11 +47,10 @@ function LibraryRegister({
   onEdit, onAdd, onAddInCategory, onDelete,
   selected = new Set(),
   setSelected = () => {},
+  toolbarState,
+  setColumnsButton,
 }) {
-  const [query, setQuery] = React.useState('');
-  const [filterCategory, setFilterCategory] = React.useState('All');
-  const [sort, setSort] = React.useState('name-asc');
-  const [groupByCategory, setGroupByCategory] = React.useState(true);
+  const { query, sort, group, toolbarFiltered } = toolbarState;
   const [colsOpen, setColsOpen] = React.useState(false);
   const [visibleCols, setVisibleCols] = React.useState(() =>
     loadRegisterCols() || new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
@@ -69,47 +68,22 @@ function LibraryRegister({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [colsOpen]);
 
-  // Library scope
-  const libraryScoped = React.useMemo(() => {
-    if (activeLibraryId === 'all') return materials;
-    return materials.filter(m => (m.libraryIds || []).includes(activeLibraryId));
-  }, [materials, activeLibraryId]);
-
-  // Available categories
-  const categories = React.useMemo(() => {
-    const set = new Set();
-    libraryScoped.forEach(m => { if (m.category) set.add(m.category); });
-    return Array.from(set).sort();
-  }, [libraryScoped]);
-
-  // Filter + search + sort
+  // Sort + render the toolbar-filtered rows. Lifted sort uses canonical ids.
   const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = libraryScoped.slice();
-    if (filterCategory !== 'All') list = list.filter(m => m.category === filterCategory);
-    if (q) {
-      list = list.filter(m => {
-        const display = window.formatLabel ? window.formatLabel(m, labelTemplates) : (m.name || '');
-        return (display + ' ' + (m.name || '') + ' ' + (m.code || '') + ' ' +
-                (m.supplier || '') + ' ' + (m.brand || '') + ' ' + (m.finish || ''))
-          .toLowerCase().includes(q);
-      });
-    }
-    const parseNum = v => typeof v === 'number' ? v : parseFloat(String(v||'').replace(/[^0-9.]/g,'')) || 0;
+    const list = toolbarFiltered.slice();
     const cmp = {
-      'name-asc':  (a,b) => (a.name||'').localeCompare(b.name||''),
-      'name-desc': (a,b) => (b.name||'').localeCompare(a.name||''),
-      'code-asc':  (a,b) => (a.code||'').localeCompare(b.code||''),
-      'price-asc': (a,b) => parseNum(a.unitCost) - parseNum(b.unitCost),
-      'price-desc':(a,b) => parseNum(b.unitCost) - parseNum(a.unitCost),
-    }[sort] || ((a,b) => 0);
+      code: (a, b) => (a.code || '').localeCompare(b.code || ''),
+      name: (a, b) => (a.name || '').localeCompare(b.name || ''),
+      cost: (a, b) => (a.unitCost || 0) - (b.unitCost || 0),
+      lead: (a, b) => (a.leadTime || '').localeCompare(b.leadTime || ''),
+    }[sort] || (() => 0);
     list.sort(cmp);
     return list;
-  }, [libraryScoped, query, filterCategory, sort, labelTemplates]);
+  }, [toolbarFiltered, sort]);
 
   // Groups
   const groups = React.useMemo(() => {
-    if (!groupByCategory) return [{ key: 'all', label: null, items: filtered }];
+    if (!group) return [{ key: 'all', label: null, items: filtered }];
     const map = new Map();
     for (const m of filtered) {
       const k = m.category || 'Uncategorised';
@@ -117,7 +91,7 @@ function LibraryRegister({
       map.get(k).push(m);
     }
     return Array.from(map, ([label, items]) => ({ key: label, label, items }));
-  }, [filtered, groupByCategory]);
+  }, [filtered, group]);
 
   // Selection helpers
   const visibleIds = filtered.map(m => m.id);
@@ -143,106 +117,65 @@ function LibraryRegister({
     else if (onAdd) onAdd();
   }
 
+  // Inject the Cols button into the shared toolbar's columns slot. Wraps the
+  // popover so its position anchors off the slot button, not the row.
+  React.useEffect(() => {
+    if (!setColumnsButton) return;
+    setColumnsButton(
+      <div ref={colsBtnRef} style={{ position: 'relative' }}>
+        <button type="button" className="btn-ghost"
+          onClick={() => setColsOpen(o => !o)}>
+          Cols ({visibleCols.size})
+        </button>
+        {colsOpen && (
+          <div className="reg-col-popover">
+            <div className="reg-col-popover-h">Columns</div>
+            {REGISTER_COLS.map(c => {
+              const on = visibleCols.has(c.id);
+              const locked = c.locked;
+              return (
+                <div key={c.id}
+                  className={'reg-col-popover-row' + (locked ? ' locked' : '')}
+                  onClick={() => {
+                    if (locked) return;
+                    const next = new Set(visibleCols);
+                    if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                    setVisibleCols(next);
+                  }}>
+                  <div className={'cb' + (on ? ' checked' : '')} style={{ pointerEvents: 'none' }}>
+                    {on && <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                      <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>}
+                  </div>
+                  <span>{c.label || c.id}</span>
+                  {locked && <span className="reg-col-popover-lock">locked</span>}
+                </div>
+              );
+            })}
+            <div className="reg-col-popover-foot">
+              <button onClick={() =>
+                setVisibleCols(new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)))}>
+                Reset
+              </button>
+              <button onClick={() =>
+                setVisibleCols(new Set(REGISTER_COLS.map(c => c.id)))}>
+                Show all
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+    return () => setColumnsButton(null);
+  }, [colsOpen, visibleCols, setColumnsButton]);
+
   // Render
   const visibleColDefs = REGISTER_COLS.filter(c => visibleCols.has(c.id));
   const gridTemplate = visibleColDefs.map(c => c.width).join(' ');
 
   return (
-    <div style={{ marginTop: 12 }}>
-      {/* Toolbar + Mode toggle row */}
-      <div className="reg-toolbar">
-        <div className="reg-toolbar-search">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-            style={{ color: 'var(--ink-4)', flexShrink: 0 }}>
-            <circle cx="10.5" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.6" />
-            <line x1="15" y1="15" x2="20" y2="20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search name, code, supplier, finish…"
-          />
-        </div>
-
-        <div className="reg-vbar"></div>
-
-        <select className="reg-filter-sel"
-          value={filterCategory}
-          onChange={e => setFilterCategory(e.target.value)}>
-          <option value="All">All categories</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-
-        <select className="reg-filter-sel"
-          value={sort}
-          onChange={e => setSort(e.target.value)}>
-          <option value="name-asc">Name A→Z</option>
-          <option value="name-desc">Name Z→A</option>
-          <option value="code-asc">Code</option>
-          <option value="price-asc">Price ↑</option>
-          <option value="price-desc">Price ↓</option>
-        </select>
-
-        <button className="reg-tb-toggle"
-          onClick={() => setGroupByCategory(g => !g)}
-          title="Group by category">
-          {groupByCategory ? '☰  Grouped' : '☰  Ungrouped'}
-        </button>
-
-        <div className="reg-tb-grow"></div>
-
-        <span className="reg-tb-count">{filtered.length} {filtered.length === 1 ? 'item' : 'items'}</span>
-
-        <div ref={colsBtnRef} style={{ position: 'relative' }}>
-          <button className="reg-tb-toggle"
-            onClick={() => setColsOpen(o => !o)}>
-            Cols ({visibleColDefs.length})
-          </button>
-          {colsOpen && (
-            <div className="reg-col-popover">
-              <div className="reg-col-popover-h">Columns</div>
-              {REGISTER_COLS.map(c => {
-                const on = visibleCols.has(c.id);
-                const locked = c.locked;
-                return (
-                  <div key={c.id}
-                    className={'reg-col-popover-row' + (locked ? ' locked' : '')}
-                    onClick={() => {
-                      if (locked) return;
-                      const next = new Set(visibleCols);
-                      if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
-                      setVisibleCols(next);
-                    }}>
-                    <div className={'cb' + (on ? ' checked' : '')} style={{ pointerEvents: 'none' }}>
-                      {on && <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-                        <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5"
-                          strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>}
-                    </div>
-                    <span>{c.label || c.id}</span>
-                    {locked && <span className="reg-col-popover-lock">locked</span>}
-                  </div>
-                );
-              })}
-              <div className="reg-col-popover-foot">
-                <button onClick={() =>
-                  setVisibleCols(new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)))}>
-                  Reset
-                </button>
-                <button onClick={() =>
-                  setVisibleCols(new Set(REGISTER_COLS.map(c => c.id)))}>
-                  Show all
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="reg-vbar"></div>
-
-        {window.ModeToggle && <window.ModeToggle mode={mode} setMode={setMode} />}
-      </div>
-
+    <div style={{ marginTop: 4 }}>
       {/* Header row */}
       <div className="reg-head" style={{ gridTemplateColumns: gridTemplate }}>
         {visibleColDefs.map(c => {
@@ -285,19 +218,19 @@ function LibraryRegister({
       )}
 
       {/* Groups */}
-      {groups.map(group => (
-        <React.Fragment key={group.key}>
-          {group.label && groups.length > 1 && (
+      {groups.map(grp => (
+        <React.Fragment key={grp.key}>
+          {grp.label && groups.length > 1 && (
             <div className="reg-section">
-              <span className="reg-section-title">{group.label}</span>
+              <span className="reg-section-title">{grp.label}</span>
               <span className="reg-section-rule"></span>
               <span className="reg-section-count">
-                {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                {grp.items.length} {grp.items.length === 1 ? 'item' : 'items'}
               </span>
             </div>
           )}
 
-          {group.items.map(m => {
+          {grp.items.map(m => {
             const sel = selected.has(m.id);
             return (
               <div key={m.id}
@@ -309,17 +242,17 @@ function LibraryRegister({
             );
           })}
 
-          {groupByCategory && group.label && groups.length > 1 && (
+          {group && grp.label && groups.length > 1 && (
             <div className="lib-add-row">
-              <button onClick={() => categoryAdd(group.label)}>
-                + Add to {group.label}
+              <button onClick={() => categoryAdd(grp.label)}>
+                + Add to {grp.label}
               </button>
             </div>
           )}
         </React.Fragment>
       ))}
 
-      {!groupByCategory && filtered.length > 0 && (
+      {!group && filtered.length > 0 && (
         <div className="lib-add-row">
           <button onClick={() => onAdd && onAdd()}>+ Add material</button>
         </div>

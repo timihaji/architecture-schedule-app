@@ -1,14 +1,15 @@
 // Library — Table mode. Thin wrapper around the shared DataTable.
 //
-// This file owns only the domain slots (topbar / kind tabs / filters / bulk /
-// side panel / column picker / command palette / cheatsheet) and the
-// material-specific filter/sort/search glue. All table mechanics live in
-// DataTable.jsx and the material column catalogue lives in LibraryColumns.jsx.
+// Phase 2: top-bar / kind tabs / advanced filters bar / cheatsheet / density
+// / label-format quick pick all removed. The page-level shared LibraryToolbar
+// (mounted by Library.jsx) drives query / sort / filterCategory / group;
+// this file only renders the DataTable, the side panel, the column picker
+// (injected into the toolbar's columns slot), and the command palette.
 
-function loadDensity() {
-  try { return localStorage.getItem('aml-table-density') || 'regular'; } catch { return 'regular'; }
-}
-function saveDensity(v) { try { localStorage.setItem('aml-table-density', v); } catch {} }
+// Map between the lifted toolbar's canonical sort id (string) and DataTable's
+// column id, since the column ids in LIBRARY_COLUMNS use a different naming.
+const TBSORT_TO_COL = { code: 'code', name: 'label', cost: 'unitCost', lead: 'leadTime' };
+const COL_TO_TBSORT = { code: 'code', label: 'name', unitCost: 'cost', leadTime: 'lead' };
 
 function LibraryTable(props) {
   const {
@@ -19,28 +20,36 @@ function LibraryTable(props) {
     onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
     onFindDupes,
     selected: extSelected, setSelected: extSetSelected,
+    toolbarState,
+    setColumnsButton,
   } = props;
+
+  const { query, sort: tbSort, setSort: setTbSort,
+          filterCategory, toolbarFiltered } = toolbarState;
 
   // Keep labelTemplates accessible to column sort fns (they can't take args)
   window._labelTemplatesCache = labelTemplates;
 
-  const LTTopBar = window.LTTopBar;
-  const LTKindTabs = window.LTKindTabs;
-  const LTFiltersBar = window.LTFiltersBar;
   const LTBulkBar = window.LTBulkBar;
   const LTSidePanel = window.LTSidePanel;
   const LTColumnPicker = window.LTColumnPicker;
   const LTCommandPalette = window.LTCommandPalette;
-  const LTCheatsheet = window.LTCheatsheet;
 
-  const [query, setQuery] = React.useState('');
-  const [filters, setFilters] = React.useState([]);
-  const [kindFilter, setKindFilter] = React.useState(() => {
-    try { return localStorage.getItem('aml-kind-filter') || 'all'; } catch { return 'all'; }
-  });
-  React.useEffect(() => { try { localStorage.setItem('aml-kind-filter', kindFilter); } catch {} }, [kindFilter]);
+  // Direction is local — toolbar drives axis; column-clicks flip dir.
+  const [dir, setDir] = React.useState('asc');
+  const sort = { id: TBSORT_TO_COL[tbSort] || 'code', dir };
+  const setSort = React.useCallback((next) => {
+    const resolved = typeof next === 'function' ? next(sort) : next;
+    if (!resolved) return;
+    if (resolved.id !== sort.id) {
+      const tb = COL_TO_TBSORT[resolved.id];
+      if (tb) setTbSort(tb);
+      // unmapped column (e.g. tags / kind / brand) — ignore: lifted axis
+      // stays the source of truth, dir change still applies.
+    }
+    if (resolved.dir && resolved.dir !== dir) setDir(resolved.dir);
+  }, [sort.id, dir, setTbSort]);
 
-  const [sort, setSort] = React.useState({ id: 'code', dir: 'asc' });
   // Selection state lifted to Library.jsx (B6) so it persists across layout
   // switches; fall back to local state if a host doesn't pass it.
   const [localSelected, setLocalSelected] = React.useState(new Set());
@@ -49,49 +58,35 @@ function LibraryTable(props) {
   const [cursorId, setCursorId] = React.useState(null);
   const [openId, setOpenId] = React.useState(null);
   const [editingCell, setEditingCell] = React.useState(null);
-  const [density, setDensityState] = React.useState(loadDensity);
-  function setDensity(v) { setDensityState(v); saveDensity(v); }
   const [colPickerOpen, setColPickerOpen] = React.useState(false);
   const [paletteOpen, setPaletteOpen] = React.useState(false);
-  const [cheatsheetOpen, setCheatsheetOpen] = React.useState(false);
-  const searchRef = React.useRef(null);
   const colPrefRef = React.useRef(null);
 
-  // Library-scoped + kind-scoped rows (feeds into DataTable's filter pipeline)
-  const libraryScoped = React.useMemo(() => {
-    if (activeLibraryId === 'all') return materials;
-    return materials.filter(m => (m.libraryIds || []).includes(activeLibraryId));
-  }, [materials, activeLibraryId]);
-
-  const kindScoped = React.useMemo(() => {
-    if (kindFilter === 'all') return libraryScoped;
-    if (kindFilter.startsWith('group:')) {
-      const group = kindFilter.slice('group:'.length);
-      const KINDS = window.KINDS || [];
-      const ids = new Set(KINDS.filter(k => k.group === group).map(k => k.id));
-      return libraryScoped.filter(m => ids.has(m.kind || 'material'));
-    }
-    return libraryScoped.filter(m => (m.kind || 'material') === kindFilter);
-  }, [libraryScoped, kindFilter]);
+  // Inject the Columns button into the shared toolbar's slot.
+  React.useEffect(() => {
+    if (!setColumnsButton) return;
+    setColumnsButton(
+      <button type="button" className="btn-ghost"
+        onClick={() => setColPickerOpen(true)}
+        title="Columns">⊞ Columns</button>
+    );
+    return () => setColumnsButton(null);
+  }, [setColumnsButton]);
 
   // Global shortcuts for overlays that DataTable doesn't know about
   React.useEffect(() => {
     function onKey(e) {
-      const inInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault(); setPaletteOpen(true); return;
       }
       if (e.key === 'Escape') {
-        if (cheatsheetOpen) { setCheatsheetOpen(false); return; }
         if (paletteOpen) { setPaletteOpen(false); return; }
         if (colPickerOpen) { setColPickerOpen(false); return; }
       }
-      if (inInput) return;
-      if (e.key === '?') { e.preventDefault(); setCheatsheetOpen(true); }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [paletteOpen, cheatsheetOpen, colPickerOpen]);
+  }, [paletteOpen, colPickerOpen]);
 
   // Need columns with labelTemplates baked into searchText (so query catches labels)
   const columns = React.useMemo(() => {
@@ -125,13 +120,23 @@ function LibraryTable(props) {
     ];
   }, [columns, searchRowText]);
 
+  // Pre-filter rows by the lifted category (DataTable handles query + sort).
+  const categoryScoped = React.useMemo(() => {
+    if (filterCategory && filterCategory !== 'All') {
+      return toolbarFiltered;
+    }
+    // toolbarFiltered already has the active library scope baked in;
+    // when filterCategory is 'All' we still want the library scope.
+    return toolbarFiltered;
+  }, [toolbarFiltered, filterCategory]);
+
   // openId-derived material for side panel
   const openMaterial = openId ? materials.find(m => m.id === openId) : null;
 
   return (
     <>
       <window.DataTable
-        rows={kindScoped}
+        rows={categoryScoped}
         columns={searchColumns}
         colPrefRef={colPrefRef}
         cellContext={{
@@ -150,14 +155,14 @@ function LibraryTable(props) {
         defaultVisible={window.LIBRARY_DEFAULT_VISIBLE}
         defaultOrder={window.LIBRARY_DEFAULT_ORDER}
         query={query}
-        filters={filters}
+        filters={[]}
         matchFilter={window.libraryMatchFilter}
         sort={sort} setSort={setSort}
         selected={selected} setSelected={setSelected}
         cursorId={cursorId} setCursorId={setCursorId}
         openId={openId} setOpenId={setOpenId}
         editingCell={editingCell} setEditingCell={setEditingCell}
-        density={density}
+        density="regular"
         onSaveCell={(id, field, value) => window.saveMaterialCell(id, field, value)}
         onOpenRow={(id) => setOpenId(id)}
         onEditRow={(id) => { const m = materials.find(x => x.id === id); if (m) onEdit(m); }}
@@ -176,37 +181,9 @@ function LibraryTable(props) {
         }}
         onAdd={onAdd}
         onAddRow={onAdd ? (groupKey) => onAdd(groupKey ? { productType: groupKey } : undefined) : undefined}
-        searchRef={searchRef}
-        topBar={
-          <LTTopBar
-            query={query} setQuery={setQuery} searchRef={searchRef}
-            mode={mode} setMode={setMode}
-            labelTemplates={labelTemplates} setLabelTemplates={setLabelTemplates}
-            onOpenLabelBuilder={onOpenLabelBuilder}
-            density={density} setDensity={setDensity}
-            onOpenColPicker={() => setColPickerOpen(true)}
-            onOpenCheatsheet={() => setCheatsheetOpen(true)}
-            onFindDupes={onFindDupes}
-            count={kindScoped.length}
-            total={materials.length}
-          />
-        }
-        kindTabs={
-          <LTKindTabs
-            materials={libraryScoped}
-            kindFilter={kindFilter}
-            setKindFilter={setKindFilter}
-          />
-        }
-        filtersBar={
-          <LTFiltersBar
-            filters={filters} setFilters={setFilters}
-            libraries={libraries}
-            materials={libraryScoped}
-          />
-        }
-        // Bulk bar moved to Library.jsx (B7) so it overlays the viewport
-        // regardless of layout (Register / Gallery / Split).
+        topBar={null}
+        kindTabs={null}
+        filtersBar={null}
         bulkBar={null}
         sidePanel={
           openMaterial && (
@@ -222,8 +199,6 @@ function LibraryTable(props) {
             />
           )
         }
-        // Extend cellCtx with material-specific context the renderers need.
-        // (DataTable spreads whatever we pass — we patch via cellContext below.)
       />
       {colPickerOpen && colPrefRef.current && (
         <LTColumnPicker
@@ -242,12 +217,10 @@ function LibraryTable(props) {
           onAction={(action) => {
             if (action === 'toggle-mode') setMode(mode === 'table' ? 'gallery' : 'table');
             if (action === 'columns') setColPickerOpen(true);
-            if (action === 'cheatsheet') setCheatsheetOpen(true);
             setPaletteOpen(false);
           }}
         />
       )}
-      {cheatsheetOpen && <LTCheatsheet onClose={() => setCheatsheetOpen(false)} />}
     </>
   );
 }

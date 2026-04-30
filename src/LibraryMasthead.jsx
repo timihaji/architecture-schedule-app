@@ -12,6 +12,8 @@ function LibraryMasthead({
   onRenameLibrary,
   onDuplicateLibrary,
   onDeleteLibrary,
+  mode,
+  setMode,
 }) {
   const [open, setOpen] = React.useState(false);
   const wrapperRef = React.useRef(null);
@@ -128,6 +130,7 @@ function LibraryMasthead({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {setMode && <window.ModeToggle mode={mode} setMode={setMode} />}
         <window.PrimaryButton onClick={onAdd}>＋ Add Product</window.PrimaryButton>
       </div>
     </div>

@@ -513,7 +513,10 @@ function PresetChip({ preset, onApply, accent }) {
   );
 }
 
-// ───────── Quick-pick for Library header ─────────
+// ───────── Quick-pick (legacy, no longer mounted in any toolbar) ─────────
+// Phase 2 moved label format to Settings → Library defaults (06). The
+// component below is kept as a window-exposed helper for downstream use; it
+// is no longer rendered anywhere in the v1 UI. Safe to delete in a follow-up.
 
 function LabelFormatQuickPick({ templates, setTemplates, onOpenBuilder }) {
   const [open, setOpen] = React.useState(false);

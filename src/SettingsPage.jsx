@@ -4,7 +4,7 @@
 
 function SettingsPage({
   settings, setSettings,
-  materials, projects, libraries, labelTemplates,
+  materials, projects, libraries, labelTemplates, setLabelTemplates,
   onRestoreSeed, onImport, onClose,
   onOpenLabelBuilder, onFindDupes,
 }) {
@@ -37,7 +37,7 @@ function SettingsPage({
   const groups = [...new Set(sections.map(s => s.group))];
 
   const sectionProps = { settings, set, setSettings,
-    materials, projects, libraries, labelTemplates,
+    materials, projects, libraries, labelTemplates, setLabelTemplates,
     onRestoreSeed, onImport, onOpenLabelBuilder, onFindDupes };
 
   return (
@@ -623,8 +623,27 @@ function FirmSection({ settings, set }) {
   );
 }
 
-function LibraryDefaultsSection({ settings, set, labelTemplates, onOpenLabelBuilder }) {
+function LibraryDefaultsSection({ settings, set, labelTemplates, setLabelTemplates, onOpenLabelBuilder }) {
   const tplCount = labelTemplates ? Object.keys(labelTemplates).length : 0;
+  // Phase 2: label-format quick pick lives here now (was in toolbar). Match
+  // the global preset against PRESETS so the active row is highlighted.
+  const presets = window.PRESETS || [];
+  const globalText = labelTemplates && window.templateToText
+    ? window.templateToText(labelTemplates.global || [])
+    : '';
+  const matchedPreset = presets.find(p => window.templateToText(p.parts) === globalText);
+  const previewSample = window.formatLabel
+    ? (() => {
+        const sample = { code: 'TM-008', name: 'White oak board', category: 'Timber',
+          finish: 'Matte', species: 'Oak', supplier: 'Acme' };
+        try { return window.formatLabel(sample, labelTemplates || { global: [] }); }
+        catch { return sample.name; }
+      })()
+    : '';
+  function pickPreset(p) {
+    if (!setLabelTemplates) return;
+    setLabelTemplates(prev => ({ ...prev, global: p.parts.slice() }));
+  }
   return (
     <>
       <SectionHeader kicker="06" title="Library defaults"
@@ -652,18 +671,61 @@ function LibraryDefaultsSection({ settings, set, labelTemplates, onOpenLabelBuil
 
       <SubsectionHeader>Display rules</SubsectionHeader>
 
-      <SettingRow label="Label templates"
-        description="Custom name-building rules per category. Compose chip patterns and manage per-category overrides.">
-        <div>
-          <button className="st-data-btn"
-            onClick={() => onOpenLabelBuilder && onOpenLabelBuilder('Global')}>
-            Open label composer
-          </button>
-          {tplCount > 0 && (
-            <Mono size={10} color="var(--ink-4)" style={{ display: 'block', marginTop: 8 }}>
-              {tplCount} template{tplCount !== 1 ? 's' : ''} defined
-            </Mono>
+      <SettingRow label="Label format"
+        description="How material names are rendered across every Library mode. Pick a preset or open the full composer for per-category rules.">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 260 }}>
+          {previewSample && (
+            <div style={{
+              padding: '10px 12px',
+              border: '1px solid var(--rule-2)',
+              background: 'var(--paper-2)',
+            }}>
+              <Mono size={9} color="var(--ink-4)" style={{ display: 'block',
+                letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Preview · {matchedPreset ? matchedPreset.name : 'Custom'}
+              </Mono>
+              <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+                fontSize: 14, color: 'var(--ink)' }}>{previewSample}</span>
+            </div>
           )}
+          {presets.length > 0 && setLabelTemplates && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {presets.map(p => {
+                const isActive = window.templateToText(p.parts) === globalText;
+                return (
+                  <button key={p.id} type="button"
+                    onClick={() => pickPreset(p)}
+                    style={{
+                      width: '100%', textAlign: 'left',
+                      background: isActive ? 'var(--tint)' : 'transparent',
+                      border: '1px solid ' + (isActive ? 'var(--ink)' : 'var(--rule-2)'),
+                      cursor: 'pointer', padding: '7px 10px',
+                      display: 'flex', alignItems: 'baseline', gap: 10,
+                    }}>
+                    <Mono size={9} color="var(--ink-4)" style={{ minWidth: 90,
+                      letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                      {p.name}
+                    </Mono>
+                    <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+                      fontSize: 13, color: 'var(--ink)' }}>
+                      {window.templateToText(p.parts)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div>
+            <button className="st-data-btn"
+              onClick={() => onOpenLabelBuilder && onOpenLabelBuilder('Global')}>
+              Edit label format
+            </button>
+            {tplCount > 0 && (
+              <Mono size={10} color="var(--ink-4)" style={{ display: 'block', marginTop: 8 }}>
+                {tplCount} template{tplCount !== 1 ? 's' : ''} defined
+              </Mono>
+            )}
+          </div>
         </div>
       </SettingRow>
     </>
