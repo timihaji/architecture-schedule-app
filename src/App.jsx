@@ -308,14 +308,18 @@ function App() {
 
   function createNewItem(categoryId) {
     const preselectLib = activeLibraryId && activeLibraryId !== 'all' ? [activeLibraryId] : ['lib-master'];
-    const category = categoryId || 'wall';
-    const catDef = window.categoryDef && window.categoryDef(category);
+    const requestedCat = categoryId && window.categoryDef && window.categoryDef(categoryId);
+    const fallbackCat = window.categoryDef && window.categoryDef('wall');
+    const catDef = requestedCat || fallbackCat;
+    const category = (catDef && catDef.id) || 'wall';
     const defaultUnit = (catDef && catDef.defaultUnit) || 'm²';
     const defaultTrade = (window.defaultTradeForCategory && window.defaultTradeForCategory(category)) || 'Other';
     setKindPickerOpen(false);
     setEditingMaterial({
       id: 'm-' + Date.now(),
       category,
+      unit: defaultUnit,
+      trade: defaultTrade,
       fields: {
         trade: defaultTrade,
         tags: { performance: [], location: [], materialFamily: [] },

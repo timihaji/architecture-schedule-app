@@ -140,8 +140,9 @@ function LibraryRegister({
     setSelected(next);
   }
 
-  function categoryAdd(category) {
-    if (onAddInCategory) onAddInCategory(category);
+  function categoryAdd(categoryId) {
+    if (!categoryId) return;
+    if (onAddInCategory) onAddInCategory(categoryId);
     else if (onAdd) onAdd();
   }
 
@@ -246,39 +247,44 @@ function LibraryRegister({
       )}
 
       {/* Groups */}
-      {groups.map(grp => (
-        <React.Fragment key={grp.key}>
-          {grp.label && groups.length > 1 && (
-            <div className="reg-section">
-              <span className="reg-section-title">{grp.label}</span>
-              <span className="reg-section-rule"></span>
-              <span className="reg-section-count">
-                {grp.items.length} {grp.items.length === 1 ? 'item' : 'items'}
-              </span>
-            </div>
-          )}
-
-          {grp.items.map(m => {
-            const sel = selected.has(m.id);
-            return (
-              <div key={m.id}
-                className={'reg-row' + (sel ? ' selected' : '')}
-                style={{ gridTemplateColumns: gridTemplate }}
-                onClick={() => toggleOne(m.id)}>
-                {visibleColDefs.map(c => regCell(c, m, sel, materials, labelTemplates, toggleOne, onEdit, onDelete))}
+      {groups.map(grp => {
+        const addCategoryId = groupBy === '_category'
+          ? (grp.items.find(m => m && m.category && window.categoryDef && window.categoryDef(m.category))?.category || null)
+          : null;
+        return (
+          <React.Fragment key={grp.key}>
+            {grp.label && groups.length > 1 && (
+              <div className="reg-section">
+                <span className="reg-section-title">{grp.label}</span>
+                <span className="reg-section-rule"></span>
+                <span className="reg-section-count">
+                  {grp.items.length} {grp.items.length === 1 ? 'item' : 'items'}
+                </span>
               </div>
-            );
-          })}
+            )}
 
-          {group && grp.label && groups.length > 1 && (
-            <div className="lib-add-row">
-              <button onClick={() => categoryAdd(grp.label)}>
-                + Add to {grp.label}
-              </button>
-            </div>
-          )}
-        </React.Fragment>
-      ))}
+            {grp.items.map(m => {
+              const sel = selected.has(m.id);
+              return (
+                <div key={m.id}
+                  className={'reg-row' + (sel ? ' selected' : '')}
+                  style={{ gridTemplateColumns: gridTemplate }}
+                  onClick={() => toggleOne(m.id)}>
+                  {visibleColDefs.map(c => regCell(c, m, sel, materials, labelTemplates, toggleOne, onEdit, onDelete))}
+                </div>
+              );
+            })}
+
+            {group && grp.label && groups.length > 1 && addCategoryId && (
+              <div className="lib-add-row">
+                <button onClick={() => categoryAdd(addCategoryId)}>
+                  + Add to {grp.label}
+                </button>
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
 
       {!group && filtered.length > 0 && (
         <div className="lib-add-row">

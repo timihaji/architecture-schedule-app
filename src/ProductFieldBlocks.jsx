@@ -93,6 +93,7 @@ function PFB_Identity({ draft, set, codeError = false }) {
   const catDef = window.categoryDef ? window.categoryDef(cat) : null;
   const grpDef = catDef && window.groupDef ? window.groupDef(catDef.groupId) : null;
   const cats = React.useMemo(categoryPickerOptions, []);
+  const tradeValue = (window.getFieldValue ? window.getFieldValue(draft, 'trade') : draft.trade) || '';
 
   const fields = window.fieldsForCategory ? window.fieldsForCategory(cat) : [];
   // Identity-bucket fields, minus ones we render bespoke (code/name/supplier).
@@ -146,7 +147,7 @@ function PFB_Identity({ draft, set, codeError = false }) {
               // Auto-derive trade unless user has explicitly overridden it.
               const touched = (draft._touched && draft._touched.trade) === true;
               if (!touched && window.defaultTradeForCategory) {
-                set('trade', window.defaultTradeForCategory(newCat));
+                window.setFieldOnDraft(set, 'trade', window.defaultTradeForCategory(newCat), draft);
               }
             }}>
             {cats.map(c => (
@@ -171,9 +172,9 @@ function PFB_Identity({ draft, set, codeError = false }) {
           <input
             className="inp-d"
             list="aml-trades"
-            value={draft.trade || ''}
+            value={tradeValue}
             onChange={e => {
-              set('trade', e.target.value);
+              window.setFieldOnDraft(set, 'trade', e.target.value, draft);
               set('_touched', Object.assign({}, draft._touched || {}, { trade: true }));
             }}
             placeholder="auto from category — override if needed"
