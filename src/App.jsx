@@ -473,10 +473,10 @@ function App() {
   function addProject() {
     setEditingProject({
       id: 'p-' + Date.now(),
-      code: '', name: '', client: '', location: '',
+      code: '', name: '', client: '', address: '',
       type: '', stage: 'Concept', budget: '', lead: '',
       commenced: '', completion: '', description: '',
-      rooms: [],
+      locations: [],
       _isNew: true,
     });
   }
@@ -1503,23 +1503,23 @@ const colorFieldStyle = {
 };
 
 // ───────── Project editor ─────────
-function ProjectRoomsEditor({ rooms, onChange }) {
+function ProjectLocationsEditor({ locations, onChange }) {
   const [newName, setNewName] = React.useState('');
-  const list = rooms || [];
+  const list = locations || [];
 
-  function addRoom() {
+  function addLocation() {
     const name = newName.trim();
     if (!name) return;
-    onChange([...list, { id: 'room-' + Date.now(), name }]);
+    onChange([...list, { id: 'loc-' + Date.now(), name }]);
     setNewName('');
   }
-  function renameRoom(id, name) {
+  function renameLocation(id, name) {
     onChange(list.map(r => r.id === id ? { ...r, name } : r));
   }
-  function deleteRoom(id) {
+  function deleteLocation(id) {
     onChange(list.filter(r => r.id !== id));
   }
-  function moveRoom(idx, dir) {
+  function moveLocation(idx, dir) {
     const next = list.slice();
     const swap = idx + dir;
     if (swap < 0 || swap >= next.length) return;
@@ -1528,26 +1528,26 @@ function ProjectRoomsEditor({ rooms, onChange }) {
   }
 
   return (
-    <div className="rooms-editor">
+    <div className="locations-editor">
       {list.length > 0 && (
-        <div className="rooms-list">
+        <div className="locations-list">
           {list.map((r, i) => (
-            <RoomRowEdit key={r.id} room={r} idx={i} total={list.length}
-              onRename={name => renameRoom(r.id, name)}
-              onDelete={() => deleteRoom(r.id)}
-              onMove={dir => moveRoom(i, dir)} />
+            <LocationRowEdit key={r.id} location={r} idx={i} total={list.length}
+              onRename={name => renameLocation(r.id, name)}
+              onDelete={() => deleteLocation(r.id)}
+              onMove={dir => moveLocation(i, dir)} />
           ))}
         </div>
       )}
-      <div className="rooms-add-row">
+      <div className="locations-add-row">
         <input
-          className="rooms-add-input"
+          className="locations-add-input"
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          placeholder="Room name"
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRoom(); } }}
+          placeholder="Location name"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLocation(); } }}
         />
-        <button className="rooms-add-btn" onClick={addRoom} disabled={!newName.trim()}>
+        <button className="locations-add-btn" onClick={addLocation} disabled={!newName.trim()}>
           + Add
         </button>
       </div>
@@ -1555,41 +1555,41 @@ function ProjectRoomsEditor({ rooms, onChange }) {
   );
 }
 
-function RoomRowEdit({ room, idx, total, onRename, onDelete, onMove }) {
+function LocationRowEdit({ location, idx, total, onRename, onDelete, onMove }) {
   const [editing, setEditing] = React.useState(false);
-  const [val, setVal] = React.useState(room.name);
+  const [val, setVal] = React.useState(location.name);
 
   function commit() {
     const trimmed = val.trim();
-    if (trimmed && trimmed !== room.name) onRename(trimmed);
-    else setVal(room.name);
+    if (trimmed && trimmed !== location.name) onRename(trimmed);
+    else setVal(location.name);
     setEditing(false);
   }
 
   return (
-    <div className="room-row">
-      <span className="room-row-idx">{String(idx + 1).padStart(2, '0')}</span>
+    <div className="location-row">
+      <span className="location-row-idx">{String(idx + 1).padStart(2, '0')}</span>
       {editing ? (
         <input
-          className="room-name-input"
+          className="location-name-input"
           value={val}
           autoFocus
           onChange={e => setVal(e.target.value)}
           onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setVal(room.name); setEditing(false); } }}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setVal(location.name); setEditing(false); } }}
         />
       ) : (
-        <span className="room-row-name" onDoubleClick={() => setEditing(true)} title="Double-click to rename">{room.name}</span>
+        <span className="location-row-name" onDoubleClick={() => setEditing(true)} title="Double-click to rename">{location.name}</span>
       )}
-      <button className="room-ord-btn" onClick={() => onMove(-1)} disabled={idx === 0} title="Move up">↑</button>
-      <button className="room-ord-btn" onClick={() => onMove(1)} disabled={idx === total - 1} title="Move down">↓</button>
-      <button className="room-del-btn" onClick={onDelete} title="Remove">×</button>
+      <button className="location-ord-btn" onClick={() => onMove(-1)} disabled={idx === 0} title="Move up">↑</button>
+      <button className="location-ord-btn" onClick={() => onMove(1)} disabled={idx === total - 1} title="Move down">↓</button>
+      <button className="location-del-btn" onClick={onDelete} title="Remove">×</button>
     </div>
   );
 }
 
 function ProjectEditor({ project, onClose, onSave }) {
-  const [draft, setDraft] = React.useState({ rooms: [], ...project });
+  const [draft, setDraft] = React.useState({ locations: [], ...project });
   function set(k, v) { setDraft(d => ({ ...d, [k]: v })); }
 
   React.useEffect(() => {
@@ -1632,8 +1632,8 @@ function ProjectEditor({ project, onClose, onSave }) {
                 <input className="edit-input" value={draft.client || ''} onChange={e => set('client', e.target.value)} />
               </div>
               <div>
-                <div className="edit-label">Location</div>
-                <input className="edit-input" value={draft.location || ''} onChange={e => set('location', e.target.value)} />
+                <div className="edit-label">Address</div>
+                <input className="edit-input" value={draft.address || ''} onChange={e => set('address', e.target.value)} />
               </div>
               <div>
                 <div className="edit-label">Stage</div>
@@ -1671,10 +1671,10 @@ function ProjectEditor({ project, onClose, onSave }) {
           </div>
 
           <div className="ae-modal-section">
-            <div className="ae-modal-section-label">Rooms</div>
-            <ProjectRoomsEditor
-              rooms={draft.rooms}
-              onChange={rooms => set('rooms', rooms)}
+            <div className="ae-modal-section-label">Locations</div>
+            <ProjectLocationsEditor
+              locations={draft.locations}
+              onChange={locations => set('locations', locations)}
             />
           </div>
         </div>

@@ -68,7 +68,7 @@ function ProjectRow({ project: p, materials, onOpen, onEdit, onDelete }) {
         </div>
         <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4 }}>
           <div>{p.client || '—'}</div>
-          <div style={{ color: 'var(--ink-4)' }}>{p.location || ''}</div>
+          <div style={{ color: 'var(--ink-4)' }}>{p.address || p.location || ''}</div>
         </div>
         <StageIndicator stage={p.stage} />
         <Mono size={12} color="var(--ink)" style={{ textAlign: 'right' }}>{p.budget || '—'}</Mono>

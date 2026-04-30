@@ -508,22 +508,22 @@
   .ae-modal-foot { padding: 12px 26px 16px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 14px; flex-shrink: 0; align-items: center; }
 
   /* ROOMS EDITOR — inside .ae-modal-body, per-project room collection */
-  .rooms-list { display: flex; flex-direction: column; margin-bottom: 10px; }
-  .room-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
-  .room-row-idx { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.08em; min-width: 18px; }
-  .room-row-name { flex: 1; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
-  .room-name-input { flex: 1; background: transparent; border: 1px solid var(--rule-2); padding: 3px 7px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
-  .room-name-input:focus { border-color: var(--ink-3); }
-  .room-ord-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); line-height: 1; }
-  .room-ord-btn:hover { color: var(--ink-2); }
-  .room-ord-btn:disabled { opacity: 0.25; cursor: default; }
-  .room-del-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-size: 13px; color: var(--ink-4); line-height: 1; }
-  .room-del-btn:hover { color: #a04545; }
-  .rooms-add-row { display: flex; align-items: center; gap: 8px; }
-  .rooms-add-input { flex: 1; min-width: 0; background: transparent; border: 1px solid var(--rule-2); padding: 5px 9px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
-  .rooms-add-input:focus { border-color: var(--ink-3); }
-  .rooms-add-btn { background: var(--ink); color: var(--paper); border: none; padding: 5px 13px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
-  .rooms-add-btn:disabled { background: var(--ink-4); cursor: not-allowed; }
+  .locations-list { display: flex; flex-direction: column; margin-bottom: 10px; }
+  .location-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+  .location-row-idx { font-family: var(--font-mono); font-size: 9px; color: var(--ink-4); letter-spacing: 0.08em; min-width: 18px; }
+  .location-row-name { flex: 1; font-family: var(--font-sans); font-size: 12px; color: var(--ink); }
+  .location-name-input { flex: 1; background: transparent; border: 1px solid var(--rule-2); padding: 3px 7px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
+  .location-name-input:focus { border-color: var(--ink-3); }
+  .location-ord-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); line-height: 1; }
+  .location-ord-btn:hover { color: var(--ink-2); }
+  .location-ord-btn:disabled { opacity: 0.25; cursor: default; }
+  .location-del-btn { background: none; border: none; cursor: pointer; padding: 1px 4px; font-size: 13px; color: var(--ink-4); line-height: 1; }
+  .location-del-btn:hover { color: #a04545; }
+  .locations-add-row { display: flex; align-items: center; gap: 8px; }
+  .locations-add-input { flex: 1; min-width: 0; background: transparent; border: 1px solid var(--rule-2); padding: 5px 9px; font-family: var(--font-sans); font-size: 12px; color: var(--ink); outline: none; }
+  .locations-add-input:focus { border-color: var(--ink-3); }
+  .locations-add-btn { background: var(--ink); color: var(--paper); border: none; padding: 5px 13px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .locations-add-btn:disabled { background: var(--ink-4); cursor: not-allowed; }
 
   /* SETTINGS PAGE (D4) — left-rail nav, section headers, setting rows, segmented controls, data buttons. */
   .st-layout { display: grid; grid-template-columns: 220px 1fr; gap: 56px; min-height: calc(100vh - 140px); }
@@ -975,6 +975,7 @@
 <script type="text/babel" src="src/schema.jsx"></script>
 <script type="text/babel" src="src/schema-helpers.jsx"></script>
 <script type="text/babel" src="src/migrate-v4.jsx"></script>
+<script type="text/babel" src="src/migrate-v5.jsx"></script>
 <script type="text/babel" src="src/LoadingGate.jsx"></script>
 <script type="text/babel" src="src/AuthGate.jsx"></script>
 

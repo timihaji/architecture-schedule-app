@@ -210,10 +210,11 @@
   fText('paint_system', 'System');
   fNum('coats', 'Coats');
   fNum('coverage_per_l', 'Coverage', 'm²/L');
+  fCur('price_per_l', 'Price per litre');
   fNum('lrv', 'LRV');
   fText('primer_required', 'Primer required');
   cat('paint', 'Paint', 'finishes', 'm²',
-    ['brand', 'range', 'colour_name', 'colour_code', 'sheen_paint', 'paint_system', 'coats', 'coverage_per_l', 'lrv', 'primer_required']);
+    ['brand', 'range', 'colour_name', 'colour_code', 'sheen_paint', 'paint_system', 'coats', 'coverage_per_l', 'price_per_l', 'lrv', 'primer_required']);
 
   // Wallpaper
   fNum('roll_width_mm', 'Roll width', 'mm');

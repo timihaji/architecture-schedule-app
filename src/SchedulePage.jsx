@@ -3,9 +3,9 @@
 // Page header (eyebrow + serif project title + Add button) + toolbar (group
 // select, Fields popover, Schedule/Specification view toggle) + grouped sections
 // rendered with CardVariantD (D1b). Reads the active project's schedule via
-// window.useProjectSchedule(projectId). Schedule blob shape is post-A3:
-//   { schemaVersion: 4, options, components, cells, rows: [...] }
-// Row shape: { id, specRef:{kind, id}, element, roomId, state, specMode, ... }.
+// window.useProjectSchedule(projectId). Schedule blob shape is post-v5:
+//   { schemaVersion: 5, options, components, cells, rows: [...] }
+// Row shape: { id, specRef:{kind, id}, element, locationId, state, specMode, ... }.
 //
 // Empty states match the spec: an empty schedule offers paper-2 trade rows that
 // add a starter row when picked; a populated view that gets filtered to nothing
@@ -20,14 +20,14 @@
   const { useState, useMemo, useEffect, useRef } = React;
 
   const GROUP_OPTIONS_BASE = [
-    { id: 'room',    label: 'By Room' },
-    { id: 'element', label: 'By Element' },
-    { id: 'trade',   label: 'By Trade' },
+    { id: 'location', label: 'By Location' },
+    { id: 'element',  label: 'By Element' },
+    { id: 'trade',    label: 'By Trade' },
   ];
 
   // Resolve a row → ScheduleCard props (the shape CardVariantD expects).
-  // materials is the materials list from App; rooms is project.rooms.
-  function resolveCardFromRow(row, { materials, rooms, elementsById }) {
+  // materials is the materials list from App; locations is project.locations.
+  function resolveCardFromRow(row, { materials, locations, elementsById }) {
     const matchKind = row.specRef && row.specRef.kind;
     let kind = 'empty';
     let name = null, code = null, sku = null, supplier = null, trade = null;
@@ -59,14 +59,14 @@
 
     const elementMeta = row.element ? elementsById[row.element] : null;
     const elementLabel = elementMeta ? elementMeta.label : (row.element || 'Element');
-    const roomName = (rooms.find(r => r.id === row.roomId) || {}).name || 'Unassigned';
+    const locationName = (locations.find(r => r.id === row.locationId) || {}).name || 'Unassigned';
 
     return {
       id: row.id,
       kind,
       element: row.element || null,
       elementLabel,
-      roomName,
+      locationName,
       name, code, sku, supplier, trade, trades,
       slots, swatchColor, swatchBrand,
       state: row.state, mode: row.specMode,
@@ -86,7 +86,7 @@
     }, [activeProjectId, project, setActiveProjectId]);
 
     const fallback = useMemo(() => ({
-      schemaVersion: 4, title: 'Schedule', options: [], components: [],
+      schemaVersion: 5, title: 'Schedule', options: [], components: [],
       cells: {}, rows: [],
     }), []);
     const sched = window.useProjectSchedule
@@ -103,7 +103,7 @@
     };
 
     // Local UI state.
-    const [grouping, setGrouping] = useState('room');
+    const [grouping, setGrouping] = useState('location');
     const [view, setView] = useState('schedule');   // 'schedule' | 'specification'
     const [editingId, setEditingId] = useState(null);
     const [fieldsOpen, setFieldsOpen] = useState(false);
@@ -152,12 +152,12 @@
       [elements]
     );
 
-    const rooms = (project && project.rooms) || [];
+    const locations = (project && project.locations) || [];
 
     // Resolved card data per row.
     const cards = useMemo(
-      () => rows.map(r => resolveCardFromRow(r, { materials, rooms, elementsById })),
-      [rows, materials, rooms, elementsById]
+      () => rows.map(r => resolveCardFromRow(r, { materials, locations, elementsById })),
+      [rows, materials, locations, elementsById]
     );
 
     // Filtered + grouped.
@@ -168,7 +168,7 @@
       const buckets = new Map();
       for (const c of filteredCards) {
         let key, title;
-        if (grouping === 'room')        { key = c.roomName || 'Unassigned'; title = key; }
+        if (grouping === 'location')    { key = c.locationName || 'Unassigned'; title = key; }
         else if (grouping === 'element'){ key = c.elementLabel || 'Unassigned'; title = key; }
         else                            { key = c.trade || (c.trades && c.trades[0]) || 'Unassigned'; title = key; }
         if (!buckets.has(key)) buckets.set(key, { key, title, cards: [] });
@@ -186,10 +186,11 @@
         id: newRowId(),
         specRef: null,
         element: seed.element || null,
-        roomId: seed.roomId || (rooms[0] && rooms[0].id) || null,
+        locationId: seed.locationId || (locations[0] && locations[0].id) || null,
+        category: null,
         state: 'new',
-        specMode: 'prop',
-        isInstance: false,
+        specMode: 'proprietary',
+        typeOrInstance: 'instance',
         qty: null, unit: null,
         revision: null, approvalComment: null,
         note: null,
@@ -256,16 +257,18 @@
       const newRows = ids.map(id => {
         const m = materials.find(x => x.id === id);
         const tradeFromProduct = m
-          ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null))
+          ? ((m.fields && m.fields.trade) || m.trade
+              || (window.inferTrade ? window.inferTrade(m) : null))
           : null;
         return {
           id: newRowId(),
           specRef: { kind: 'product', id },
           element: seed.element || null,
-          roomId:  seed.roomId  || (rooms[0] && rooms[0].id) || null,
+          locationId: seed.locationId || (locations[0] && locations[0].id) || null,
+          category: (m && m.category) || null,
           state: 'new',
-          specMode: 'prop',
-          isInstance: false,
+          specMode: 'proprietary',
+          typeOrInstance: 'instance',
           qty: null, unit: null,
           revision: null, approvalComment: null,
           note: null,
@@ -447,8 +450,8 @@
               ))}
               <div className="sched-add-row" style={{ display: 'flex', gap: 16 }}>
                 <button type="button" onClick={() => {
-                  const seed = grouping === 'room'
-                    ? { roomId: rooms.find(r => r.name === g.title)?.id }
+                  const seed = grouping === 'location'
+                    ? { locationId: locations.find(r => r.name === g.title)?.id }
                     : grouping === 'element'
                     ? { element: elements.find(e => e.label === g.title)?.id }
                     : { trade: g.title };
@@ -457,8 +460,8 @@
                   + Add from Library to {g.title}
                 </button>
                 <button type="button" onClick={() => {
-                  const seed = grouping === 'room'
-                    ? { roomId: rooms.find(r => r.name === g.title)?.id }
+                  const seed = grouping === 'location'
+                    ? { locationId: locations.find(r => r.name === g.title)?.id }
                     : grouping === 'element'
                     ? { element: elements.find(e => e.label === g.title)?.id }
                     : { trade: g.title };

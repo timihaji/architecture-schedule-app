@@ -1,14 +1,16 @@
 // Cost Schedule v2 — Phase D2 re-pointing.
 //
-// Reads schedule rows (post-A3: { id, specRef:{kind,id}, element, roomId, qty,
-// unit, ... }) from window.useProjectSchedule and projects them on cost.
+// Reads schedule rows (post-v5: { id, specRef:{kind,id}, element, locationId,
+// category, state, specMode, typeOrInstance, qty, unit, ... }) from
+// window.useProjectSchedule and projects them on cost.
 // Single source of truth shared with SchedulePage (IV) — Cost Schedule (III)
 // is the cost projection.
 //
-// Group key = product's productType.group (e.g. "Finishes", "FF&E"). Rows whose
-// specRef is empty/unresolved drop into "Unspecified". Per-group subtotals + a
-// grand total. Cell clipboard (C copy / V paste / Esc clear) carries the row's
-// specRef. HTML5 drag-and-drop reorders within the rows[] array.
+// Group key = the v5 group label (e.g. "Finishes", "FF&E", "Sanitary, tapware
+// & hydraulic fixtures"). Rows whose specRef is empty/unresolved drop into
+// "Unspecified". Per-group subtotals + a grand total. Cell clipboard (C copy /
+// V paste / Esc clear) carries the row's specRef. HTML5 drag-and-drop reorders
+// within the rows[] array.
 
 (function () {
   const { useState, useMemo, useEffect, useRef, useCallback } = React;
@@ -19,16 +21,24 @@
     return '$' + v.toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
 
-  function productTypeMeta(id) {
-    if (!id) return null;
-    const tx = window.DEFAULT_TAXONOMIES?.productTypes;
-    return tx?.find(t => t.id === id) || null;
+  // Resolve the v5 group label that owns a material's category. Used to bucket
+  // cost rows into per-group sections.
+  function groupLabelFor(material) {
+    if (!material) return 'Unspecified';
+    const cat = material.category;
+    if (!cat) return 'Unspecified';
+    const catDef = window.categoryDef && window.categoryDef(cat);
+    if (!catDef) return 'Unspecified';
+    const grp = window.groupDef && window.groupDef(catDef.groupId);
+    return (grp && grp.label) || 'Unspecified';
   }
 
-  function categoryFor(material) {
-    if (!material) return 'Unspecified';
-    const meta = productTypeMeta(material.productType);
-    return (meta && meta.group) || material.category || 'Unspecified';
+  // v5 read: prefer m.fields[k]; fall back to legacy top-level for any
+  // un-migrated material (defensive).
+  function fv(material, fieldId) {
+    if (!material) return null;
+    if (window.getFieldValue) return window.getFieldValue(material, fieldId);
+    return (material.fields && material.fields[fieldId]) ?? material[fieldId] ?? null;
   }
 
   function CostScheduleV2({ materials, projects, libraries, labelTemplates,
@@ -52,7 +62,7 @@
     }
 
     const fallback = useCallback(() => ({
-      schemaVersion: 4, title: 'Schedule', options: [], components: [],
+      schemaVersion: 5, title: 'Schedule', options: [], components: [],
       cells: {}, rows: [],
     }), []);
     const transform = useCallback(x => x, []);
@@ -80,7 +90,7 @@
 
     function setRows(updater) {
       setSchedule(prev => {
-        const base = prev || { schemaVersion: 4, title: 'Schedule', options: [], components: [], cells: {}, rows: [] };
+        const base = prev || { schemaVersion: 5, title: 'Schedule', options: [], components: [], cells: {}, rows: [] };
         const next = typeof updater === 'function' ? updater(base.rows || []) : updater;
         return { ...base, rows: next };
       });
@@ -93,19 +103,19 @@
     }
     function newRowId() { return 'sr-' + Math.random().toString(36).slice(2, 10); }
 
-    // Resolve each row to its material + category.
+    // Resolve each row to its material + group label.
     const resolved = useMemo(() => {
       return rows.map(r => {
         const matKind = r.specRef && r.specRef.kind;
         const m = (matKind === 'product' && r.specRef.id)
           ? materials.find(x => x.id === r.specRef.id)
           : null;
-        const ptypeMeta = m ? productTypeMeta(m.productType) : null;
-        const category = m ? categoryFor(m) : (matKind === 'type' ? 'Assemblies' : 'Unspecified');
+        const category = m ? groupLabelFor(m) : (matKind === 'type' ? 'Assemblies' : 'Unspecified');
         const qty = (r.qty != null && r.qty !== '') ? parseFloat(r.qty) : null;
-        const subtotal = (m && m.unitCost != null && qty != null && Number.isFinite(qty))
-          ? qty * Number(m.unitCost) : null;
-        return { row: r, material: m, ptypeMeta, category, qty, subtotal };
+        const unitCost = m ? Number(fv(m, 'unit_cost')) : null;
+        const subtotal = (m && Number.isFinite(unitCost) && qty != null && Number.isFinite(qty))
+          ? qty * unitCost : null;
+        return { row: r, material: m, unitCost, category, qty, subtotal };
       });
     }, [rows, materials]);
 
@@ -182,18 +192,19 @@
       const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
       const newRows = ids.map(pid => {
         const m = materials.find(x => x.id === pid);
-        const ptypeMeta = m ? productTypeMeta(m.productType) : null;
-        const trade = m ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null)) : null;
+        const trade = m ? (fv(m, 'trade') || (window.inferTrade ? window.inferTrade(m) : null)) : null;
+        const catDef = m && window.categoryDef && window.categoryDef(m.category);
         return {
           id: newRowId(),
           specRef: { kind: 'product', id: pid },
           element: null,
-          roomId: (project.rooms && project.rooms[0] && project.rooms[0].id) || null,
+          locationId: (project.locations && project.locations[0] && project.locations[0].id) || null,
+          category: (m && m.category) || null,
           state: 'new',
-          specMode: 'prop',
-          isInstance: false,
+          specMode: 'proprietary',
+          typeOrInstance: 'instance',
           qty: null,
-          unit: (ptypeMeta && ptypeMeta.defaultUnit) || (m && m.unit) || null,
+          unit: (catDef && catDef.defaultUnit) || (m && fv(m, 'unit')) || null,
           revision: null, approvalComment: null, note: null,
           hiddenFields: [], source: 'cost-schedule',
           trade,
@@ -334,7 +345,7 @@
                   <span></span>
                 </div>
 
-                {g.entries.map(({ row, material, ptypeMeta, qty, subtotal }) => {
+                {g.entries.map(({ row, material, unitCost, qty, subtotal }) => {
                   const isClipSrc = clipboard && clipboard.fromRowId === row.id;
                   const isDragOver = dragOver && dragOver.rowId === row.id;
                   const dropClass = isDragOver
@@ -343,9 +354,10 @@
                   const dragClass = dragRowId === row.id ? ' dragging' : '';
                   const clipClass = isClipSrc ? ' cs-clip-src' : '';
                   const swatchTone = material ? ((material.swatch && material.swatch.tone) || material.color || '#a08660') : null;
-                  const ptypeLabel = ptypeMeta ? ptypeMeta.label.toLowerCase()
-                    : (material && material.productType ? String(material.productType).replace(/_/g, ' ') : '—');
-                  const unit = row.unit || (ptypeMeta && ptypeMeta.defaultUnit) || (material && material.unit) || '';
+                  const catDef = material && window.categoryDef && window.categoryDef(material.category);
+                  const ptypeLabel = catDef ? catDef.label.toLowerCase()
+                    : (material && material.category ? String(material.category).replace(/_/g, ' ') : '—');
+                  const unit = row.unit || (catDef && catDef.defaultUnit) || (material && fv(material, 'unit')) || '';
                   return (
                     <div key={row.id}
                       className={`cs-row${dragClass}${dropClass}${clipClass}`}
@@ -376,8 +388,8 @@
                         <div className={`cs-cell-name${material ? '' : ' empty'}`}>
                           {material ? (material.name || material.code || 'Unnamed') : 'Pick a product'}
                         </div>
-                        {material && (material.brand || material.supplier) && (
-                          <div className="cs-cell-name-sub">{material.brand || material.supplier}</div>
+                        {material && (fv(material, 'brand') || fv(material, 'supplier')) && (
+                          <div className="cs-cell-name-sub">{fv(material, 'brand') || fv(material, 'supplier')}</div>
                         )}
                       </div>
                       <div className="cs-cell-ptype">{ptypeLabel}</div>
@@ -386,8 +398,8 @@
                           placeholder="—"
                           onChange={(e) => updateRow(row.id, { qty: e.target.value === '' ? null : e.target.value })} />
                         {unit && <span className="unit">{unit}</span>}
-                        {material && material.unitCost != null && (
-                          <span className="cost">× {fmtCurrency(material.unitCost)}</span>
+                        {Number.isFinite(unitCost) && (
+                          <span className="cost">× {fmtCurrency(unitCost)}</span>
                         )}
                       </div>
                       <div className={`cs-cell-subtotal${subtotal == null ? ' empty' : ''}`}>

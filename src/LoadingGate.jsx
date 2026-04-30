@@ -467,6 +467,35 @@
       }
     }
 
+    // 5c. v5 schema migration. Idempotent. Gated by appState.schemaVersion < 5.
+    //     HARD CUT: rewrites materials to the v5 shape (m.fields, m.category as
+    //     v5 id, _touched), renames project.rooms → locations, row.roomId →
+    //     locationId, ensures rows have category + state + specMode +
+    //     typeOrInstance defaults. Drops every legacy top-level material key.
+    //     On failure: do NOT bump schemaVersion → next boot retries.
+    if (window.migrateV5 && (appState.schemaVersion | 0) < 5) {
+      try {
+        console.log('[LoadingGate] running v5 migration…');
+        const result = await window.migrateV5.runLive({
+          appState, materials, projects, libraries,
+          loadSchedule:    (id) => window.cloud.loadSchedule(id),
+          saveSchedule:    (id, data) => window.cloud.saveScheduleNow(id, data),
+          upsertItem:      (table, id, item) => window.cloud.upsertItemNow(table, id, item),
+          saveAppStateNow: (blob) => window.cloud.saveAppStateNow(blob),
+        });
+        appState  = result.appState;
+        materials = result.materials;
+        projects  = result.projects;
+        appStateChanged = false;
+        if (result.unmapped && result.unmapped.length > 0) {
+          console.warn('[LoadingGate] v5 migration: unmapped materials —', result.unmapped);
+        }
+        console.log('[LoadingGate] v5 migration succeeded:', result.summary);
+      } catch (err) {
+        console.error('[LoadingGate] v5 migration failed — workspace remains at v4:', err);
+      }
+    }
+
     // 6. Push singleton if anything changed.
     if (appStateChanged) {
       try {
