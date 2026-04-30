@@ -598,13 +598,21 @@
   /* NAV + CHROME (D5) — top bar, nav links, settings gear, save status, toasts, auth gate */
   .sched-nav { border-bottom: 1px solid var(--ink); padding: 20px 56px 18px; display: flex; justify-content: space-between; align-items: baseline; background: var(--paper); position: sticky; top: 0; z-index: 50; }
   .sched-nav-brand { display: flex; align-items: baseline; gap: 18px; }
-  .sched-nav-right { display: flex; align-items: baseline; gap: 32px; }
+  .sched-nav-right { display: flex; align-items: center; gap: 18px; }
   .sched-nav-links { display: flex; gap: 32px; }
   .sched-nav-sep { width: 1px; align-self: stretch; background: var(--rule); margin: 2px 0; }
   .sched-nav-btn { background: none; border: none; cursor: pointer; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; border-bottom: 1px solid transparent; display: flex; align-items: baseline; gap: 8px; }
   .sched-nav-btn.active { color: var(--ink); font-weight: 500; border-bottom-color: var(--ink); }
   .sched-nav-num { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }
   .sched-nav-btn.active .sched-nav-num { color: var(--ink-3); }
+  .theme-toggle { width: 32px; height: 32px; position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--rule-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease; }
+  .theme-toggle:hover { border-color: var(--ink); background: var(--tint); color: var(--ink); }
+  .theme-toggle:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+  .theme-toggle-icon { position: absolute; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.18s ease, transform 0.22s ease, color 0.16s ease; }
+  .theme-toggle.light .theme-toggle-icon.sun { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  .theme-toggle.light .theme-toggle-icon.moon { opacity: 0; transform: translateY(3px) rotate(-12deg) scale(0.88); }
+  .theme-toggle.dark .theme-toggle-icon.sun { opacity: 0; transform: translateY(-3px) rotate(12deg) scale(0.88); }
+  .theme-toggle.dark .theme-toggle-icon.moon { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
   .sched-gear { background: transparent; border: 1px solid var(--rule-2); padding: 5px 8px; cursor: pointer; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: all 0.14s ease; }
   .sched-gear:hover { border-color: var(--ink); }
   .sched-gear.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -820,6 +828,43 @@
   /* Footer */
   .app-footer { border-top: 1px solid var(--rule); padding: 18px 56px; display: flex; justify-content: space-between; color: var(--ink-4); }
 
+  /* Theme transition */
+  html.theme-switching *,
+  html.theme-switching *::before,
+  html.theme-switching *::after {
+    transition: none !important;
+  }
+  html.theme-switching body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    background: var(--theme-cover-paper, var(--paper));
+    opacity: 0;
+  }
+  html.theme-cover-in body::after {
+    animation: themeCoverIn 90ms ease-in both;
+  }
+  html.theme-cover-out body::after {
+    animation: themeCoverOut 170ms ease-out both;
+  }
+  @keyframes themeCoverIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes themeCoverOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-switching body::after,
+    html.theme-cover-in body::after,
+    html.theme-cover-out body::after {
+      animation: none;
+    }
+  }
+
   /* DuplicatePicker */
   .dup-pick-wrap { padding-top: 14px; }
   .dup-pick-empty { padding: 40px 4px; text-align: center; font-family: var(--font-serif); font-style: italic; color: var(--ink-4); font-size: 14px; }
@@ -1016,7 +1061,7 @@
 <script type="text/babel" src="src/swatches.jsx"></script>
 <script type="text/babel" src="src/primitives.jsx"></script>
 <script type="text/babel" src="src/atoms.jsx"></script>
-<script type="text/babel" src="src/settings.jsx"></script>
+<script type="text/babel" src="src/settings.jsx?v=d4"></script>
 <script type="text/babel" src="src/labels.jsx"></script>
 <script type="text/babel" src="src/LabelFormat.jsx?v=d6"></script>
 <script type="text/babel" src="src/LibrarySwitcher.jsx"></script>
@@ -1042,11 +1087,11 @@
 <script type="text/babel" src="src/CardVariantD.jsx"></script>
 <script type="text/babel" src="src/PickerDrawer.jsx"></script>
 <script type="text/babel" src="src/SchedulePage.jsx"></script>
-<script type="text/babel" src="src/SettingsPage.jsx?v=d10"></script>
+<script type="text/babel" src="src/SettingsPage.jsx?v=d12"></script>
 <script type="text/babel" src="src/FieldManager.jsx"></script>
 <script type="text/babel" src="src/Tweaks.jsx"></script>
 <script type="text/babel" src="src/FieldRenderer.jsx"></script>
 <script type="text/babel" src="src/ProductFieldBlocks.jsx"></script>
-<script type="text/babel" src="src/App.jsx?v=d8"></script>
+<script type="text/babel" src="src/App.jsx?v=d15"></script>
 </body>
 </html>

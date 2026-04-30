@@ -185,6 +185,8 @@ const SETTINGS_SWATCH_SHAPES = [
 
 const SETTINGS_DEFAULTS = {
   theme: 'light',
+  lightModeTheme: 'light',
+  darkModeTheme: 'dark',
   accent: 'umber',
   typeface: 'editorial',
   paper: 'warm',            // tints within Light theme only
@@ -272,6 +274,7 @@ function resetSettings() {
 function applySettingsToDOM(s) {
   const root = document.documentElement;
   const theme = SETTINGS_THEMES.find(t => t.key === s.theme) || SETTINGS_THEMES[0];
+  root.style.setProperty('color-scheme', theme.dark ? 'dark' : 'light');
 
   // 1. Theme vars (paper, ink, rules)
   Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));

@@ -588,7 +588,7 @@ function App() {
       data-density={settings.density}
       className="app-shell"
     >
-      <Nav view={view} setView={setView} settings={settings} />
+      <Nav view={view} setView={setView} settings={settings} setSettings={setSettings} />
       {(() => {
         const isTable = view === 'library' && libraryMode === 'table';
         const isSettings = view === 'settings';
@@ -972,7 +972,7 @@ function RevisionBadge() {
   );
 }
 
-function Nav({ view, setView, settings }) {
+function Nav({ view, setView, settings, setSettings }) {
   const items = [
     { key: 'library',  label: 'Library',  num: 'I' },
     { key: 'projects', label: 'Projects', num: 'II' },
@@ -1008,11 +1008,103 @@ function Nav({ view, setView, settings }) {
           ))}
         </nav>
         <div className="sched-nav-sep" />
+        <ThemeToggleButton settings={settings} setSettings={setSettings} />
         <SettingsGearButton
           active={settingsActive}
           onClick={() => setView(settingsActive ? 'library' : 'settings')} />
       </div>
     </header>
+  );
+}
+
+function isDarkThemeKey(key) {
+  const theme = (window.SETTINGS_THEMES || []).find(t => t.key === key);
+  return !!(theme && theme.dark);
+}
+
+function animateThemeSwitch(applyChange) {
+  const root = document.documentElement;
+  const oldPaper = getComputedStyle(root).getPropertyValue('--paper').trim() || '#f3efe7';
+  const reduceMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const swapDelay = reduceMotion ? 0 : 90;
+  const cleanupDelay = reduceMotion ? 80 : 180;
+
+  root.style.setProperty('--theme-cover-paper', oldPaper);
+  root.classList.remove('theme-cover-in', 'theme-cover-out');
+  root.classList.add('theme-switching');
+
+  const cleanup = () => {
+    root.classList.remove('theme-switching', 'theme-cover-in', 'theme-cover-out');
+    root.style.removeProperty('--theme-cover-paper');
+  };
+
+  window.requestAnimationFrame(() => {
+    root.classList.add('theme-cover-in');
+
+    window.setTimeout(() => {
+      if (ReactDOM.flushSync) ReactDOM.flushSync(applyChange);
+      else applyChange();
+      root.classList.remove('theme-cover-in');
+      root.classList.add('theme-cover-out');
+      window.setTimeout(cleanup, cleanupDelay);
+    }, swapDelay);
+  });
+}
+
+function ThemeToggleButton({ settings, setSettings }) {
+  const isDark = isDarkThemeKey(settings?.theme);
+  const nextLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+
+  function onToggle() {
+    animateThemeSwitch(() => {
+      setSettings(prev => {
+        const nextLightTheme = isDarkThemeKey(prev.lightModeTheme) ? 'light' : (prev.lightModeTheme || 'light');
+        const nextDarkTheme = isDarkThemeKey(prev.darkModeTheme) ? prev.darkModeTheme : 'dark';
+        const next = {
+          ...prev,
+          theme: isDarkThemeKey(prev.theme) ? nextLightTheme : nextDarkTheme,
+        };
+        if (window.applySettingsToDOM) window.applySettingsToDOM(next);
+        return next;
+      });
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      className={'theme-toggle' + (isDark ? ' dark' : ' light')}
+      onClick={onToggle}
+      aria-label={nextLabel}
+      aria-pressed={isDark}
+      title={nextLabel}
+    >
+      <span className="theme-toggle-icon sun" aria-hidden="true"><SunIcon size={14} /></span>
+      <span className="theme-toggle-icon moon" aria-hidden="true"><MoonIcon size={14} /></span>
+    </button>
+  );
+}
+
+function SunIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="2.7" />
+      <path d="M8 1.4v1.5M8 13.1v1.5M1.4 8h1.5M13.1 8h1.5
+        M3.34 3.34l1.06 1.06M11.6 11.6l1.06 1.06
+        M3.34 12.66l1.06-1.06M11.6 4.4l1.06-1.06" />
+    </svg>
+  );
+}
+
+function MoonIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none"
+      stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.85 10.26A5.35 5.35 0 0 1 5.74 3.15
+        5.38 5.38 0 1 0 12.85 10.26Z" />
+    </svg>
   );
 }
 

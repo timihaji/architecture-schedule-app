@@ -218,6 +218,32 @@ function AppearanceSection({ settings, set }) {
         </div>
       </SettingRow>
 
+      <SettingRow label="Light mode button"
+        description="Choose which light theme the header sun button switches to.">
+        <Segmented
+          value={SETTINGS_THEMES.some(t => t.key === settings.lightModeTheme && !t.dark)
+            ? settings.lightModeTheme
+            : 'light'}
+          onChange={v => set('lightModeTheme', v)}
+          options={SETTINGS_THEMES
+            .filter(t => !t.dark)
+            .map(t => ({ key: t.key, label: t.label }))}
+        />
+      </SettingRow>
+
+      <SettingRow label="Dark mode button"
+        description="Choose which dark theme the header moon button switches to.">
+        <Segmented
+          value={SETTINGS_THEMES.some(t => t.key === settings.darkModeTheme && t.dark)
+            ? settings.darkModeTheme
+            : 'dark'}
+          onChange={v => set('darkModeTheme', v)}
+          options={SETTINGS_THEMES
+            .filter(t => t.dark)
+            .map(t => ({ key: t.key, label: t.label }))}
+        />
+      </SettingRow>
+
       {settings.theme === 'light' && (
         <SettingRow label="Paper tone"
           description="Fine-tune the paper colour within the Light theme only.">
