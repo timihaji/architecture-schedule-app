@@ -200,8 +200,7 @@
   fMSel('application_area', 'Application area',
     ['floor', 'wall', 'ceiling', 'exterior wall', 'soffit', 'joinery', 'splashback', 'benchtop']);
   fText('substrate_required', 'Substrate required');
-  fText('coverage_unit', 'Coverage unit');
-  group('finishes', 'Finishes', ['application_area', 'substrate_required', 'coverage_unit']);
+  group('finishes', 'Finishes', ['application_area', 'substrate_required']);
 
   // Paint
   fText('colour_name', 'Colour name');
@@ -234,7 +233,7 @@
   fNum('grout_width_mm', 'Grout width', 'mm');
   fSel('tile_edge_type', 'Edge type', ['rectified', 'cushion', 'bevelled']);
   cat('tile', 'Tile', 'finishes', 'm²',
-    ['brand', 'range', 'format_text', 'tile_finish', 'slip_rating', 'grout_type', 'grout_colour', 'grout_width_mm', 'tile_edge_type', 'substrate_required']);
+    ['brand', 'range', 'format_text', 'tile_finish', 'slip_rating', 'grout_type', 'grout_colour', 'grout_width_mm', 'tile_edge_type']);
 
   // Timber finish
   fText('species', 'Species');
@@ -469,10 +468,13 @@
   // =============================================================================
   fText('as_compliance', 'AS compliance');
   fText('fall', 'Fall');
-  group('roof', 'Roof, facade & rainwater', ['material', 'finish', 'as_compliance', 'fall']);
+  // Fall (drainage gradient) only applies to roof_slot, gutter, and a few
+  // surfaces — pushed down so fascias, downpipes, solar PV, flashings,
+  // bargeboards don't inherit a "Fall" field that doesn't apply.
+  group('roof', 'Roof, facade & rainwater', ['material', 'finish', 'as_compliance']);
 
   cat('roof_slot', 'Roof', 'roof', 'm²',
-    ['extent_of_works'], { flavour: 'slot' });
+    ['extent_of_works', 'fall'], { flavour: 'slot' });
 
   fNum('overhang_mm', 'Overhang', 'mm');
   cat('eave', 'Eave', 'roof', 'lm',
@@ -496,7 +498,7 @@
 
   fSel('gutter_profile', 'Profile', ['quad', 'half-round', 'square', 'box', 'internal-box', 'ogee']);
   cat('gutter', 'Gutter', 'roof', 'lm',
-    ['gutter_profile', 'gauge', 'size']);
+    ['gutter_profile', 'gauge', 'size', 'fall']);
 
   fSel('downpipe_profile', 'Profile', ['round', 'rectangular', 'square']);
   fText('fixing_text', 'Fixing');
@@ -533,7 +535,10 @@
   fText('structural_grade', 'Structural grade');
   fBool('engineer_certified', 'Engineer certified');
   fText('connection_type', 'Connection type');
-  group('structure', 'Structure', ['structural_grade', 'engineer_certified', 'connection_type']);
+  // Connection type only applies to discrete members (column, beam, truss,
+  // framing). Doesn't fit slabs, footings, masonry, reinforcement, hob_bund.
+  // steel_structure has its own typed steel_connection. Pushed down.
+  group('structure', 'Structure', ['structural_grade', 'engineer_certified']);
 
   fSel('footing_type', 'Type', ['pad', 'strip', 'raft', 'piled', 'screw-pile']);
   cat('footing', 'Footing', 'structure', 'm³',
@@ -550,10 +555,10 @@
     ['thickness', 'suspended_slab_system', 'span'], { flavour: 'slot' });
 
   cat('column', 'Column', 'structure', 'ea',
-    ['material', 'size', 'height', 'capacity'], { flavour: 'slot' });
+    ['material', 'size', 'height', 'capacity', 'connection_type'], { flavour: 'slot' });
 
   cat('beam', 'Beam', 'structure', 'm',
-    ['material', 'profile', 'span', 'capacity'], { flavour: 'slot' });
+    ['material', 'profile', 'span', 'capacity', 'connection_type'], { flavour: 'slot' });
 
   cat('structural_wall', 'Structural wall', 'structure', 'm²',
     ['material', 'thickness', 'capacity'], { flavour: 'slot' });
@@ -569,7 +574,7 @@
   fNum('spacing_mm', 'Spacing', 'mm');
   fText('member_size', 'Member size');
   cat('framing', 'Framing', 'structure', 'm²',
-    ['framing_material', 'spacing_mm', 'member_size'], { flavour: 'slot' });
+    ['framing_material', 'spacing_mm', 'member_size', 'connection_type'], { flavour: 'slot' });
 
   fSel('concrete_pour_method', 'Pour method', ['in-situ', 'precast', 'tilt-up']);
   cat('concrete_structure', 'Concrete structure', 'structure', 'm³',
@@ -603,7 +608,7 @@
 
   fSel('truss_joist_type', 'Type', ['truss', 'joist', 'rafter', 'purlin']);
   cat('truss_joist', 'Truss / joist', 'structure', 'ea',
-    ['truss_joist_type', 'material', 'depth', 'spacing_mm', 'span'],
+    ['truss_joist_type', 'material', 'depth', 'spacing_mm', 'span', 'connection_type'],
     { aliases: ['rafter', 'purlin'] });
 
   // =============================================================================
@@ -687,8 +692,10 @@
   fNum('wels_rating', 'WELS rating');
   fSel('connection_type_san', 'Connection type', ['1/2"', '15mm', '20mm', 'custom']);
   fSel('mounting_san', 'Mounting', ['wall', 'deck', 'floor', 'countertop', 'in-wall']);
-  group('sanitary', 'Sanitary, tapware & hydraulic fixtures',
-    ['brand', 'finish', 'wels_rating', 'connection_type_san', 'mounting_san']);
+  // Brand and finish are universal in this group. WELS, sanitary connection,
+  // and sanitary mounting only fit fixtures using water and physical mounts —
+  // pushed down so mirrors, shower screens, niches don't inherit them.
+  group('sanitary', 'Sanitary, tapware & hydraulic fixtures', ['brand', 'finish']);
 
   // Basin
   fSel('basin_bowl_shape', 'Bowl shape', ['round', 'oval', 'square', 'rectangle', 'vessel', 'semi-recessed', 'undermount', 'integral']);
@@ -696,7 +703,7 @@
   fSel('basin_taphole_count', 'Taphole count', ['0', '1', '3']);
   fText('drain_type', 'Drain type');
   cat('basin', 'Basin', 'sanitary', 'ea',
-    ['basin_bowl_shape', 'size', 'overflow', 'basin_taphole_count', 'drain_type']);
+    ['basin_bowl_shape', 'size', 'wels_rating', 'connection_type_san', 'mounting_san', 'overflow', 'basin_taphole_count', 'drain_type']);
 
   // Sink
   fSel('sink_type', 'Type', ['kitchen', 'laundry', 'butlers', 'prep', 'bar', 'bath']);
@@ -705,7 +712,7 @@
   fSel('sink_material', 'Material', ['stainless','granite-composite','ceramic','copper','fireclay','concrete','solid-surface']);
   fBool('undermount', 'Undermount');
   cat('sink', 'Sink', 'sanitary', 'ea',
-    ['sink_type', 'sink_bowl_count', 'size', 'drainboard', 'sink_material', 'undermount']);
+    ['sink_type', 'sink_bowl_count', 'size', 'wels_rating', 'connection_type_san', 'mounting_san', 'drainboard', 'sink_material', 'undermount']);
 
   // WC
   fSel('wc_pan_type', 'Pan type', ['wall-faced', 'close-coupled', 'back-to-wall', 'wall-hung', 'in-wall']);
@@ -715,27 +722,27 @@
   fBool('wc_seat_included', 'Seat included');
   fBool('wc_soft_close', 'Soft-close seat');
   cat('wc', 'WC', 'sanitary', 'ea',
-    ['wc_pan_type', 'wc_cistern_type', 'wc_flush_rating', 'wc_trap', 'wc_seat_included', 'wc_soft_close'],
+    ['wc_pan_type', 'wc_cistern_type', 'wc_flush_rating', 'wc_trap', 'wels_rating', 'connection_type_san', 'mounting_san', 'wc_seat_included', 'wc_soft_close'],
     { aliases: ['toilet', 'lavatory', 'water closet', 'dunny'] });
 
   // Urinal
   fSel('urinal_type', 'Type', ['bowl', 'slab', 'wall-hung', 'waterless', 'trough']);
   fSel('urinal_flush', 'Flush method', ['sensor', 'manual', 'timed', 'none']);
   cat('urinal', 'Urinal', 'sanitary', 'ea',
-    ['urinal_type', 'urinal_flush', 'size']);
+    ['urinal_type', 'urinal_flush', 'size', 'wels_rating', 'connection_type_san', 'mounting_san']);
 
   // Bath
   fSel('bath_type', 'Type', ['freestanding', 'drop-in', 'alcove', 'corner', 'walk-in', 'japanese', 'claw-foot']);
   fSel('bath_material', 'Material', ['acrylic', 'steel-enamel', 'cast-iron', 'stone', 'copper', 'composite']);
   cat('bath', 'Bath', 'sanitary', 'ea',
-    ['bath_type', 'bath_material', 'size', 'capacity_l', 'overflow']);
+    ['bath_type', 'bath_material', 'size', 'capacity_l', 'wels_rating', 'connection_type_san', 'overflow']);
 
   // Shower
   fSel('shower_type', 'Type', ['walk-in', 'screened', 'alcove', 'wet-room', 'tub-shower']);
   fSel('shower_base', 'Base', ['tray', 'in-situ-floor', 'raised-deck']);
   fSel('shower_drainage', 'Drainage', ['floor-waste', 'linear-drain']);
   cat('shower', 'Shower', 'sanitary', 'ea',
-    ['shower_type', 'shower_base', 'shower_drainage', 'size']);
+    ['shower_type', 'shower_base', 'shower_drainage', 'size', 'wels_rating', 'connection_type_san']);
 
   // Tapware
   fSel('tapware_type', 'Type', ['mixer', 'two-handle', 'sensor', 'timed', 'hose-tap', 'lever']);
@@ -744,7 +751,7 @@
   fSel('tapware_body_material', 'Body material', ['brass', 'stainless', 'chrome', 'plastic']);
   fSel('tapware_handle_count', 'Handle count', ['1', '2', '3']);
   cat('tapware', 'Tapware', 'sanitary', 'ea',
-    ['tapware_type', 'tapware_spout_type', 'spout_reach_mm', 'tapware_body_material', 'tapware_handle_count', 'wels_rating']);
+    ['tapware_type', 'tapware_spout_type', 'spout_reach_mm', 'tapware_body_material', 'tapware_handle_count', 'wels_rating', 'connection_type_san', 'mounting_san']);
 
   // Floor waste
   fText('grate_pattern', 'Grate pattern');
@@ -774,19 +781,19 @@
   fBool('led_integrated', 'LED integrated');
   fBool('demister', 'Demister');
   cat('mirror', 'Mirror', 'sanitary', 'ea',
-    ['mirror_type', 'size', 'mirror_edge', 'mirror_backing', 'led_integrated', 'demister']);
+    ['mirror_type', 'size', 'mirror_edge', 'mirror_backing', 'mounting_san', 'led_integrated', 'demister']);
 
   // Bathroom accessory
   fSel('bath_accessory_type', 'Type', ['towel-rail','towel-ring','soap-dish','soap-dispenser','toothbrush-holder','toilet-roll-holder','toilet-brush','robe-hook','shelf','basket','grab-rail','shower-niche-shelf']);
   cat('bathroom_accessory', 'Bathroom accessory', 'sanitary', 'ea',
-    ['bath_accessory_type', 'finish', 'mounting'],
+    ['bath_accessory_type', 'mounting_san'],
     { aliases: ['bath fittings'] });
 
   // Heated towel rail
   fSel('htr_type', 'Type', ['hardwired', 'plug-in', 'hydronic']);
   fNum('htr_bar_count', 'Bar count');
   cat('heated_towel_rail', 'Heated towel rail', 'sanitary', 'ea',
-    ['htr_type', 'power_w', 'finish', 'htr_bar_count', 'size']);
+    ['htr_type', 'power_w', 'connection_type_san', 'mounting_san', 'htr_bar_count', 'size']);
 
   // Niche
   fItem('finish_ref', 'Finish', null);
@@ -801,8 +808,11 @@
   fItem('door_finish_ref', 'Door finish', null);
   fNum('kickboard_height_mm', 'Kickboard height', 'mm');
   fBool('soft_close', 'Soft close');
-  group('joinery', 'Joinery & casework',
-    ['carcass_material', 'door_finish_ref', 'hardware_set', 'kickboard_height_mm', 'soft_close']);
+  // Cabinet-construction fields (carcass, door finish, hardware, kickboard,
+  // soft-close) only fit boxes-with-doors. Benchtops, splashbacks, banquettes,
+  // hardware items themselves, and lab benches don't need them. Pushed down
+  // to vanity/wardrobe/kitchen_joinery/storage_joinery/reception_desk only.
+  group('joinery', 'Joinery & casework', []);
 
   // Joinery hardware
   fSel('joinery_hardware_type', 'Type', ['handle','knob','hinge','drawer-runner','shelf-support','catch','lock','lift-up','drop-down','push-to-open']);
@@ -831,7 +841,7 @@
   fNum('door_count', 'Door count');
   fText('interior_finish', 'Interior finish');
   cat('vanity', 'Vanity', 'joinery', 'ea',
-    ['vanity_type', 'basin_ref', 'tapware_ref', 'drawer_count', 'door_count', 'size', 'interior_finish']);
+    ['vanity_type', 'basin_ref', 'tapware_ref', 'carcass_material', 'door_finish_ref', 'hardware_set', 'kickboard_height_mm', 'soft_close', 'drawer_count', 'door_count', 'size', 'interior_finish']);
 
   // Wardrobe
   fSel('wardrobe_type', 'Type', ['built-in', 'walk-in', 'freestanding', 'sliding-door', 'hinged-door']);
@@ -841,7 +851,7 @@
   fNum('hanging_count', 'Hanging count');
   fBool('mirror_yn', 'Mirror');
   cat('wardrobe', 'Wardrobe', 'joinery', 'ea',
-    ['wardrobe_type', 'door_type_text', 'interior_fitout', 'drawer_count', 'shelf_count', 'hanging_count', 'mirror_yn']);
+    ['wardrobe_type', 'carcass_material', 'door_finish_ref', 'hardware_set', 'soft_close', 'door_type_text', 'interior_fitout', 'drawer_count', 'shelf_count', 'hanging_count', 'mirror_yn']);
 
   // Kitchen joinery
   fSel('kitchen_layout', 'Layout', ['galley', 'L-shape', 'U-shape', 'island', 'single-wall', 'peninsula']);
@@ -850,14 +860,14 @@
   fBool('island', 'Island');
   fSel('pantry_type', 'Pantry type', ['none', 'walk-in', 'butlers', 'scullery']);
   cat('kitchen_joinery', 'Kitchen joinery', 'joinery', 'lm',
-    ['kitchen_layout', 'base_run_length_mm', 'wall_run_length_mm', 'island', 'pantry_type']);
+    ['kitchen_layout', 'carcass_material', 'door_finish_ref', 'hardware_set', 'kickboard_height_mm', 'soft_close', 'base_run_length_mm', 'wall_run_length_mm', 'island', 'pantry_type']);
 
   // Reception desk
   fSel('counter_height_mm', 'Counter height', ['720', '900', '1100', 'custom']);
   fBool('accessible_section', 'Accessible section');
   fBool('cable_management', 'Cable management');
   cat('reception_desk', 'Reception desk', 'joinery', 'ea',
-    ['size', 'counter_height_mm', 'accessible_section', 'cable_management']);
+    ['size', 'carcass_material', 'door_finish_ref', 'counter_height_mm', 'accessible_section', 'cable_management']);
 
   // Banquette
   fSel('banquette_type', 'Type', ['built-in', 'freestanding', 'modular']);
@@ -872,7 +882,7 @@
   fSel('storage_open', 'Open or closed', ['open', 'closed', 'mixed']);
   fBool('adjustable_shelves', 'Adjustable shelves');
   cat('storage_joinery', 'Storage joinery', 'joinery', 'ea',
-    ['storage_type', 'storage_open', 'adjustable_shelves']);
+    ['storage_type', 'carcass_material', 'door_finish_ref', 'hardware_set', 'kickboard_height_mm', 'soft_close', 'storage_open', 'adjustable_shelves']);
 
   // Lab bench
   fSel('lab_top_material', 'Top material', ['chemical-resistant-laminate', 'epoxy', 'stainless', 'phenolic']);
@@ -888,8 +898,7 @@
   // GROUP 10 — Stairs, ramps & barriers (6)
   // =============================================================================
   fItem('structural_ref', 'Structure', null);
-  fTag('compliance_tag', 'Compliance', 'performance');
-  group('stairs', 'Stairs, ramps & barriers', ['structural_ref', 'location', 'compliance_tag']);
+  group('stairs', 'Stairs, ramps & barriers', ['structural_ref', 'location']);
 
   // Stair
   fSel('stair_type', 'Type', ['straight','dog-leg','U-shaped','helical','spiral','cantilevered','half-turn','quarter-turn']);
@@ -948,10 +957,16 @@
   fBool('dimmable', 'Dimmable');
   fSel('control_protocol', 'Control protocol', ['switch','0-10V','DALI','Dynalite','KNX','DMX','Casambi','Bluetooth','Zigbee','Wi-Fi','push']);
   fText('housing_material', 'Housing material');
-  group('lighting', 'Lighting',
-    ['brand', 'model', 'lumens', 'colour_temperature_k', 'cri', 'wattage_w', 'IP_rating', 'dimmable', 'control_protocol', 'finish', 'housing_material']);
+  // Group fields are the lighting fundamentals every category honours. The
+  // luminaire-specific payload (lumens/CCT/CRI/wattage/IP/dimmable/control
+  // protocol/housing) is spread per-category via LUMINAIRE_FIELDS so that
+  // emergency lights, exit signs, and lighting controls don't inherit fields
+  // that don't apply to them.
+  group('lighting', 'Lighting', ['brand', 'model', 'finish']);
 
-  cat('light', 'Light', 'lighting', 'ea', [], { aliases: ['luminaire'] });
+  const LUMINAIRE_FIELDS = ['lumens', 'colour_temperature_k', 'cri', 'wattage_w', 'IP_rating', 'dimmable', 'control_protocol', 'housing_material'];
+
+  cat('light', 'Light', 'lighting', 'ea', LUMINAIRE_FIELDS.slice(), { aliases: ['luminaire'] });
 
   fNum('beam_angle_deg', 'Beam angle', 'deg');
   fSel('ic_rating', 'IC rating', ['IC', 'IC-F', 'non-IC']);
@@ -959,7 +974,7 @@
   fBool('adjustable', 'Adjustable');
   fText('trim_finish', 'Trim finish');
   cat('downlight', 'Downlight', 'lighting', 'ea',
-    ['beam_angle_deg', 'ic_rating', 'cutout_diameter_mm', 'adjustable', 'trim_finish']);
+    [...LUMINAIRE_FIELDS, 'beam_angle_deg', 'ic_rating', 'cutout_diameter_mm', 'adjustable', 'trim_finish']);
 
   fNum('drop_mm', 'Drop', 'mm');
   fNum('cord_length_mm', 'Cord length', 'mm');
@@ -968,37 +983,37 @@
   fText('shade_material', 'Shade material');
   fNum('diameter_mm', 'Diameter', 'mm');
   cat('pendant', 'Pendant', 'lighting', 'ea',
-    ['diameter_mm', 'drop_mm', 'cord_length_mm', 'canopy_diameter_mm', 'canopy_finish', 'shade_material']);
+    [...LUMINAIRE_FIELDS, 'diameter_mm', 'drop_mm', 'cord_length_mm', 'canopy_diameter_mm', 'canopy_finish', 'shade_material']);
 
   fSel('wall_light_mount', 'Mount type', ['surface', 'recessed', 'semi-recessed']);
   fNum('projection_mm', 'Projection', 'mm');
   fSel('uplight_downlight', 'Uplight/downlight', ['up', 'down', 'both', 'side']);
   cat('wall_light', 'Wall light', 'lighting', 'ea',
-    ['wall_light_mount', 'projection_mm', 'uplight_downlight'], { aliases: ['sconce'] });
+    [...LUMINAIRE_FIELDS, 'wall_light_mount', 'projection_mm', 'uplight_downlight'], { aliases: ['sconce'] });
 
   fSel('linear_profile', 'Profile', ['surface', 'recessed', 'suspended', 'batten', 'plaster-in']);
   fText('joining_method', 'Joining method');
   fSel('linear_diffuser', 'Diffuser', ['opal', 'prismatic', 'frosted', 'clear']);
   fText('led_strip_density', 'LED strip density');
   cat('linear_light', 'Linear light', 'lighting', 'lm',
-    ['length', 'linear_profile', 'joining_method', 'linear_diffuser', 'led_strip_density'],
+    [...LUMINAIRE_FIELDS, 'length', 'linear_profile', 'joining_method', 'linear_diffuser', 'led_strip_density'],
     { aliases: ['LED strip', 'strip lighting', 'batten'] });
 
   fSel('track_compat', 'Track compatibility', ['single-circuit', '3-circuit', '48V', 'mag-track']);
   fNum('head_count', 'Head count');
   fText('track_finish', 'Track finish');
   cat('track_light', 'Track light', 'lighting', 'ea',
-    ['track_compat', 'head_count', 'adjustable', 'track_finish']);
+    [...LUMINAIRE_FIELDS, 'track_compat', 'head_count', 'adjustable', 'track_finish']);
 
   fSel('step_light_mount', 'Mount type', ['recessed', 'surface']);
   fSel('step_projection', 'Projection pattern', ['down', 'side', 'full']);
   cat('step_light', 'Step light', 'lighting', 'ea',
-    ['step_light_mount', 'IK_rating', 'step_projection']);
+    [...LUMINAIRE_FIELDS, 'step_light_mount', 'IK_rating', 'step_projection']);
 
   fSel('bollard_projection', 'Projection pattern', ['360', 'asymmetric', 'downlight']);
   fBool('vandal_resistant', 'Vandal resistant');
   cat('bollard_light', 'Bollard light', 'lighting', 'ea',
-    ['height', 'bollard_projection', 'IK_rating', 'vandal_resistant']);
+    [...LUMINAIRE_FIELDS, 'height', 'bollard_projection', 'IK_rating', 'vandal_resistant']);
 
   fSel('emergency_type', 'Type', ['maintained', 'non-maintained', 'sustained']);
   fSel('battery_type', 'Battery type', ['NiCd', 'Li-Ion', 'NiMH']);
@@ -1028,14 +1043,17 @@
   // GROUP 12 — Electrical, data & AV (16)
   // =============================================================================
   fSel('location_zone', 'Location zone', ['dry', 'damp', 'wet']);
-  group('electrical', 'Electrical, data & AV',
-    ['brand', 'model', 'finish', 'IP_rating', 'location_zone']);
+  // Brand/model are universal. Finish, IP rating, and location zone only fit
+  // a subset (wall plates, outdoor gear, wet-area hardware). Pushed down so
+  // switchboards, server racks, AV equipment etc. don't inherit a meaningless
+  // "Finish" or "Location zone" field.
+  group('electrical', 'Electrical, data & AV', ['brand', 'model']);
 
   fSel('switch_gangs', 'Gangs', ['1', '2', '3', '4', '5', '6']);
   fSel('switch_function', 'Function', ['on-off', 'dimmer', 'fan', 'motorised', 'intermediate']);
   fText('plate_material', 'Plate material');
   cat('switch', 'Switch', 'electrical', 'ea',
-    ['switch_gangs', 'switch_function', 'finish', 'plate_material']);
+    ['switch_gangs', 'switch_function', 'finish', 'location_zone', 'plate_material']);
 
   fSel('outlet_gangs', 'Gangs', ['single', 'double', 'triple', 'quad']);
   fNum('usb_count', 'USB count');
@@ -1043,19 +1061,19 @@
   fBool('rcd', 'RCD');
   fText('earth_leakage_rating', 'Earth leakage rating');
   cat('power_outlet', 'Power outlet', 'electrical', 'ea',
-    ['outlet_gangs', 'usb_count', 'usb_type', 'rcd', 'earth_leakage_rating'],
+    ['outlet_gangs', 'finish', 'location_zone', 'usb_count', 'usb_type', 'rcd', 'earth_leakage_rating'],
     { aliases: ['GPO', 'power point', 'socket'] });
 
   fSel('data_outlet_type', 'Type', ['Cat6', 'Cat6A', 'Cat7', 'Cat8', 'fibre-OM3', 'fibre-OM4']);
   fNum('port_count', 'Port count');
   fText('termination', 'Termination');
   cat('data_outlet', 'Data outlet', 'electrical', 'ea',
-    ['data_outlet_type', 'port_count', 'termination']);
+    ['data_outlet_type', 'port_count', 'finish', 'location_zone', 'termination']);
 
   fMSel('floor_box_contents', 'Contents', ['power', 'data', 'AV', 'USB', 'HDMI']);
   fSel('floor_box_access', 'Access', ['hinged', 'slide-out', 'removable']);
   cat('floor_box', 'Floor box', 'electrical', 'ea',
-    ['size', 'floor_box_contents', 'finish', 'floor_box_access']);
+    ['size', 'floor_box_contents', 'finish', 'IP_rating', 'location_zone', 'floor_box_access']);
 
   fNum('termination_count', 'Termination count');
   fSel('jb_location', 'Location', ['ceiling', 'wall', 'floor', 'external']);
@@ -1080,13 +1098,13 @@
   fNum('ev_cable_length_m', 'Cable length', 'm');
   fSel('ev_auth', 'Auth', ['app', 'RFID', 'plug-and-charge']);
   cat('ev_charger', 'EV charger', 'electrical', 'ea',
-    ['ev_charger_type', 'ev_power_kw', 'ev_cable_length_m', 'ev_auth']);
+    ['ev_charger_type', 'ev_power_kw', 'ev_cable_length_m', 'ev_auth', 'IP_rating']);
 
   fSel('sensor_type', 'Type', ['motion', 'occupancy', 'daylight', 'temperature', 'humidity', 'CO2', 'smoke', 'VOC']);
   fText('range_text', 'Range');
   fText('trigger_logic', 'Trigger logic');
   cat('sensor', 'Sensor', 'electrical', 'ea',
-    ['sensor_type', 'range_text', 'trigger_logic']);
+    ['sensor_type', 'range_text', 'trigger_logic', 'IP_rating']);
 
   fSel('access_control_type', 'Type', ['card-reader','keypad','biometric','intercom-integrated','magnetic-lock','electric-strike','exit-button']);
   fSel('access_control_proto', 'Protocol', ['HID-iCLASS', 'MIFARE', 'DESFire', 'Bluetooth', 'NFC']);
@@ -1100,7 +1118,7 @@
   fNum('station_count', 'Station count');
   fBool('door_release_integrated', 'Door release integrated');
   cat('intercom', 'Intercom', 'electrical', 'ea',
-    ['intercom_type', 'master_count', 'station_count', 'door_release_integrated']);
+    ['intercom_type', 'master_count', 'station_count', 'door_release_integrated', 'finish']);
 
   fSel('av_type', 'Type', ['amplifier', 'processor', 'matrix', 'encoder', 'decoder', 'microphone', 'mixer']);
   fNum('input_count', 'Input count');
@@ -1122,7 +1140,7 @@
   fNum('brightness_nits', 'Brightness', 'nits');
   fText('mount_text', 'Mount');
   cat('display', 'Display', 'electrical', 'ea',
-    ['display_type', 'display_size_inch', 'resolution', 'brightness_nits', 'mount_text'],
+    ['display_type', 'display_size_inch', 'resolution', 'brightness_nits', 'mount_text', 'finish'],
     { aliases: ['monitor', 'screen', 'TV'] });
 
   fNum('size_u', 'Size', 'U');
@@ -1144,20 +1162,22 @@
   fText('refrigerant', 'Refrigerant');
   fSel('controls_protocol', 'Controls protocol', ['BMS', 'standalone', 'wireless', 'BACnet', 'Modbus', 'KNX']);
   fNum('noise_level_db', 'Noise level', 'dB');
-  group('mechanical', 'Mechanical',
-    ['brand', 'model', 'capacity_kw', 'refrigerant', 'controls_protocol', 'noise_level_db']);
+  // Brand and model are universal. Capacity, refrigerant, controls protocol,
+  // and noise level only apply to active equipment — pushed down so passive
+  // components (diffuser, grille, register, ductwork) don't inherit them.
+  group('mechanical', 'Mechanical', ['brand', 'model']);
 
   fSel('ac_indoor_type', 'Type', ['ducted','cassette','wall-mounted','floor-mounted','ceiling-suspended','multi-split-head']);
   fNum('airflow_l_s', 'Airflow', 'l/s');
   fNum('static_pressure_pa', 'Static pressure', 'Pa');
   cat('ac_indoor', 'AC indoor', 'mechanical', 'ea',
-    ['ac_indoor_type', 'capacity_kw', 'airflow_l_s', 'noise_level_db', 'static_pressure_pa']);
+    ['ac_indoor_type', 'capacity_kw', 'refrigerant', 'controls_protocol', 'airflow_l_s', 'noise_level_db', 'static_pressure_pa']);
 
   fSel('ac_outdoor_type', 'Type', ['split', 'multi-split', 'VRF', 'chiller', 'packaged', 'cassette']);
   fNum('cop', 'COP');
   fNum('eer', 'EER');
   cat('ac_outdoor', 'AC outdoor', 'mechanical', 'ea',
-    ['ac_outdoor_type', 'capacity_kw', 'refrigerant', 'cop', 'eer', 'noise_level_db']);
+    ['ac_outdoor_type', 'capacity_kw', 'refrigerant', 'controls_protocol', 'cop', 'eer', 'noise_level_db']);
 
   fSel('diffuser_type', 'Type', ['linear-bar', 'linear-slot', 'swirl', 'perforated', 'jet', 'displacement', 'square-egg-crate', 'round']);
   fText('throw_pattern', 'Throw pattern');
@@ -1179,7 +1199,7 @@
   fText('static_pressure', 'Static pressure');
   fBool('ducted', 'Ducted');
   cat('exhaust_fan', 'Exhaust fan', 'mechanical', 'ea',
-    ['exhaust_fan_type', 'airflow_l_s', 'static_pressure', 'noise_level_db', 'ducted']);
+    ['exhaust_fan_type', 'airflow_l_s', 'static_pressure', 'controls_protocol', 'noise_level_db', 'ducted']);
 
   fSel('rangehood_type', 'Type', ['undermount', 'canopy', 'integrated', 'downdraft', 'recirculating', 'ducted']);
   fBool('light_integrated', 'Light integrated');
@@ -1196,24 +1216,24 @@
   fSel('damper_type', 'Type', ['volume-control', 'fire', 'smoke', 'fire-and-smoke', 'motorised', 'gravity', 'backdraft']);
   fText('damper_operation', 'Operation');
   cat('damper', 'Damper', 'mechanical', 'ea',
-    ['damper_type', 'size', 'damper_operation', 'frl']);
+    ['damper_type', 'size', 'damper_operation', 'controls_protocol', 'frl']);
 
   fSel('hyd_rad_type', 'Type', ['panel', 'column', 'towel', 'designer']);
   fNum('output_w', 'Output', 'W');
   cat('hydronic_radiator', 'Hydronic radiator', 'mechanical', 'ea',
-    ['hyd_rad_type', 'output_w', 'dimensions', 'connection_type', 'finish']);
+    ['hyd_rad_type', 'capacity_kw', 'output_w', 'dimensions', 'connection_type', 'finish']);
 
   fSel('ufh_system', 'System', ['hydronic', 'electric-cable', 'electric-mat']);
   fNum('output_w_m2', 'Output', 'W/m²');
   fText('controls', 'Controls');
   cat('underfloor_heating', 'Underfloor heating', 'mechanical', 'm²',
-    ['ufh_system', 'output_w_m2', 'controls']);
+    ['ufh_system', 'output_w_m2', 'controls', 'controls_protocol']);
 
   fSel('hvac_type', 'Type', ['AHU', 'FCU', 'VAV', 'CAV', 'ERV', 'HRV', 'chiller', 'boiler', 'cooling-tower']);
   fText('airflow', 'Airflow');
   fText('efficiency_rating', 'Efficiency rating');
   cat('hvac_equipment', 'HVAC equipment', 'mechanical', 'ea',
-    ['hvac_type', 'capacity', 'static_pressure', 'airflow', 'efficiency_rating'],
+    ['hvac_type', 'capacity', 'capacity_kw', 'refrigerant', 'controls_protocol', 'noise_level_db', 'static_pressure', 'airflow', 'efficiency_rating'],
     { aliases: ['FCU', 'AHU', 'fan coil unit', 'air handling unit'] });
 
   fSel('cool_room_type', 'Type', ['cool-room', 'freezer', 'blast-chiller', 'walk-in']);
@@ -1222,14 +1242,14 @@
   fText('door_size', 'Door size');
   fText('refrigeration_unit', 'Refrigeration unit');
   cat('cool_room', 'Cool room', 'mechanical', 'ea',
-    ['cool_room_type', 'internal_size', 'panel_thickness_mm', 'door_size', 'refrigeration_unit']);
+    ['cool_room_type', 'internal_size', 'panel_thickness_mm', 'door_size', 'refrigeration_unit', 'capacity_kw', 'refrigerant', 'controls_protocol']);
 
   fSel('fume_cupboard_type', 'Type', ['ducted', 'recirculating', 'walk-in']);
   fText('sash_type', 'Sash type');
   fText('face_velocity', 'Face velocity');
   fText('containment_class', 'Containment class');
   cat('fume_cupboard', 'Fume cupboard', 'mechanical', 'ea',
-    ['fume_cupboard_type', 'width', 'sash_type', 'face_velocity', 'containment_class']);
+    ['fume_cupboard_type', 'width', 'sash_type', 'face_velocity', 'containment_class', 'controls_protocol']);
 
   fSel('medical_gas_type', 'Type', ['oxygen', 'nitrous-oxide', 'medical-air', 'vacuum', 'scavenging', 'CO2', 'nitrogen']);
   fSel('medical_gas_outlet_type', 'Outlet type', ['BS-5682', 'AS-2896-DISS', 'AGSS']);
@@ -1280,19 +1300,21 @@
   // GROUP 15 — Fire & life safety (12)
   // =============================================================================
   fSel('fire_addressable', 'Addressable', ['addressable', 'conventional', 'hybrid']);
-  group('fire', 'Fire & life safety',
-    ['brand', 'model', 'approval_standard', 'fire_addressable']);
+  // Addressable applies only to detectors and alarm panels (the digitally-
+  // addressed signalling network). Hose reels, extinguishers, blankets,
+  // shutters, dampers, collars don't have addressability — pushed down.
+  group('fire', 'Fire & life safety', ['brand', 'model', 'approval_standard']);
 
   fSel('smoke_det_type', 'Detection type', ['photoelectric', 'ionisation', 'dual', 'aspirating']);
   fNum('coverage_radius_m', 'Coverage radius', 'm');
   fSel('smoke_det_power', 'Power', ['hardwired', 'battery', 'mains-with-battery']);
   cat('smoke_detector', 'Smoke detector', 'fire', 'ea',
-    ['smoke_det_type', 'coverage_radius_m', 'smoke_det_power']);
+    ['smoke_det_type', 'coverage_radius_m', 'smoke_det_power', 'fire_addressable']);
 
   fSel('heat_det_type', 'Detection type', ['rate-of-rise', 'fixed-temperature', 'combined']);
   fNum('temperature_threshold_c', 'Temperature threshold', '°C');
   cat('heat_detector', 'Heat detector', 'fire', 'ea',
-    ['heat_det_type', 'temperature_threshold_c']);
+    ['heat_det_type', 'temperature_threshold_c', 'fire_addressable']);
 
   fSel('sprinkler_type', 'Type', ['pendant', 'upright', 'sidewall', 'concealed', 'in-rack', 'ESFR', 'residential']);
   fNum('k_factor', 'K-factor');
@@ -1326,13 +1348,13 @@
   fSel('fip_type', 'Type', ['addressable', 'conventional', 'hybrid', 'voice-evac']);
   fText('network_protocol', 'Network protocol');
   cat('fire_indicator_panel', 'Fire indicator panel', 'fire', 'ea',
-    ['zone_count', 'fip_type', 'network_protocol'],
+    ['zone_count', 'fip_type', 'network_protocol', 'fire_addressable'],
     { aliases: ['FIP'] });
 
   fSel('ewis_type', 'Type', ['speaker', 'strobe', 'combined', 'beacon']);
   fText('pattern_text', 'Pattern');
   cat('ewis', 'EWIS / occupant warning', 'fire', 'ea',
-    ['ewis_type', 'power_w', 'pattern_text', 'IP_rating'],
+    ['ewis_type', 'power_w', 'pattern_text', 'IP_rating', 'fire_addressable'],
     { aliases: ['EWIS'] });
 
   fSel('fire_shutter_op', 'Operation', ['manual', 'motorised', 'fail-safe']);
@@ -1398,8 +1420,11 @@
   // =============================================================================
   fBool('as_1428_compliance', 'AS-1428 compliance');
   fBool('braille_required', 'Braille required');
+  // Braille only applies to text-bearing signs (tactile_sign, room_id_sign,
+  // statutory_sign, braille_sign) — pushed down. The other group fields
+  // (AS-1428 compliance, finish, mounting) are universal enough to keep.
   group('accessibility', 'Accessibility & signage',
-    ['as_1428_compliance', 'braille_required', 'finish', 'mounting']);
+    ['as_1428_compliance', 'finish', 'mounting']);
 
   fSel('tgsi_type', 'Type', ['directional', 'hazard']);
   fSel('tgsi_format', 'Format', ['tile', 'individual-stud', 'applied']);
@@ -1414,16 +1439,15 @@
     ['grab_rail_diameter', 'length', 'finish', 'mounting', 'loading_compliance']);
 
   fNum('raised_text_height_mm', 'Raised text height', 'mm');
-  fBool('braille_yn', 'Braille');
   fNum('luminance_contrast', 'Luminance contrast');
   cat('tactile_sign', 'Tactile sign', 'accessibility', 'ea',
-    ['size', 'raised_text_height_mm', 'braille_yn', 'luminance_contrast', 'finish']);
+    ['size', 'raised_text_height_mm', 'braille_required', 'luminance_contrast', 'finish']);
 
   fSel('braille_format', 'Braille format', ['grade-1', 'grade-2']);
   fNum('mount_height_mm', 'Mount height', 'mm');
   fText('text_text', 'Text');
   cat('braille_sign', 'Braille sign', 'accessibility', 'ea',
-    ['text_text', 'braille_format', 'size', 'finish', 'mount_height_mm']);
+    ['text_text', 'braille_required', 'braille_format', 'size', 'finish', 'mount_height_mm']);
 
   fSel('hearing_loop_type', 'Type', ['room-loop', 'counter-loop', 'perimeter']);
   fText('coverage_area', 'Coverage area');
@@ -1442,11 +1466,11 @@
   fText('symbol', 'Symbol');
   fText('luminance', 'Luminance');
   cat('statutory_sign', 'Statutory sign', 'accessibility', 'ea',
-    ['statutory_compliance', 'text_text', 'symbol', 'size', 'luminance', 'materials']);
+    ['statutory_compliance', 'text_text', 'braille_required', 'symbol', 'size', 'luminance', 'materials']);
 
   fBool('pictogram', 'Pictogram');
   cat('room_id_sign', 'Room ID sign', 'accessibility', 'ea',
-    ['text_text', 'braille_yn', 'pictogram', 'finish', 'mount_height_mm']);
+    ['text_text', 'braille_required', 'pictogram', 'finish', 'mount_height_mm']);
 
   fSel('manifestation_pattern', 'Pattern', ['dots', 'lines', 'custom-graphic', 'frosted-band', 'full-frost']);
   fSel('manifestation_application', 'Application', ['applied-film', 'etched', 'sandblasted', 'ceramic-frit']);
@@ -1460,19 +1484,21 @@
   // GROUP 18 — FF&E (12)
   // =============================================================================
   fText('designer', 'Designer');
-  group('ffe', 'FF&E',
-    ['brand', 'range', 'designer', 'dimensions', 'finish', 'upholstery_ref']);
+  // FF&E members vary too widely for shared group fields (an oven and a sofa
+  // share almost nothing). Group is organizational only; each category lists
+  // the fields it actually needs.
+  group('ffe', 'FF&E', []);
 
   fSel('furniture_type', 'Type', ['chair','armchair','sofa','lounge','stool','bench','ottoman','dining-table','coffee-table','side-table','desk','console','bed','daybed','custom']);
   fNum('weight_kg', 'Weight', 'kg');
   cat('furniture', 'Furniture', 'ffe', 'ea',
-    ['furniture_type', 'material', 'seat_height_mm', 'weight_kg']);
+    ['furniture_type', 'brand', 'range', 'designer', 'dimensions', 'material', 'finish', 'upholstery_ref', 'seat_height_mm', 'weight_kg']);
 
   fSel('soft_furnishing_type', 'Type', ['cushion', 'throw', 'bed-linen', 'towel', 'mattress']);
   fItem('fabric_ref', 'Fabric', 'textile');
   fSel('soft_furnishing_fill', 'Fill', ['feather-down', 'foam', 'latex', 'synthetic']);
   cat('soft_furnishing', 'Soft furnishing', 'ffe', 'ea',
-    ['soft_furnishing_type', 'size', 'fabric_ref', 'soft_furnishing_fill']);
+    ['soft_furnishing_type', 'brand', 'designer', 'size', 'fabric_ref', 'soft_furnishing_fill', 'finish']);
 
   fSel('curtain_type', 'Type', ['sheer', 'blockout', 'double-curtain']);
   fSel('curtain_heading', 'Heading', ['pinch-pleat', 'eyelet', 'S-fold', 'tab-top', 'ripple-fold']);
@@ -1492,7 +1518,7 @@
   fSel('rug_pile', 'Pile', ['cut', 'loop', 'hand-knotted', 'hand-tufted', 'flat-weave']);
   fSel('rug_custom', 'Custom or off-the-shelf', ['custom', 'OTS']);
   cat('rug', 'Rug', 'ffe', 'ea',
-    ['size', 'material', 'rug_pile', 'carpet_backing', 'rug_custom']);
+    ['brand', 'range', 'designer', 'size', 'material', 'rug_pile', 'carpet_backing', 'rug_custom']);
 
   fSel('art_type', 'Type', ['painting', 'print', 'photograph', 'sculpture', 'installation', 'mirror', 'mural']);
   fText('artist', 'Artist');
@@ -1506,13 +1532,13 @@
   fSel('workstation_type', 'Type', ['sit-stand', 'fixed-height', 'hot-desk']);
   fBool('partitions', 'Partitions');
   cat('workstation', 'Workstation', 'ffe', 'ea',
-    ['workstation_type', 'size', 'adjustable', 'cable_management', 'partitions']);
+    ['workstation_type', 'brand', 'size', 'dimensions', 'finish', 'adjustable', 'cable_management', 'partitions']);
 
   fText('bank_size', 'Bank size');
   fSel('lock_type', 'Lock type', ['key', 'combination', 'RFID', 'master', 'padlock-hasp']);
   fBool('ventilation', 'Ventilation');
   cat('locker', 'Locker', 'ffe', 'ea',
-    ['bank_size', 'door_count', 'lock_type', 'ventilation', 'material']);
+    ['brand', 'bank_size', 'door_count', 'lock_type', 'ventilation', 'material', 'finish']);
 
   fSel('whiteboard_surface', 'Surface', ['porcelain', 'melamine', 'glass']);
   fBool('magnetic', 'Magnetic');
@@ -1527,13 +1553,13 @@
   fText('weight_capacity', 'Weight capacity');
   fText('adjustability', 'Adjustability');
   cat('storage_system', 'Storage system', 'ffe', 'ea',
-    ['storage_system_type', 'weight_capacity', 'adjustability']);
+    ['storage_system_type', 'brand', 'dimensions', 'finish', 'weight_capacity', 'adjustability']);
 
   fSel('appliance_type', 'Type', ['oven','cooktop','rangehood','dishwasher','fridge','freezer','washing-machine','dryer','microwave','coffee-machine','warming-drawer','wine-cabinet']);
   fNum('energy_star', 'Energy star');
   fSel('appliance_integration', 'Integrated or freestanding', ['integrated', 'freestanding', 'semi-integrated']);
   cat('appliance', 'Appliance', 'ffe', 'ea',
-    ['appliance_type', 'brand', 'model', 'energy_star', 'capacity', 'finish', 'appliance_integration']);
+    ['appliance_type', 'brand', 'model', 'dimensions', 'energy_star', 'capacity', 'finish', 'appliance_integration']);
 
   // =============================================================================
   // GROUP 19 — Landscape & external works (29)
@@ -1698,8 +1724,12 @@
   fText('climate_zone', 'Climate zone');
   fText('season_of_install', 'Season of install');
   fText('maturity_age', 'Maturity age');
-  group('planting', 'Planting, irrigation & drainage',
-    ['supplier', 'climate_zone', 'season_of_install', 'maturity_age']);
+  // The four group fields (supplier already a common field; climate zone,
+  // season of install, maturity age) are botanical concepts. They make zero
+  // sense for irrigation hardware (dripline, sprinkler, valve, controller),
+  // drainage hardware (drainage_pit, sump, soakwell, water_tank), or
+  // commodity products (mulch, soil, gravel). Pushed down to plants only.
+  group('planting', 'Planting, irrigation & drainage', []);
 
   fText('species_botanical', 'Species (botanical)');
   fText('species_common', 'Species (common)');
@@ -1710,34 +1740,34 @@
   fBool('root_barrier_required', 'Root barrier required');
   fBool('semi_mature_purchase', 'Semi-mature purchase');
   cat('tree', 'Tree', 'planting', 'ea',
-    ['species_botanical', 'species_common', 'pot_size_l', 'height_at_supply_m', 'expected_mature_height_m', 'canopy_spread_m', 'root_barrier_required', 'semi_mature_purchase']);
+    ['species_botanical', 'species_common', 'climate_zone', 'season_of_install', 'maturity_age', 'pot_size_l', 'height_at_supply_m', 'expected_mature_height_m', 'canopy_spread_m', 'root_barrier_required', 'semi_mature_purchase']);
 
   fNum('spread_m', 'Spread', 'm');
   cat('shrub', 'Shrub', 'planting', 'ea',
-    ['species_botanical', 'species_common', 'pot_size_l', 'height_at_supply_m', 'expected_mature_height_m', 'spread_m']);
+    ['species_botanical', 'species_common', 'climate_zone', 'season_of_install', 'maturity_age', 'pot_size_l', 'height_at_supply_m', 'expected_mature_height_m', 'spread_m']);
 
   fText('pot_size', 'Pot size');
   fNum('plants_per_m2', 'Plants per m²');
   cat('groundcover', 'Groundcover', 'planting', 'ea',
-    ['species_botanical', 'species_common', 'pot_size', 'plants_per_m2', 'spread_m']);
+    ['species_botanical', 'species_common', 'climate_zone', 'season_of_install', 'maturity_age', 'pot_size', 'plants_per_m2', 'spread_m']);
 
   fBool('trellis_required', 'Trellis required');
   fNum('expected_height_m', 'Expected height', 'm');
   cat('climber', 'Climber', 'planting', 'ea',
-    ['species_botanical', 'species_common', 'pot_size', 'trellis_required', 'expected_height_m']);
+    ['species_botanical', 'species_common', 'climate_zone', 'season_of_install', 'maturity_age', 'pot_size', 'trellis_required', 'expected_height_m']);
 
   fNum('planting_centres_mm', 'Planting centres', 'mm');
   cat('hedge', 'Hedge', 'planting', 'lm',
-    ['species_botanical', 'species_common', 'pot_size', 'planting_centres_mm', 'expected_height_m']);
+    ['species_botanical', 'species_common', 'climate_zone', 'season_of_install', 'maturity_age', 'pot_size', 'planting_centres_mm', 'expected_height_m']);
 
   fSel('lawn_species', 'Species', ['kikuyu', 'couch', 'buffalo', 'zoysia', 'fescue', 'ryegrass', 'blend']);
   fSel('lawn_format', 'Format', ['roll', 'slab', 'instant', 'seed']);
   cat('lawn_turf', 'Lawn / turf', 'planting', 'm²',
-    ['lawn_species', 'lawn_format', 'sub_base']);
+    ['lawn_species', 'lawn_format', 'climate_zone', 'season_of_install', 'sub_base']);
 
   fBool('drainage_required', 'Drainage required');
   cat('garden_bed', 'Garden bed', 'planting', 'm²',
-    ['planting_palette_ref', 'soil_ref', 'mulch_ref', 'edging_ref', 'drainage_required'],
+    ['planting_palette_ref', 'soil_ref', 'mulch_ref', 'edging_ref', 'climate_zone', 'season_of_install', 'drainage_required'],
     { flavour: 'slot' });
 
   fSel('gravel_mulch_type', 'Type', ['pebble', 'gravel', 'scoria', 'decomposed-granite', 'stone-chip']);
@@ -1762,7 +1792,7 @@
   fBool('liner_required', 'Liner required');
   fBool('self_watering', 'Self-watering');
   cat('planter', 'Planter', 'planting', 'ea',
-    ['planter_material', 'size', 'drainage_yn', 'liner_required', 'self_watering']);
+    ['planter_material', 'size', 'climate_zone', 'season_of_install', 'drainage_yn', 'liner_required', 'self_watering']);
 
   fSel('emitter_spacing_mm', 'Emitter spacing', ['200', '300', '400', '500']);
   fNum('flow_rate_l_h', 'Flow rate', 'l/h');
@@ -1822,8 +1852,13 @@
     ['size', 'pump_ref', 'capacity_l', 'alarm', 'backup_pump']);
 
   // ─── Build the schema object ───────────────────────────────────────────────
+  // _reseedVersion: bump when DEFAULT_SCHEMA_V5 changes in a way that should
+  // overwrite existing workspace taxonomies snapshots. LoadingGate compares
+  // appState.taxonomies._reseedVersion to this value at boot and replaces the
+  // snapshot with a fresh clone if they differ.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
+    _reseedVersion: 1,
     groups: GROUPS,
     categories: CATEGORIES,
     fields: Object.values(FIELDS),

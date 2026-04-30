@@ -525,6 +525,27 @@
       }
     }
 
+    // 5d. Schema re-seed. When DEFAULT_SCHEMA_V5 ships meaningful structural
+    //     changes (group/category field reshuffles), bump _reseedVersion in
+    //     schema.jsx. Workspaces with an older snapshot get overwritten with
+    //     a fresh clone so users see the new defaults without manual reset.
+    //     Stale item.fields[id] data is preserved — getFieldValue's direct
+    //     read fallback keeps it accessible to other code paths even after
+    //     the schema stops listing the field. Skipped if DEFAULT_SCHEMA_V5
+    //     hasn't loaded (sandbox builds without window globals).
+    const defaultSchema = window.DEFAULT_SCHEMA_V5;
+    if (defaultSchema && typeof defaultSchema._reseedVersion === 'number') {
+      const currentReseed = (appState.taxonomies && appState.taxonomies._reseedVersion) | 0;
+      if (currentReseed !== defaultSchema._reseedVersion && window.cloneDefaultSchemaV5) {
+        const fresh = window.cloneDefaultSchemaV5();
+        if (fresh) {
+          appState = { ...appState, taxonomies: fresh };
+          appStateChanged = true;
+          console.log('[LoadingGate] schema re-seeded:', { from: currentReseed, to: defaultSchema._reseedVersion });
+        }
+      }
+    }
+
     // 6. Push singleton if anything changed.
     if (appStateChanged) {
       try {
