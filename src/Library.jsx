@@ -130,7 +130,6 @@ function Library({
           materials={materials}
           libraries={libraries}
           labelTemplates={labelTemplates}
-          mode={mode} setMode={setMode}
           activeLibraryId={activeLibraryId}
           onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
           selected={selected} setSelected={setSelected}
@@ -141,7 +140,6 @@ function Library({
           materials={materials}
           libraries={libraries}
           labelTemplates={labelTemplates}
-          mode={mode} setMode={setMode}
           activeLibraryId={activeLibraryId}
           onEdit={onEdit} onAdd={onAdd}
           onAddInCategory={onAddInCategory}

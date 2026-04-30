@@ -6,7 +6,6 @@
 function LibraryLayoutC({
   materials, libraries,
   labelTemplates,
-  mode, setMode,
   activeLibraryId,
   onEdit, onAdd, onDelete,
   selected, setSelected,

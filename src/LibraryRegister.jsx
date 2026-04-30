@@ -42,7 +42,6 @@ function saveRegisterCols(set) {
 function LibraryRegister({
   materials, libraries,
   labelTemplates,
-  mode, setMode,
   activeLibraryId,
   onEdit, onAdd, onAddInCategory, onDelete,
   selected = new Set(),
