@@ -280,33 +280,9 @@ function LTCell({ col, material: m, libraries, allMaterials, labelTemplates,
   }
 
   if (col.id === 'swatch') {
-    const kind = m.kind || 'material';
-    // For non-finish kinds, render the subtype glyph (or kind glyph fallback)
-    // on a tone-tinted square so the swatch column still carries colour rhythm.
-    if (kind !== 'material') {
-      const glyph = (window.subtypeGlyph ? window.subtypeGlyph(kind, m.subtype) : kindGlyph(kind));
-      const tone = m.swatch?.tone;
-      const bg = tone || 'var(--paper-2)';
-      // Pick an ink colour readable on the tone: dark ink for light tones,
-      // paper ink for dark tones. Fall back to default ink when no tone is set.
-      const ink = tone
-        ? (window.readableInk ? window.readableInk(tone) : 'var(--ink-2)')
-        : 'var(--ink-3)';
-      return (
-        <div style={{ ...baseStyle, justifyContent: 'center' }}>
-          <span style={{
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 13, color: ink, lineHeight: 1,
-            display: 'inline-flex', width: 20, height: 20,
-            alignItems: 'center', justifyContent: 'center',
-            border: '1px solid var(--rule-2)',
-            background: bg,
-          }}>{glyph}</span>
-        </div>
-      );
-    }
-    const mForSwatch = (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId)
-      ? allMaterials.find(x => x.id === m.paintedWithId) || m : m;
+    const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+    const mForSwatch = (m.category !== 'paint' && m.swatch?.inheritTone && paintedWithId)
+      ? allMaterials.find(x => x.id === paintedWithId) || m : m;
     return (
       <div style={{ ...baseStyle, justifyContent: 'center' }}>
         <Swatch
@@ -382,13 +358,14 @@ function LTCell({ col, material: m, libraries, allMaterials, labelTemplates,
   }
 
   if (col.id === 'paintedWith') {
-    if (m.category === 'Paint') {
+    const _pwId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+    if (m.category === 'paint') {
       return <div style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
     }
-    if (!m.paintedWithId) {
+    if (!_pwId) {
       return <div style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
     }
-    const p = allMaterials.find(x => x.id === m.paintedWithId);
+    const p = allMaterials.find(x => x.id === _pwId);
     if (!p) return <div style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
     return (
       <div style={{ ...baseStyle, gap: 6 }}>
@@ -404,17 +381,18 @@ function LTCell({ col, material: m, libraries, allMaterials, labelTemplates,
   }
 
   if (col.id === 'kind') {
-    const k = (window.kindById && window.kindById(m.kind)) || { label: 'Material' };
+    const catDef = m.category && window.categoryDef && window.categoryDef(m.category);
+    const label = (catDef && catDef.label) || m.category || 'Material';
     return (
       <div style={{ ...baseStyle, fontSize: 10, color: 'var(--ink-3)',
         textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {k.label}
+        {label}
       </div>
     );
   }
 
   if (col.id === 'trade') {
-    const t = m.trade || '—';
+    const t = (window.getFieldValue ? window.getFieldValue(m, 'trade') : m.trade) || '—';
     return (
       <div style={{ ...baseStyle, fontSize: 10.5, color: t === '—' ? 'var(--ink-4)' : 'var(--ink-2)',
         letterSpacing: '0.02em' }}>

@@ -48,12 +48,16 @@ function Library({
     }
     const q = query.trim().toLowerCase();
     if (q) {
+      const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
       list = list.filter(m => {
         const display = window.formatLabel ? window.formatLabel(m, labelTemplates) : (m.name || '');
+        const catDef = m.category && window.categoryDef && window.categoryDef(m.category);
+        const catLabel = (catDef && catDef.label) || m.category || '';
+        const aliases = (catDef && catDef.aliases && catDef.aliases.join(' ')) || '';
         return (display + ' ' + (m.name || '') + ' ' + (m.code || '') + ' ' +
-                (m.category || '') + ' ' + (m.supplier || '') + ' ' +
-                (m.brand || '') + ' ' + (m.species || '') + ' ' +
-                (m.finish || '')).toLowerCase().includes(q);
+                catLabel + ' ' + aliases + ' ' + (fv(m, 'supplier') || '') + ' ' +
+                (fv(m, 'brand') || '') + ' ' + (fv(m, 'species') || '') + ' ' +
+                (fv(m, 'finish') || '')).toLowerCase().includes(q);
       });
     }
     return list;
@@ -374,10 +378,7 @@ function GalleryCard({
     || (window.getFieldValue && window.getFieldValue(m, 'supplier'))
     || m.supplier;
 
-  // v5 category id (may be legacy on un-migrated items).
-  const cardCatId = (m.category && window.categoryDef && window.categoryDef(m.category))
-    ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
-  const cardCatDef = cardCatId && window.categoryDef && window.categoryDef(cardCatId);
+  const cardCatDef = m.category && window.categoryDef && window.categoryDef(m.category);
 
   // Type-corner badge: now sourced from the v5 category label rather than the
   // legacy productType id.
@@ -386,7 +387,7 @@ function GalleryCard({
   // Paintables inherit the linked paint's tone for visual continuity.
   const effSwatch = (() => {
     const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
-    if (cardCatId !== 'paint' && m.swatch?.inheritTone && paintedWithId) {
+    if (m.category !== 'paint' && m.swatch?.inheritTone && paintedWithId) {
       const linked = materials.find(x => x.id === paintedWithId);
       if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
     }
@@ -426,8 +427,7 @@ function GalleryCard({
           swatch={effSwatch}
           size="md"
           seed={parseInt(m.id.slice(2)) || 1}
-          glyph={m.kind && m.kind !== 'material' && window.subtypeGlyph
-            ? window.subtypeGlyph(m.kind, m.subtype) : null}
+          glyph={null}
           style={{ width: '100%', height: '100%' }}
         />
         {/* Type-corner badge (top-right) */}
@@ -662,10 +662,7 @@ function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLi
 function MaterialDetail({ material: m, materials = [], libraries, labelTemplates, onEdit, onDelete, onNavigateTo }) {
   const projectNames = (m.projects || []).map(pid => (window.PROJECTS.find(p => p.id === pid) || {}).name).filter(Boolean);
   const libs = (m.libraryIds || []).map(lid => libraries.find(l => l.id === lid)).filter(Boolean);
-  // v5: resolve the active category id (may be legacy on un-migrated items).
-  const catId = (m.category && window.categoryDef && window.categoryDef(m.category))
-    ? m.category
-    : (window.legacyCategoryFor ? window.legacyCategoryFor(m) : 'other');
+  const catId = m.category || 'other';
   const isPaint = catId === 'paint';
   const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
   const paintedWith = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
@@ -695,8 +692,7 @@ function MaterialDetail({ material: m, materials = [], libraries, labelTemplates
           })()}
           size="xl"
           seed={parseInt(m.id.slice(2)) || 1}
-          glyph={m.kind && m.kind !== 'material' && window.subtypeGlyph
-            ? window.subtypeGlyph(m.kind, m.subtype) : null}
+          glyph={null}
           style={{ width: '100%', height: 180 }} />
         <div style={{ marginTop: 10, ...ui.mono, fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.06em' }}>
           {isPaint ? 'PAINT CHIP · INDICATIVE' : 'SWATCH · INDICATIVE'}
@@ -827,14 +823,15 @@ function DetailField({ label, value, mono }) {
 
 function CompareStrip({ ids, materials, labelTemplates, onClose }) {
   const items = ids.map(id => materials.find(m => m.id === id)).filter(Boolean);
+  const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
   const rows = [
-    { label: 'Category',   get: m => m.category },
-    { label: 'Supplier',   get: m => m.supplier },
-    { label: 'Origin',     get: m => m.origin },
-    { label: 'Finish',     get: m => m.finish },
-    { label: 'Thickness',  get: m => m.thickness, mono: true },
-    { label: 'Lead time',  get: m => m.leadTime, mono: true },
-    { label: 'Unit cost',  get: m => fmtCurrency(m.unitCost) + ' / ' + m.unit, mono: true, heavy: true },
+    { label: 'Category',   get: m => { const d = m.category && window.categoryDef && window.categoryDef(m.category); return (d && d.label) || m.category; } },
+    { label: 'Supplier',   get: m => fv(m, 'supplier') },
+    { label: 'Origin',     get: m => fv(m, 'country_of_origin') },
+    { label: 'Finish',     get: m => fv(m, 'finish') },
+    { label: 'Thickness',  get: m => fv(m, 'thickness'), mono: true },
+    { label: 'Lead time',  get: m => fv(m, 'lead_time'), mono: true },
+    { label: 'Unit cost',  get: m => fmtCurrency(fv(m, 'unit_cost')) + ' / ' + (fv(m, 'unit') || 'u'), mono: true, heavy: true },
   ];
   return (
     <div style={{

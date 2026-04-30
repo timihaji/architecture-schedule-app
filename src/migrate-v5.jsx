@@ -330,66 +330,6 @@
     };
   }
 
-  // ─── Legacy mirrors (always applied) ──────────────────────────────────────
-  // The v5 source of truth is `m.fields[*]`. But Library.jsx, LibraryColumns,
-  // CostSchedule (legacy), labels.jsx, DupePolicy, and several view-specific
-  // surfaces still read `m.supplier` / `m.brand` / `m.unitCost` / `m.tags` /
-  // `m.kind` / `m.productType` directly. Until Phase 4 rewrites those reads
-  // through schema-driven renderers, we keep a small mirror at the top level
-  // so the app doesn't render blanks immediately post-migration.
-  //
-  // Always runs (idempotent). Phase 5 (cleanup) sweeps the bare legacy reads
-  // and deletes addLegacyMirrors entirely.
-  function addLegacyMirrors(material) {
-    if (!material || !material.fields) return material;
-    const out = Object.assign({}, material);
-    const fields = material.fields;
-
-    function copy(legacyKey, fieldKey) {
-      const fk = fieldKey || legacyKey;
-      const v = fields[fk];
-      if (v !== undefined && v !== null && v !== '') out[legacyKey] = v;
-    }
-
-    // Plain mirrors — same name on both sides.
-    for (const k of ['supplier', 'brand', 'range', 'model', 'finish', 'dimensions',
-                     'thickness', 'species', 'coats', 'paintable']) {
-      copy(k);
-    }
-    // Renamed mirrors — legacy key ← v5 field id.
-    copy('unitCost',     'unit_cost');
-    copy('leadTime',     'lead_time');
-    copy('origin',       'country_of_origin');
-    copy('colourName',   'colour_name');
-    copy('colourCode',   'colour_code');
-    copy('sheen',        'sheen_paint');
-    copy('system',       'paint_system');
-    copy('coveragePerL', 'coverage_per_l');
-    copy('pricePerL',    'price_per_l');
-    copy('substrates',   'substrate_required');
-    copy('paintedWithId','paintedWith');
-    copy('image',        'image_ref');
-    copy('unit',         'unit');
-    copy('trade',        'trade');
-
-    // Tags: flat string[] union (legacy shape).
-    const tagsObj = fields.tags || {};
-    if (tagsObj && typeof tagsObj === 'object' && !Array.isArray(tagsObj)) {
-      const flat = [].concat(tagsObj.performance || [], tagsObj.location || [], tagsObj.materialFamily || []);
-      if (flat.length > 0) out.tags = Array.from(new Set(flat));
-    }
-
-    // Kind / productType / subtype mirrors — preserve if seed/legacy provided
-    // them so kind-check ladders still match.
-    if (material.kind)        out.kind = material.kind;
-    if (material.productType) out.productType = material.productType;
-    if (material.subtype)     out.subtype = material.subtype;
-    if (material.spec)        out.spec = material.spec;
-    if (material.color)       out.color = material.color;
-
-    return out;
-  }
-
   // ─── Project migration ────────────────────────────────────────────────────
   function migrateProject(project) {
     if (!project) return project;
@@ -490,7 +430,7 @@
     const schema = window.DEFAULT_SCHEMA_V5;
     const unmapped = [];
 
-    const nextMaterials = (materials || []).map(m => addLegacyMirrors(migrateMaterial(m, schema, unmapped)));
+    const nextMaterials = (materials || []).map(m => migrateMaterial(m, schema, unmapped));
 
     // Build a v5-shape lookup so schedule rows resolve material.category cleanly.
     const matById = new Map();
@@ -630,7 +570,6 @@
   window.migrateV5 = {
     transform,
     runLive,
-    addLegacyMirrors,
     _internals: {
       legacyToV5Category,
       migrateMaterial,

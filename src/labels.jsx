@@ -3,28 +3,37 @@
 // labelTemplates in state: { global: [...], byCategory: { Timber: null | [...], Paint: [...], ... } }
 // null = inherit global.
 
+function _fv(m, k) {
+  if (!m) return null;
+  const gfv = window.getFieldValue;
+  return gfv ? gfv(m, k) : ((m.fields && m.fields[k]) ?? m[k]);
+}
+
 const TOKEN_DEFS = [
   // identity
   { id: 'code',       label: 'Code',          group: 'identity', get: m => m.code },
   { id: 'name',       label: 'Name',          group: 'identity', get: m => m.name },
-  { id: 'category',   label: 'Category',      group: 'identity', get: m => m.category },
+  { id: 'category',   label: 'Category',      group: 'identity', get: m => {
+    const d = m.category && window.categoryDef && window.categoryDef(m.category);
+    return (d && d.label) || m.category;
+  } },
   // spec
-  { id: 'species',    label: 'Species',       group: 'spec',     get: m => m.species },
-  { id: 'finish',     label: 'Finish',        group: 'spec',     get: m => m.finish },
-  { id: 'thickness',  label: 'Thickness',     group: 'spec',     get: m => m.thickness },
-  { id: 'dimensions', label: 'Dimensions',    group: 'spec',     get: m => m.dimensions },
+  { id: 'species',    label: 'Species',       group: 'spec',     get: m => _fv(m, 'species') },
+  { id: 'finish',     label: 'Finish',        group: 'spec',     get: m => _fv(m, 'finish') },
+  { id: 'thickness',  label: 'Thickness',     group: 'spec',     get: m => _fv(m, 'thickness') },
+  { id: 'dimensions', label: 'Dimensions',    group: 'spec',     get: m => _fv(m, 'dimensions') },
   // commercial
-  { id: 'supplier',   label: 'Supplier',      group: 'commercial', get: m => m.supplier },
-  { id: 'origin',     label: 'Origin',        group: 'commercial', get: m => m.origin },
+  { id: 'supplier',   label: 'Supplier',      group: 'commercial', get: m => _fv(m, 'supplier') },
+  { id: 'origin',     label: 'Origin',        group: 'commercial', get: m => _fv(m, 'country_of_origin') },
   { id: 'unitCost',   label: 'Unit cost',     group: 'commercial',
-    get: m => (m.unitCost != null ? `$${m.unitCost}/${m.unit || 'unit'}` : null) },
-  { id: 'leadTime',   label: 'Lead time',     group: 'commercial', get: m => m.leadTime },
+    get: m => { const v = _fv(m, 'unit_cost'); const u = _fv(m, 'unit'); return v != null ? `$${v}/${u || 'unit'}` : null; } },
+  { id: 'leadTime',   label: 'Lead time',     group: 'commercial', get: m => _fv(m, 'lead_time') },
   // paint-specific
-  { id: 'brand',      label: 'Brand',         group: 'paint',    get: m => m.brand },
-  { id: 'colourName', label: 'Colour name',   group: 'paint',    get: m => m.colourName },
-  { id: 'colourCode', label: 'Colour code',   group: 'paint',    get: m => m.colourCode },
-  { id: 'sheen',      label: 'Sheen',         group: 'paint',    get: m => m.sheen },
-  { id: 'system',     label: 'System',        group: 'paint',    get: m => m.system },
+  { id: 'brand',      label: 'Brand',         group: 'paint',    get: m => _fv(m, 'brand') },
+  { id: 'colourName', label: 'Colour name',   group: 'paint',    get: m => _fv(m, 'colour_name') },
+  { id: 'colourCode', label: 'Colour code',   group: 'paint',    get: m => _fv(m, 'colour_code') },
+  { id: 'sheen',      label: 'Sheen',         group: 'paint',    get: m => _fv(m, 'sheen_paint') },
+  { id: 'system',     label: 'System',        group: 'paint',    get: m => _fv(m, 'paint_system') },
 ];
 
 const TOKEN_GROUP_COLOR = {

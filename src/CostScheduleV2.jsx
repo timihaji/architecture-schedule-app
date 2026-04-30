@@ -248,7 +248,7 @@
       const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
       const newRows = ids.map(pid => {
         const m = materials.find(x => x.id === pid);
-        const trade = m ? (fv(m, 'trade') || (window.inferTrade ? window.inferTrade(m) : null)) : null;
+        const trade = m ? (fv(m, 'trade') || (window.defaultTradeForCategory ? window.defaultTradeForCategory(m.category) : null)) : null;
         const catDef = m && window.categoryDef && window.categoryDef(m.category);
         return {
           id: newRowId(),

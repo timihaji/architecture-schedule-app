@@ -85,65 +85,6 @@
     else set(fieldId, value);
   }
 
-  // ─── Legacy category derivation ────────────────────────────────────────────
-  // Maps legacy (kind, category, productType) → v5 category id. Goes away in
-  // Phase 5 once Phase 3 migration has stamped material.category on every item.
-  // Mapping is intentionally coarse — a few buckets cover the seeded corpus.
-  function legacyCategoryFor(item) {
-    if (!item) return 'other';
-    if (item.category && window.categoryDef && window.categoryDef(item.category)) {
-      return item.category; // already a v5 id
-    }
-    const k = item.kind || 'material';
-    const legacyCat = (item.category || '').toLowerCase();
-    const productType = (item.productType || '').toLowerCase();
-
-    // Paint
-    if (k === 'paint' || legacyCat === 'paint') return 'paint';
-
-    // Lighting
-    if (k === 'light') return 'downlight';
-    if (k === 'ffe-lighting') return 'pendant';
-
-    // Door / window
-    if (k === 'door') return 'door';
-    if (k === 'window') return 'window';
-
-    // Joinery / hardware (no separate handles/hinges category in v5)
-    if (k === 'joinery') return 'joinery_hardware';
-
-    // Appliances / fittings — sanitary specifics first, then generic appliance.
-    if (k === 'appliance' || k === 'fitting') {
-      if (productType.includes('tap'))    return 'tapware';
-      if (productType.includes('basin'))  return 'basin';
-      if (productType.includes('toilet') || productType.includes('wc')) return 'wc';
-      if (productType.includes('shower')) return 'shower';
-      if (productType.includes('rangehood')) return 'rangehood';
-      // Ovens, cooktops, dishwashers, fridges all map to FFE 'appliance'.
-      return 'appliance';
-    }
-
-    // FF&E
-    if (k && k.startsWith('ffe-')) {
-      if (k === 'ffe-art')     return 'art';
-      if (k === 'ffe-soft')    return 'soft_furnishing';
-      // Seating, tables, storage, beds, etc. all map to the FFE 'furniture' category.
-      return 'furniture';
-    }
-
-    // Finishes (legacy "material" + sub-bucket).
-    if (legacyCat === 'timber')    return 'timber';
-    if (legacyCat === 'stone')     return 'stone';
-    if (legacyCat === 'composite') return 'stone';
-    if (legacyCat === 'metal')     return 'metal';
-    if (legacyCat === 'textile')   return 'textile';
-    if (legacyCat === 'tile')      return 'tile';
-
-    // Last-resort fallback — 'wall' is a v1 slot category so dropdowns
-    // include it. Phase 3 migration will reclassify these.
-    return 'wall';
-  }
-
   // ─── Atom shortcuts ────────────────────────────────────────────────────────
   function lbl(field) {
     const u = field && field.unit;
@@ -162,10 +103,7 @@
       if (!Array.isArray(materials)) return [];
       if (!target) return materials;
       const wanted = Array.isArray(target) ? target : [target];
-      return materials.filter(m => {
-        const c = m.category || (window.legacyCategoryFor && window.legacyCategoryFor(m));
-        return wanted.indexOf(c) !== -1;
-      });
+      return materials.filter(m => wanted.indexOf(m.category) !== -1);
     }, [materials, target]);
     const selected = Array.isArray(value)
       ? choices.filter(m => value.indexOf(m.id) !== -1)
@@ -472,5 +410,4 @@
   window.FieldRow = FieldRow;
   window.getFieldValue = getFieldValue;
   window.setFieldOnDraft = setFieldOnDraft;
-  window.legacyCategoryFor = legacyCategoryFor;
 })();

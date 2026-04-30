@@ -300,35 +300,30 @@ function App() {
     setKindPickerOpen(true);
   }
 
-  // Register's "+ Add to {Category}" path — bypasses the kind picker and
-  // opens the editor directly with kind=material and the chosen category.
+  // Register's "+ Add to {Category}" path — bypasses the category picker and
+  // opens the editor directly with the chosen v5 category.
   function addMaterialInCategory(category) {
-    createNewItem('material', category);
+    createNewItem(category);
   }
 
-  function createNewItem(kindId, categoryOverride) {
+  function createNewItem(categoryId) {
     const preselectLib = activeLibraryId && activeLibraryId !== 'all' ? [activeLibraryId] : ['lib-master'];
-    const kindRec = (window.KINDS || []).find(k => k.id === kindId) || { id: 'material', defaultTrade: 'Paints & Finishes' };
-    const isMaterial = kindRec.id === 'material';
-    const category = isMaterial ? (categoryOverride || 'Timber') : 'Timber';
+    const category = categoryId || 'wall';
+    const catDef = window.categoryDef && window.categoryDef(category);
+    const defaultUnit = (catDef && catDef.defaultUnit) || 'm²';
+    const defaultTrade = (window.defaultTradeForCategory && window.defaultTradeForCategory(category)) || 'Other';
     setKindPickerOpen(false);
     setEditingMaterial({
       id: 'm-' + Date.now(),
-      kind: kindRec.id,
-      trade: kindRec.defaultTrade,
-      tags: [],
-      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, kindRec.id, isMaterial ? category : undefined) : null) || '',
-      name: '',
       category,
-      supplier: '',
-      origin: '',
-      finish: '',
-      thickness: '',
-      dimensions: '',
-      unitCost: 0,
-      unit: isMaterial ? 'm²' : 'ea',
-      leadTime: '',
-      spec: '',
+      fields: {
+        trade: defaultTrade,
+        tags: { performance: [], location: [], materialFamily: [] },
+        unit: defaultUnit,
+      },
+      _touched: {},
+      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, category, category) : null) || '',
+      name: '',
       projects: [],
       libraryIds: preselectLib,
       swatch: { kind: 'solid', tone: '#b8aa94' },
@@ -759,7 +754,7 @@ function App() {
             saveMaterial(m);
             // saveMaterial unmounts the editor (sets editingMaterial=null);
             // schedule a fresh createNewItem for the same kind on the next tick.
-            setTimeout(() => createNewItem(m.kind || 'material'), 0);
+            setTimeout(() => createNewItem(m.category || 'wall'), 0);
           } : undefined}
           requireCodeOnSave={!!(settings.dupePolicy || window.DUPE_PRESET_A).requireCodeOnSave}
         />
@@ -1223,8 +1218,7 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
                 const { id, code, codeHistory, _isNew, ...prefill } = src;
                 const policy = window.DUPE_PRESET_A;
                 const newCode = (window.autoAssignCode
-                  ? window.autoAssignCode(materials, policy, src.kind,
-                      src.kind === 'material' ? src.category : undefined)
+                  ? window.autoAssignCode(materials, policy, src.category)
                   : '') || '';
                 setDraft({
                   ...prefill,

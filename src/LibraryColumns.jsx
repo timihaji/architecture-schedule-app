@@ -18,11 +18,10 @@
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-// Resolve a v5 category id off a (possibly legacy) item.
+// Resolve a v5 category id off an item.
 function resolveCategoryId(m) {
   if (!m) return null;
-  if (m.category && window.categoryDef && window.categoryDef(m.category)) return m.category;
-  return window.legacyCategoryFor ? window.legacyCategoryFor(m) : null;
+  return m.category || null;
 }
 
 // Display label for the "category" column. Looks up the v5 category def by id
@@ -161,10 +160,11 @@ function ProductTypeCell(row, ctx) {
 // Supplier — sans 11 ink-3, editable on click.
 function SupplierCell(row, ctx) {
   const { baseStyle, editing, setEditing, onSave } = ctx;
+  const supplier = window.getFieldValue ? window.getFieldValue(row, 'supplier') : row.supplier;
   if (editing) {
     return <window.DtInlineInput
       baseStyle={baseStyle}
-      initial={row.supplier || ''}
+      initial={supplier || ''}
       onCommit={(v) => onSave(v || null)}
       onCancel={() => setEditing(false)}
     />;
@@ -173,7 +173,7 @@ function SupplierCell(row, ctx) {
     <div data-dt-raw="true"
       style={{ ...baseStyle, fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-3)' }}
       onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
-      {row.supplier || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+      {supplier || <span style={{ color: 'var(--ink-4)' }}>—</span>}
     </div>
   );
 }
@@ -181,10 +181,12 @@ function SupplierCell(row, ctx) {
 // Price — mono 11 right-aligned. Inline-edit preserved.
 function UnitCostCell(row, ctx) {
   const { baseStyle, editing, setEditing, onSave } = ctx;
+  const unitCost = window.getFieldValue ? window.getFieldValue(row, 'unit_cost') : row.unitCost;
+  const unit = window.getFieldValue ? window.getFieldValue(row, 'unit') : row.unit;
   if (editing) {
     return <window.DtInlineInput
       baseStyle={baseStyle}
-      initial={row.unitCost || ''}
+      initial={unitCost || ''}
       type="number"
       onCommit={(v) => onSave(v === '' ? null : Number(v))}
       onCancel={() => setEditing(false)}
@@ -198,8 +200,8 @@ function UnitCostCell(row, ctx) {
   return (
     <div data-dt-raw="true" style={styled}
       onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
-      {row.unitCost != null
-        ? <>${Number(row.unitCost).toFixed(0)}<span style={{ color: 'var(--ink-4)' }}>/{row.unit || 'u'}</span></>
+      {unitCost != null
+        ? <>${Number(unitCost).toFixed(0)}<span style={{ color: 'var(--ink-4)' }}>/{unit || 'u'}</span></>
         : <span style={{ color: 'var(--ink-4)' }}>—</span>}
     </div>
   );
@@ -366,21 +368,26 @@ function PaintedWithCell(row, ctx) {
   );
 }
 
+// Maps column ids to v5 field ids where they differ.
+const COL_TO_V5_FIELD = { leadTime: 'lead_time', origin: 'country_of_origin' };
+
 // Generic editable-text factory for leadTime / thickness / dimensions / origin / finish
 function genericEditable(field) {
+  const v5Id = COL_TO_V5_FIELD[field] || field;
   return function (row, ctx) {
     const { baseStyle, editing, setEditing, onSave } = ctx;
+    const v = window.getFieldValue ? window.getFieldValue(row, v5Id) : (row[field] || row[v5Id]);
     if (editing) {
       return <window.DtInlineInput
         baseStyle={baseStyle}
-        initial={row[field] || ''}
-        onCommit={(v) => onSave(v || null)}
+        initial={v || ''}
+        onCommit={(val) => onSave(val || null)}
         onCancel={() => setEditing(false)}
       />;
     }
     return (
       <div data-dt-raw="true" style={baseStyle} onClick={(e) => { e.stopPropagation(); setEditing(true); }}>
-        {row[field] || <span style={{ color: 'var(--ink-4)' }}>—</span>}
+        {v || <span style={{ color: 'var(--ink-4)' }}>—</span>}
       </div>
     );
   };
@@ -427,10 +434,10 @@ const LIBRARY_COLUMNS = [
   },
   { id: 'supplier', label: 'Supplier', width: 150, minWidth: 90, editable: true, defaultOn: true,
     render: SupplierCell,
-    searchText: (m) => m.supplier },
+    searchText: (m) => window.getFieldValue ? window.getFieldValue(m, 'supplier') : m.supplier },
   { id: 'unitCost', label: 'Price', width: 100, minWidth: 70, mono: true, editable: true, align: 'right', defaultOn: true,
     render: UnitCostCell,
-    sortValue: (m) => m.unitCost || 0 },
+    sortValue: (m) => (window.getFieldValue ? Number(window.getFieldValue(m, 'unit_cost')) : m.unitCost) || 0 },
   { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, locked: true, defaultOn: true, align: 'right', sortable: false,
     render: ActionsCell },
 

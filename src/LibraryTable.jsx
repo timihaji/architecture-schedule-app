@@ -141,7 +141,8 @@ function LibraryTable(props) {
 
   // Additional text fields to include in full-text search
   const searchRowText = React.useCallback((m) => {
-    return [m.name, m.code, m.supplier, m.category, m.finish, m.species]
+    const _fv = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
+    return [m.name, m.code, _fv(m, 'supplier'), m.category, _fv(m, 'finish'), _fv(m, 'species')]
       .filter(Boolean).join(' ');
   }, []);
 
@@ -214,7 +215,7 @@ function LibraryTable(props) {
           }
         }}
         onAdd={onAdd}
-        onAddRow={onAdd ? (groupKey) => onAdd(groupKey ? { productType: groupKey } : undefined) : undefined}
+        onAddRow={onAdd ? (groupKey) => onAdd(groupKey || undefined) : undefined}
         groupBy={tableGroupByFn}
         topBar={null}
         kindTabs={null}

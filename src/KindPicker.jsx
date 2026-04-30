@@ -1,22 +1,21 @@
-// Kind picker — two-column modal shown before the editor opens.
-// Left: groups. Right: kinds in the active group. Pick one → createNewItem(kindId).
+// Category picker — two-column modal shown before the editor opens.
+// Left: groups. Right: categories in the active group. Pick one → createNewItem(categoryId).
 
 function KindPicker({ onPick, onClose }) {
-  const KINDS = window.KINDS || [];
-  const GROUPS = window.KIND_GROUPS || [];
-  const [activeGroup, setActiveGroup] = React.useState(GROUPS[0] || 'Finishes');
-  const [hoverKind, setHoverKind] = React.useState(null);
+  const schema = (window.schemaActive && window.schemaActive()) || window.DEFAULT_SCHEMA_V5 || { groups: [], categories: [] };
+  const groups = (schema.groups || []).filter(g => !g.hidden);
+  const allCats = schema.categories || [];
+  const [activeGroupId, setActiveGroupId] = React.useState((groups[0] && groups[0].id) || '');
+  const [hoverCat, setHoverCat] = React.useState(null);
 
-  // Esc to close
   React.useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape') onClose();
-    }
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const groupKinds = KINDS.filter(k => k.group === activeGroup);
+  const groupCats = allCats.filter(c => c.groupId === activeGroupId && !c.hidden);
+  const activeGroupDef = groups.find(g => g.id === activeGroupId);
 
   return (
     <div
@@ -70,7 +69,7 @@ function KindPicker({ onPick, onClose }) {
         {/* Body: two columns */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '180px 1fr',
+          gridTemplateColumns: '200px 1fr',
           minHeight: 0,
         }}>
           {/* Groups rail */}
@@ -80,12 +79,12 @@ function KindPicker({ onPick, onClose }) {
             overflowY: 'auto',
             padding: '10px 0',
           }}>
-            {GROUPS.map(g => {
-              const active = g === activeGroup;
-              const count = KINDS.filter(k => k.group === g).length;
+            {groups.map(g => {
+              const active = g.id === activeGroupId;
+              const count = allCats.filter(c => c.groupId === g.id && !c.hidden).length;
               return (
-                <button key={g} type="button"
-                  onClick={() => setActiveGroup(g)}
+                <button key={g.id} type="button"
+                  onClick={() => setActiveGroupId(g.id)}
                   style={{
                     display: 'flex', alignItems: 'baseline',
                     justifyContent: 'space-between', gap: 10,
@@ -94,12 +93,12 @@ function KindPicker({ onPick, onClose }) {
                     padding: '7px 16px',
                     cursor: 'pointer',
                     fontFamily: "'Newsreader', serif",
-                    fontSize: 14,
+                    fontSize: 13,
                     color: active ? 'var(--ink)' : 'var(--ink-3)',
                     borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
                     textAlign: 'left',
                   }}>
-                  <span>{g}</span>
+                  <span>{g.label}</span>
                   <span style={{
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 10, color: 'var(--ink-4)',
@@ -109,64 +108,53 @@ function KindPicker({ onPick, onClose }) {
             })}
           </div>
 
-          {/* Kinds panel */}
+          {/* Categories panel */}
           <div style={{ overflowY: 'auto', padding: '14px 20px 20px' }}>
             <div style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase',
               color: 'var(--ink-4)', marginBottom: 10,
             }}>
-              {activeGroup}
+              {activeGroupDef ? activeGroupDef.label : ''}
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-              gap: 10,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: 8,
             }}>
-              {groupKinds.map(k => {
-                const hovered = hoverKind === k.id;
-                const glyph = (window.kindGlyph && window.kindGlyph(k.id)) || '·';
+              {groupCats.map(c => {
+                const hovered = hoverCat === c.id;
+                const trade = window.defaultTradeForCategory ? window.defaultTradeForCategory(c.id) : '';
                 return (
-                  <button key={k.id} type="button"
-                    onClick={() => onPick(k.id)}
-                    onMouseEnter={() => setHoverKind(k.id)}
-                    onMouseLeave={() => setHoverKind(null)}
+                  <button key={c.id} type="button"
+                    onClick={() => onPick(c.id)}
+                    onMouseEnter={() => setHoverCat(c.id)}
+                    onMouseLeave={() => setHoverCat(null)}
                     style={{
                       background: hovered ? 'var(--paper-2)' : 'var(--paper)',
                       border: '1px solid ' + (hovered ? 'var(--ink)' : 'var(--rule-2)'),
-                      padding: '14px 14px 12px',
+                      padding: '12px 12px 10px',
                       cursor: 'pointer',
                       textAlign: 'left',
-                      display: 'grid',
-                      gridTemplateColumns: '36px 1fr',
-                      gap: 12,
-                      alignItems: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
                       transition: 'border-color 120ms, background 120ms',
                     }}>
                     <span style={{
-                      width: 36, height: 36,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      border: '1px solid var(--rule-2)',
-                      background: 'var(--paper)',
-                      color: hovered ? 'var(--accent-ink)' : 'var(--ink-2)',
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 20, lineHeight: 1,
-                      transition: 'color 120ms',
-                    }}>{glyph}</span>
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-                      <span style={{
-                        fontFamily: "'Newsreader', serif",
-                        fontSize: 15,
-                        color: 'var(--ink)',
-                        letterSpacing: '-0.005em',
-                      }}>{k.label}</span>
+                      fontFamily: "'Newsreader', serif",
+                      fontSize: 14,
+                      color: 'var(--ink)',
+                      letterSpacing: '-0.005em',
+                    }}>{c.label}</span>
+                    {trade && (
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 9.5, letterSpacing: '0.05em',
+                        fontSize: 9, letterSpacing: '0.05em',
                         color: 'var(--ink-4)',
                         textTransform: 'uppercase',
-                      }}>{k.defaultTrade}</span>
-                    </span>
+                      }}>{trade}</span>
+                    )}
                   </button>
                 );
               })}
@@ -186,7 +174,7 @@ function KindPicker({ onPick, onClose }) {
             fontFamily: "'Newsreader', serif", fontStyle: 'italic',
             fontSize: 12.5, color: 'var(--ink-3)',
           }}>
-            Pick a kind — you can change trade and tags in the editor.
+            Pick a category — you can change it in the editor.
           </span>
           <button type="button" onClick={onClose}
             style={{

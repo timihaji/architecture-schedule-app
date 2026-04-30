@@ -61,12 +61,7 @@ function LibraryLayoutC({
     setActiveId(next ? next.id : null);
   };
 
-  // Resolve the active item's v5 category id (may be legacy on un-migrated items).
-  const activeCatId = active
-    ? ((active.category && window.categoryDef && window.categoryDef(active.category))
-        ? active.category
-        : (window.legacyCategoryFor ? window.legacyCategoryFor(active) : 'other'))
-    : null;
+  const activeCatId = active ? (active.category || null) : null;
   const isPaint = activeCatId === 'paint';
   const paintedWithId = active
     ? (window.getFieldValue ? window.getFieldValue(active, 'paintedWith') : active.paintedWithId)
@@ -125,8 +120,7 @@ function LibraryLayoutC({
                         swatch={item.swatch}
                         size="sm"
                         seed={parseInt((item.id || '').slice(2)) || 1}
-                        glyph={item.kind && item.kind !== 'material' && window.subtypeGlyph
-                          ? window.subtypeGlyph(item.kind, item.subtype) : null}
+                        glyph={null}
                         style={{ width: '100%', height: '100%' }}
                       />
                     </div>
@@ -141,11 +135,8 @@ function LibraryLayoutC({
                         </span>
                       </div>
                       <div className="split-sub">{(() => {
-                        const id = (item.category && window.categoryDef && window.categoryDef(item.category))
-                          ? item.category
-                          : (window.legacyCategoryFor && window.legacyCategoryFor(item));
-                        const def = id && window.categoryDef && window.categoryDef(id);
-                        return (def && def.label) || item.category || item.type || '';
+                        const def = item.category && window.categoryDef && window.categoryDef(item.category);
+                        return (def && def.label) || item.category || '';
                       })()}</div>
                     </div>
                   </div>
@@ -176,8 +167,7 @@ function LibraryLayoutC({
                   swatch={effSwatch}
                   size="xl"
                   seed={parseInt((active.id || '').slice(2)) || 1}
-                  glyph={active.kind && active.kind !== 'material' && window.subtypeGlyph
-                    ? window.subtypeGlyph(active.kind, active.subtype) : null}
+                  glyph={null}
                   style={{ width: '100%', height: '100%' }}
                 />
               </div>

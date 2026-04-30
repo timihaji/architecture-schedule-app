@@ -40,10 +40,11 @@
         name = m.name || m.code || 'Unnamed';
         code = m.code || null;
         sku = m.sku || m.code || null;
-        supplier = m.supplier || null;
-        trade = m.trade || (window.inferTrade ? window.inferTrade(m) : null);
-        swatchColor = (m.swatch && m.swatch.tone) || m.color || '#a08660';
-        swatchBrand = m.brand || m.supplier || null;
+        const _fv = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
+        supplier = _fv(m, 'supplier') || null;
+        trade = _fv(m, 'trade') || (window.defaultTradeForCategory ? window.defaultTradeForCategory(m.category) : null);
+        swatchColor = (m.swatch && m.swatch.tone) || '#a08660';
+        swatchBrand = (_fv(m, 'brand') || _fv(m, 'supplier')) || null;
       }
     } else if (matchKind === 'type' && row.specRef.id) {
       const tpl = (window.applicableTypeTemplates && window.applicableTypeTemplates({}))
@@ -239,8 +240,9 @@
       if (picker.mode === 'single') {
         const productId = idOrIds;
         const m = materials.find(x => x.id === productId);
+        const _fv2 = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
         const tradeFromProduct = m
-          ? (m.trade || (window.inferTrade ? window.inferTrade(m) : null))
+          ? (_fv2(m, 'trade') || (window.defaultTradeForCategory ? window.defaultTradeForCategory(m.category) : null))
           : null;
         // We treat anything matched in `materials` as a product; type ids would
         // come from typeTemplates once Types ship. For v1, products only.
@@ -256,9 +258,9 @@
       const seed = picker.seed || {};
       const newRows = ids.map(id => {
         const m = materials.find(x => x.id === id);
+        const _fv3 = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
         const tradeFromProduct = m
-          ? ((m.fields && m.fields.trade) || m.trade
-              || (window.inferTrade ? window.inferTrade(m) : null))
+          ? (_fv3(m, 'trade') || (window.defaultTradeForCategory ? window.defaultTradeForCategory(m.category) : null))
           : null;
         return {
           id: newRowId(),

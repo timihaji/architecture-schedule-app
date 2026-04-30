@@ -71,8 +71,7 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
       <div className="lt-sp-body">
         <Swatch swatch={swatchFor} size="lg"
           seed={parseInt(m.id.slice(2)) || 1}
-          glyph={m.kind && m.kind !== 'material' && window.subtypeGlyph
-            ? window.subtypeGlyph(m.kind, m.subtype) : null}
+          glyph={null}
           style={{ width: '100%', aspectRatio: '3/2', marginBottom: 14 }} />
         <Serif size={22} style={{ lineHeight: 1.15, display: 'block' }}>{label}</Serif>
         {grpDef && (

@@ -678,12 +678,18 @@ function MaterialPicker({ materials, libraries, labelTemplates, component, curre
     if (cat !== 'All') list = list.filter(m => m.category === cat);
     // Kind group tab (overrides contextual filter)
     if (kindGroupFilter !== 'All') {
-      const KINDS = window.KINDS || [];
-      const kindIds = new Set(KINDS.filter(k => k.group === kindGroupFilter).map(k => k.id));
-      list = list.filter(m => kindIds.has(m.kind || 'material'));
+      list = list.filter(m => {
+        const catDef = m.category && window.categoryDef && window.categoryDef(m.category);
+        if (!catDef) return false;
+        const grpDef = window.groupDef && window.groupDef(catDef.groupId);
+        return grpDef && grpDef.label === kindGroupFilter;
+      });
     }
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter(m => (window.formatLabel(m, labelTemplates) + ' ' + m.name + ' ' + m.supplier + ' ' + m.code).toLowerCase().includes(q));
+    if (q) {
+      const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
+      list = list.filter(m => (window.formatLabel(m, labelTemplates) + ' ' + (m.name || '') + ' ' + (fv(m, 'supplier') || '') + ' ' + (m.code || '')).toLowerCase().includes(q));
+    }
     return list;
   }, [materials, selectedLib, cat, query, kindGroupFilter]);
 

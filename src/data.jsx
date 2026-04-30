@@ -685,14 +685,6 @@ MATERIALS.forEach(m => {
   m.libraryIds = [lib];
 });
 
-// Apply legacy mirrors (top-level supplier/brand/unitCost/etc.) so untouched
-// legacy UI surfaces keep working until Phase 4 rewrites them. Idempotent.
-if (window.migrateV5 && window.migrateV5.addLegacyMirrors) {
-  for (let i = 0; i < MATERIALS.length; i++) {
-    MATERIALS[i] = window.migrateV5.addLegacyMirrors(MATERIALS[i]);
-  }
-}
-
 window.MATERIALS = MATERIALS;
 window.PROJECTS = PROJECTS;
 window.CATEGORIES = CATEGORIES;

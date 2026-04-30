@@ -168,7 +168,7 @@ function autoAssignCode(materials, policy, kind, category) {
   }
 
   const all = materials || [];
-  const kindPool = kind ? all.filter(m => (m.kind || 'material') === kind) : all;
+  const kindPool = kind ? all.filter(m => m.category === kind) : all;
 
   // Try category-scoped first (most specific), then kind-scoped
   if (category) {
@@ -206,20 +206,24 @@ function detectDuplicates(material, materials, policy) {
   const pol = policy || DUPE_PRESET_A;
   if (pol.warnOnMaterialDupe === 'off') return { level: null, matches: [] };
 
+  const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
+  const supplier = (m) => String(fv(m, 'supplier') || '');
+
   const others = (materials || []).filter(m => m.id !== material.id);
 
   // 1. Exact: all key identity fields identical (excluding id, timestamps, history)
-  const exactFields = ['code', 'name', 'category', 'supplier'];
   const exactMatches = others.filter(m =>
-    exactFields.every(f => (m[f] || '') === (material[f] || ''))
+    (m.code || '') === (material.code || '') &&
+    (m.name || '') === (material.name || '') &&
+    (m.category || '') === (material.category || '') &&
+    supplier(m) === supplier(material)
   );
   if (exactMatches.length > 0) return { level: 'exact', matches: exactMatches };
 
   // 2. Same code + same supplier
   if (material.code) {
     const codeSupplierMatches = others.filter(m =>
-      m.code === material.code &&
-      (m.supplier || '') === (material.supplier || '')
+      m.code === material.code && supplier(m) === supplier(material)
     );
     if (codeSupplierMatches.length > 0) return { level: 'code-supplier', matches: codeSupplierMatches };
   }
@@ -228,7 +232,7 @@ function detectDuplicates(material, materials, policy) {
   if (material.name) {
     const nameSupplierMatches = others.filter(m =>
       (m.name || '').toLowerCase() === material.name.toLowerCase() &&
-      (m.supplier || '') === (material.supplier || '')
+      supplier(m) === supplier(material)
     );
     if (nameSupplierMatches.length > 0) return { level: 'name-supplier', matches: nameSupplierMatches };
   }
@@ -238,7 +242,7 @@ function detectDuplicates(material, materials, policy) {
     const nameLower = material.name.toLowerCase();
     const fuzzyMatches = others.filter(m =>
       m.name &&
-      (m.supplier || '') === (material.supplier || '') &&
+      supplier(m) === supplier(material) &&
       levenshtein(nameLower, m.name.toLowerCase()) <= 2
     );
     if (fuzzyMatches.length > 0) return { level: 'name-fuzzy', matches: fuzzyMatches };

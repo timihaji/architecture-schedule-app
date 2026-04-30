@@ -26,6 +26,31 @@ const REGISTER_COLS = [
   { id: 'actions',  label: '',          width: '80px',  locked: true,  defaultOn: true,  align: 'right' },
 ];
 
+// Fields to never expose as columns (structural, tag axes, long text).
+const REG_FIELD_SKIP = new Set([
+  'code', 'name', 'swatch', 'image_ref', 'notes', 'libraries',
+  'tags_performance', 'tags_location', 'tags_material_family',
+]);
+const REG_LOCKED_COLS = REGISTER_COLS.filter(c => c.locked);
+const REG_DEFAULT_SUPPLEMENT = REGISTER_COLS.filter(c => !c.locked);
+// Fields that default ON when their category is selected.
+const REG_PRIORITY_DEFAULT = new Set(['supplier', 'unit_cost', 'brand', 'lead_time']);
+
+function colsForCategory(catId) {
+  if (!catId || catId === 'All' || !window.fieldsForCategory) return REG_DEFAULT_SUPPLEMENT;
+  const fields = window.fieldsForCategory(catId);
+  return fields
+    .filter(f => !REG_FIELD_SKIP.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef')
+    .map(f => ({
+      id: f.id,
+      label: f.unit ? `${f.label} (${f.unit})` : f.label,
+      width: (f.type === 'currency' || f.type === 'number') ? '90px' : '130px',
+      defaultOn: REG_PRIORITY_DEFAULT.has(f.id),
+      align: (f.type === 'currency' || f.type === 'number') ? 'right' : undefined,
+      mono: f.type === 'currency' || f.type === 'number',
+    }));
+}
+
 function loadRegisterCols() {
   try {
     const raw = localStorage.getItem(REG_COL_STORAGE);
@@ -49,7 +74,13 @@ function LibraryRegister({
   toolbarState,
   setColumnsButton,
 }) {
-  const { query, sort, group, groupBy, toolbarFiltered } = toolbarState;
+  const { query, sort, group, groupBy, filterCategory, toolbarFiltered } = toolbarState;
+
+  // When a single category is filtered, derive columns from its schema fields.
+  const availableCols = React.useMemo(() => {
+    const dynamic = colsForCategory(filterCategory);
+    return [...REG_LOCKED_COLS, ...dynamic];
+  }, [filterCategory]);
   const [colsOpen, setColsOpen] = React.useState(false);
   const [visibleCols, setVisibleCols] = React.useState(() =>
     loadRegisterCols() || new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
@@ -70,11 +101,12 @@ function LibraryRegister({
   // Sort + render the toolbar-filtered rows. Lifted sort uses canonical ids.
   const filtered = React.useMemo(() => {
     const list = toolbarFiltered.slice();
+    const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
     const cmp = {
       code: (a, b) => (a.code || '').localeCompare(b.code || ''),
       name: (a, b) => (a.name || '').localeCompare(b.name || ''),
-      cost: (a, b) => (a.unitCost || 0) - (b.unitCost || 0),
-      lead: (a, b) => (a.leadTime || '').localeCompare(b.leadTime || ''),
+      cost: (a, b) => (Number(fv(a, 'unit_cost')) || 0) - (Number(fv(b, 'unit_cost')) || 0),
+      lead: (a, b) => (fv(a, 'lead_time') || '').localeCompare(fv(b, 'lead_time') || ''),
     }[sort] || (() => 0);
     list.sort(cmp);
     return list;
@@ -126,7 +158,7 @@ function LibraryRegister({
         {colsOpen && (
           <div className="reg-col-popover">
             <div className="reg-col-popover-h">Columns</div>
-            {REGISTER_COLS.map(c => {
+            {availableCols.map(c => {
               const on = visibleCols.has(c.id);
               const locked = c.locked;
               return (
@@ -151,11 +183,11 @@ function LibraryRegister({
             })}
             <div className="reg-col-popover-foot">
               <button onClick={() =>
-                setVisibleCols(new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)))}>
+                setVisibleCols(new Set(availableCols.filter(c => c.defaultOn).map(c => c.id)))}>
                 Reset
               </button>
               <button onClick={() =>
-                setVisibleCols(new Set(REGISTER_COLS.map(c => c.id)))}>
+                setVisibleCols(new Set(availableCols.map(c => c.id)))}>
                 Show all
               </button>
             </div>
@@ -164,10 +196,10 @@ function LibraryRegister({
       </div>
     );
     return () => setColumnsButton(null);
-  }, [colsOpen, visibleCols, setColumnsButton]);
+  }, [colsOpen, visibleCols, availableCols, setColumnsButton]);
 
   // Render
-  const visibleColDefs = REGISTER_COLS.filter(c => visibleCols.has(c.id));
+  const visibleColDefs = availableCols.filter(c => visibleCols.has(c.id));
   const gridTemplate = visibleColDefs.map(c => c.width).join(' ');
 
   return (
@@ -311,16 +343,11 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
     );
   }
   if (c.id === 'category') {
-    const id = (m.category && window.categoryDef && window.categoryDef(m.category))
-      ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
-    const def = id && window.categoryDef && window.categoryDef(id);
+    const def = m.category && window.categoryDef && window.categoryDef(m.category);
     return <div key="category" className="reg-meta">{(def && def.label) || m.category || '—'}</div>;
   }
   if (c.id === 'productType') {
-    // Phase 2: 'productType' column displays the v5 group label.
-    const id = (m.category && window.categoryDef && window.categoryDef(m.category))
-      ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
-    const def = id && window.categoryDef && window.categoryDef(id);
+    const def = m.category && window.categoryDef && window.categoryDef(m.category);
     const grp = def && window.groupDef && window.groupDef(def.groupId);
     return <div key="productType" className="reg-meta">{(grp && grp.label.toLowerCase()) || '—'}</div>;
   }
@@ -362,7 +389,15 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
         }}>×</button>
     </div>
   );
-  return <div key={c.id}></div>;
+  // Schema-field fallback: any col not handled above is a v5 field id.
+  const _fv = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
+  const _v = _fv(m, c.id);
+  return (
+    <div key={c.id} className={'reg-meta' + (c.mono ? ' reg-meta-mono' : '')}
+      style={c.align === 'right' ? { textAlign: 'right' } : {}}>
+      {(_v != null && _v !== '') ? String(_v) : '—'}
+    </div>
+  );
 }
 
 Object.assign(window, { LibraryRegister });
