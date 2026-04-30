@@ -33,22 +33,153 @@ const REG_FIELD_SKIP = new Set([
 ]);
 const REG_LOCKED_COLS = REGISTER_COLS.filter(c => c.locked);
 const REG_DEFAULT_SUPPLEMENT = REGISTER_COLS.filter(c => !c.locked);
+const REG_FIELD_TO_COL_ID = {
+  unit_cost: 'unitCost',
+  lead_time: 'leadTime',
+};
+const REG_COL_ID_TO_FIELD = {
+  unitCost: 'unit_cost',
+  leadTime: 'lead_time',
+};
+const REG_RECOMMENDED_COL_IDS = ['category', 'supplier', 'unitCost', 'leadTime', 'finish', 'productType'];
+const REG_COMMON_FIELD_IDS = ['supplier', 'country_of_origin', 'unit', 'unit_cost', 'lead_time'];
+const REG_OTHER_POPULATED_LIMIT = 12;
 // Fields that default ON when their category is selected.
-const REG_PRIORITY_DEFAULT = new Set(['supplier', 'unit_cost', 'brand', 'lead_time']);
+const REG_PRIORITY_DEFAULT = new Set(['supplier', 'unitCost', 'unit_cost', 'brand', 'leadTime', 'lead_time']);
 
-function colsForCategory(catId) {
-  if (!catId || catId === 'All' || !window.fieldsForCategory) return REG_DEFAULT_SUPPLEMENT;
-  const fields = window.fieldsForCategory(catId);
-  return fields
-    .filter(f => !REG_FIELD_SKIP.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef')
-    .map(f => ({
-      id: f.id,
-      label: f.unit ? `${f.label} (${f.unit})` : f.label,
-      width: (f.type === 'currency' || f.type === 'number') ? '90px' : '130px',
-      defaultOn: REG_PRIORITY_DEFAULT.has(f.id),
-      align: (f.type === 'currency' || f.type === 'number') ? 'right' : undefined,
-      mono: f.type === 'currency' || f.type === 'number',
-    }));
+function normaliseRegisterColId(id) {
+  return REG_FIELD_TO_COL_ID[id] || id;
+}
+
+function normaliseRegisterColSet(ids) {
+  return new Set((ids || []).map(normaliseRegisterColId).filter(Boolean));
+}
+
+function fieldIdForRegCol(col) {
+  return col && (col.fieldId || REG_COL_ID_TO_FIELD[col.id] || col.id);
+}
+
+function isEligibleRegisterField(f) {
+  if (!f || f.hidden) return false;
+  if (REG_FIELD_SKIP.has(f.id) || f.tagAxis) return false;
+  return !['longText', 'itemRef', 'swatch'].includes(f.type);
+}
+
+function regFieldLabel(f) {
+  if (!f) return '';
+  return f.unit ? `${f.label} (${f.unit})` : f.label;
+}
+
+function regColForField(f) {
+  const id = normaliseRegisterColId(f.id);
+  const staticCol = REGISTER_COLS.find(c => c.id === id);
+  const numeric = f.type === 'currency' || f.type === 'number';
+  return {
+    ...(staticCol || {
+      id,
+      label: regFieldLabel(f),
+      width: numeric ? '90px' : '130px',
+      align: numeric ? 'right' : undefined,
+      mono: numeric,
+    }),
+    id,
+    fieldId: f.id,
+    label: staticCol ? staticCol.label : regFieldLabel(f),
+    defaultOn: !!(staticCol && staticCol.defaultOn) || REG_PRIORITY_DEFAULT.has(id) || REG_PRIORITY_DEFAULT.has(f.id),
+    scopeLabel: f.scopeLabel,
+  };
+}
+
+function dedupeRegisterCols(cols) {
+  const seen = new Set();
+  return (cols || []).filter(c => {
+    if (!c || seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+}
+
+function registerFieldValue(row, col) {
+  const fieldId = fieldIdForRegCol(col);
+  const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
+  return fv(row, fieldId);
+}
+
+function buildRegisterColumnModel(filterCategory, libraryScoped) {
+  const schema = window.schemaActive ? window.schemaActive() : null;
+  const allFields = (schema && schema.fields) || [];
+  const fieldById = new Map(allFields.map(f => [f.id, f]));
+  const eligibleFieldCols = allFields
+    .filter(isEligibleRegisterField)
+    .map(regColForField);
+
+  const byId = new Map();
+  dedupeRegisterCols([...REG_LOCKED_COLS, ...REG_DEFAULT_SUPPLEMENT, ...eligibleFieldCols])
+    .forEach(c => byId.set(c.id, c));
+  const colForId = (id) => byId.get(normaliseRegisterColId(id));
+  const colsForIds = (ids) => (ids || []).map(colForId).filter(Boolean);
+
+  const sectionSeen = new Set();
+  const take = (cols) => {
+    const out = [];
+    (cols || []).forEach(c => {
+      if (!c || sectionSeen.has(c.id)) return;
+      sectionSeen.add(c.id);
+      out.push(c);
+    });
+    return out;
+  };
+
+  const sourceRows = (filterCategory && filterCategory !== 'All')
+    ? (libraryScoped || []).filter(m => m.category === filterCategory)
+    : (libraryScoped || []);
+
+  const sections = [];
+  sections.push({ title: 'Pinned', cols: take(REG_LOCKED_COLS) });
+
+  const recommended = take(colsForIds(REG_RECOMMENDED_COL_IDS));
+  if (recommended.length) sections.push({ title: 'Recommended', cols: recommended });
+
+  if (filterCategory && filterCategory !== 'All' && window.fieldsForCategory) {
+    const current = take(window.fieldsForCategory(filterCategory)
+      .filter(isEligibleRegisterField)
+      .map(regColForField)
+      .filter(c => byId.has(c.id)));
+    if (current.length) sections.push({ title: 'Current category fields', cols: current });
+  }
+
+  const common = take((schema?.commonFieldIds || REG_COMMON_FIELD_IDS)
+    .filter(id => REG_COMMON_FIELD_IDS.includes(id))
+    .map(id => fieldById.get(id))
+    .filter(isEligibleRegisterField)
+    .map(regColForField)
+    .filter(c => byId.has(c.id)));
+  if (common.length) sections.push({ title: 'Common fields', cols: common });
+
+  const populated = eligibleFieldCols
+    .map(c => {
+      let filled = 0;
+      (sourceRows || []).forEach(row => {
+        const v = registerFieldValue(row, c);
+        if (v != null && v !== '' && (!Array.isArray(v) || v.length)) filled++;
+      });
+      return { col: c, coverage: sourceRows.length ? filled / sourceRows.length : 0 };
+    })
+    .filter(x => x.coverage > 0)
+    .sort((a, b) => b.coverage - a.coverage || String(a.col.label).localeCompare(String(b.col.label)))
+    .map(x => x.col);
+  const other = take(populated).slice(0, REG_OTHER_POPULATED_LIMIT);
+  if (other.length) sections.push({ title: 'Other populated fields', cols: other });
+
+  const suggestedIds = normaliseRegisterColSet(
+    sections.flatMap(sec => sec.cols.filter(c => c.locked || c.defaultOn || sec.title === 'Recommended').map(c => c.id))
+  );
+
+  return {
+    allCols: Array.from(byId.values()),
+    sections,
+    suggestedIds,
+  };
 }
 
 function loadRegisterCols() {
@@ -56,12 +187,12 @@ function loadRegisterCols() {
     const raw = localStorage.getItem(REG_COL_STORAGE);
     if (!raw) return null;
     const arr = JSON.parse(raw);
-    if (Array.isArray(arr)) return new Set(arr);
+    if (Array.isArray(arr)) return normaliseRegisterColSet(arr);
   } catch {}
   return null;
 }
 function saveRegisterCols(set) {
-  try { localStorage.setItem(REG_COL_STORAGE, JSON.stringify(Array.from(set))); } catch {}
+  try { localStorage.setItem(REG_COL_STORAGE, JSON.stringify(Array.from(normaliseRegisterColSet(Array.from(set))))); } catch {}
 }
 
 function LibraryRegister({
@@ -74,19 +205,52 @@ function LibraryRegister({
   toolbarState,
   setColumnsButton,
 }) {
-  const { query, sort, group, groupBy, filterCategory, toolbarFiltered } = toolbarState;
+  const { query, sort, group, groupBy, filterCategory, toolbarFiltered, libraryScoped } = toolbarState;
 
-  // When a single category is filtered, derive columns from its schema fields.
-  const availableCols = React.useMemo(() => {
-    const dynamic = colsForCategory(filterCategory);
-    return [...REG_LOCKED_COLS, ...dynamic];
-  }, [filterCategory]);
+  const columnModel = React.useMemo(() =>
+    buildRegisterColumnModel(filterCategory, libraryScoped || []),
+    [filterCategory, libraryScoped]);
+  const availableCols = columnModel.allCols;
+  const colById = React.useMemo(() => {
+    const map = new Map();
+    availableCols.forEach(c => map.set(c.id, c));
+    return map;
+  }, [availableCols]);
   const [colsOpen, setColsOpen] = React.useState(false);
+  const [colsAlignLeft, setColsAlignLeft] = React.useState(false);
+  const [colSearch, setColSearch] = React.useState('');
   const [visibleCols, setVisibleCols] = React.useState(() =>
-    loadRegisterCols() || new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
+    loadRegisterCols() || normaliseRegisterColSet(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
   const colsBtnRef = React.useRef(null);
 
   React.useEffect(() => { saveRegisterCols(visibleCols); }, [visibleCols]);
+
+  React.useEffect(() => {
+    setVisibleCols(prev => {
+      const next = normaliseRegisterColSet(Array.from(prev));
+      REG_LOCKED_COLS.forEach(c => next.add(c.id));
+      Array.from(next).forEach(id => { if (!colById.has(id)) next.delete(id); });
+      if (next.size === prev.size && Array.from(next).every(id => prev.has(id))) return prev;
+      return next;
+    });
+  }, [colById]);
+
+  React.useEffect(() => {
+    if (!colsOpen) setColSearch('');
+  }, [colsOpen]);
+
+  React.useEffect(() => {
+    if (!colsOpen) return;
+    function updatePopoverAlign() {
+      const rect = colsBtnRef.current && colsBtnRef.current.getBoundingClientRect();
+      if (!rect) return;
+      const popoverWidth = Math.min(300, window.innerWidth - 32);
+      setColsAlignLeft(rect.right - popoverWidth < 16);
+    }
+    updatePopoverAlign();
+    window.addEventListener('resize', updatePopoverAlign);
+    return () => window.removeEventListener('resize', updatePopoverAlign);
+  }, [colsOpen]);
 
   // Close column popover on outside click
   React.useEffect(() => {
@@ -146,6 +310,35 @@ function LibraryRegister({
     else if (onAdd) onAdd();
   }
 
+  const pickerSections = React.useMemo(() => {
+    const q = colSearch.trim().toLowerCase();
+    if (!q) return columnModel.sections;
+    const matches = availableCols.filter(c => {
+      const hay = [
+        c.label, c.id, c.fieldId, c.scopeLabel,
+        fieldIdForRegCol(c),
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    return [{ title: 'Search results', cols: matches }];
+  }, [colSearch, columnModel.sections, availableCols]);
+
+  function setSuggestedCols() {
+    setVisibleCols(new Set(columnModel.suggestedIds));
+  }
+
+  function setDefaultCols() {
+    setVisibleCols(normaliseRegisterColSet(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
+  }
+
+  function toggleColumn(c) {
+    if (!c || c.locked) return;
+    const next = new Set(visibleCols);
+    if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+    REG_LOCKED_COLS.forEach(col => next.add(col.id));
+    setVisibleCols(next);
+  }
+
   // Inject the Cols button into the shared toolbar's columns slot. Wraps the
   // popover so its position anchors off the slot button, not the row.
   React.useEffect(() => {
@@ -157,39 +350,52 @@ function LibraryRegister({
           Cols ({visibleCols.size})
         </button>
         {colsOpen && (
-          <div className="reg-col-popover">
+          <div className={'reg-col-popover' + (colsAlignLeft ? ' is-left' : '')}>
             <div className="reg-col-popover-h">Columns</div>
-            {availableCols.map(c => {
-              const on = visibleCols.has(c.id);
-              const locked = c.locked;
-              return (
-                <div key={c.id}
-                  className={'reg-col-popover-row' + (locked ? ' locked' : '')}
-                  onClick={() => {
-                    if (locked) return;
-                    const next = new Set(visibleCols);
-                    if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
-                    setVisibleCols(next);
-                  }}>
-                  <div className={'cb' + (on ? ' checked' : '')} style={{ pointerEvents: 'none' }}>
-                    {on && <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-                      <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5"
-                        strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>}
-                  </div>
-                  <span>{c.label || c.id}</span>
-                  {locked && <span className="reg-col-popover-lock">locked</span>}
+            <input
+              className="reg-col-popover-search"
+              type="text"
+              placeholder="Find a column..."
+              value={colSearch}
+              onChange={e => setColSearch(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Escape') setColsOpen(false); }}
+              autoFocus
+            />
+            <div className="reg-col-popover-list">
+              {pickerSections.every(sec => !sec.cols.length) && (
+                <div className="reg-col-popover-empty">No matching columns</div>
+              )}
+              {pickerSections.map(sec => sec.cols.length > 0 && (
+                <div className="reg-col-popover-section" key={sec.title}>
+                  <div className="reg-col-popover-section-h">{sec.title}</div>
+                  {sec.cols.map(c => {
+                    const on = visibleCols.has(c.id);
+                    const locked = c.locked;
+                    return (
+                      <div key={c.id}
+                        className={'reg-col-popover-row' + (locked ? ' locked' : '')}
+                        onClick={() => toggleColumn(c)}>
+                        <div className={'cb' + (on ? ' checked' : '')} style={{ pointerEvents: 'none' }}>
+                          {on && <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                            <path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.5"
+                              strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>}
+                        </div>
+                        <span className="reg-col-popover-label">{c.label || (c.id === 'actions' ? 'Actions' : c.id)}</span>
+                        {c.scopeLabel && <span className="reg-col-popover-scope">{c.scopeLabel}</span>}
+                        {locked && <span className="reg-col-popover-lock">locked</span>}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              ))}
+            </div>
             <div className="reg-col-popover-foot">
-              <button onClick={() =>
-                setVisibleCols(new Set(availableCols.filter(c => c.defaultOn).map(c => c.id)))}>
+              <button onClick={setDefaultCols}>
                 Reset
               </button>
-              <button onClick={() =>
-                setVisibleCols(new Set(availableCols.map(c => c.id)))}>
-                Show all
+              <button onClick={setSuggestedCols}>
+                Show suggested
               </button>
             </div>
           </div>
@@ -197,7 +403,7 @@ function LibraryRegister({
       </div>
     );
     return () => setColumnsButton(null);
-  }, [colsOpen, visibleCols, availableCols, setColumnsButton]);
+  }, [colsOpen, colsAlignLeft, visibleCols, colSearch, pickerSections, columnModel.suggestedIds, setColumnsButton]);
 
   // Render
   const visibleColDefs = availableCols.filter(c => visibleCols.has(c.id));
@@ -397,7 +603,7 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
   );
   // Schema-field fallback: any col not handled above is a v5 field id.
   const _fv = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
-  const _v = _fv(m, c.id);
+  const _v = _fv(m, fieldIdForRegCol(c));
   return (
     <div key={c.id} className={'reg-meta' + (c.mono ? ' reg-meta-mono' : '')}
       style={c.align === 'right' ? { textAlign: 'right' } : {}}>
