@@ -234,7 +234,7 @@ function App() {
   // ─── UI singleton keys (cloud) ───
   const view = cs.ui.view || 'library';
   const setView = React.useCallback((v) => cs.setUi({ view: v }), [cs]);
-  const libraryMode = cs.ui.libraryMode || 'gallery';
+  const libraryMode = cs.ui.libraryMode || 'register';
   const setLibraryMode = React.useCallback((v) => cs.setUi({ libraryMode: v }), [cs]);
   const activeLibraryId = cs.ui.activeLibraryId || 'all';
   const setActiveLibraryId = React.useCallback((v) => cs.setUi({ activeLibraryId: v }), [cs]);

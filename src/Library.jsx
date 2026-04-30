@@ -5,7 +5,7 @@
 function Library({
   materials, libraries,
   labelTemplates, setLabelTemplates, onOpenLabelBuilder,
-  mode = 'gallery', setMode,
+  mode = 'register', setMode,
   activeLibraryId, setActiveLibraryId,
   onEdit, onAdd, onAddInCategory, onDelete,
   onAddLibrary, onRenameLibrary, onDuplicateLibrary, onDeleteLibrary,
@@ -910,14 +910,14 @@ function CompareStrip({ ids, materials, labelTemplates, onClose }) {
 
 Object.assign(window, { Library });
 
-// ───────── Gallery / Table mode toggle ─────────
-// Wraps the shared SegmentedToggle atom. Defaults to Gallery / Table;
+// ───────── Library mode toggle ─────────
+// Wraps the shared SegmentedToggle atom. Defaults to Register / Gallery / Table / Split;
 // ProjectSpec and CostScheduleV2 pass their own `modes` array via the same
 // signature.
 function ModeToggle({ mode, setMode, modes }) {
   const items = modes || [
-    { id: 'gallery',  label: 'Gallery',  icon: '▦' },
     { id: 'register', label: 'Register', icon: '☰' },
+    { id: 'gallery',  label: 'Gallery',  icon: '▦' },
     { id: 'table',    label: 'Table',    icon: '≡' },
     { id: 'split',    label: 'Split',    icon: '◫' },
   ];
