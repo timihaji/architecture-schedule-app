@@ -85,7 +85,10 @@ function LibraryRegister({
     if (!group) return [{ key: 'all', label: null, items: filtered }];
     const map = new Map();
     for (const m of filtered) {
-      const k = m.category || 'Uncategorised';
+      const id = (m.category && window.categoryDef && window.categoryDef(m.category))
+        ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
+      const def = id && window.categoryDef && window.categoryDef(id);
+      const k = (def && def.label) || m.category || 'Uncategorised';
       if (!map.has(k)) map.set(k, []);
       map.get(k).push(m);
     }
@@ -272,8 +275,9 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
   );
   if (c.id === 'thumb') {
     const swatch = (() => {
-      if (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId) {
-        const linked = allMaterials.find(x => x.id === m.paintedWithId);
+      const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+      if (m.swatch?.inheritTone && paintedWithId) {
+        const linked = allMaterials.find(x => x.id === paintedWithId);
         if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
       }
       return m.swatch;
@@ -301,7 +305,10 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
   );
   if (c.id === 'name') {
     const display = window.formatLabel ? window.formatLabel(m, labelTemplates) : (m.name || '');
-    const sub = m.category === 'Paint' ? (m.brand || m.supplier) : (m.brand || '');
+    // Sub-line: brand (if set) else supplier — category-agnostic.
+    const brand = window.getFieldValue ? window.getFieldValue(m, 'brand') : m.brand;
+    const supplier = window.getFieldValue ? window.getFieldValue(m, 'supplier') : m.supplier;
+    const sub = brand || supplier || '';
     return (
       <div key="name">
         <div className="reg-name">{display}</div>
@@ -309,31 +316,44 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
       </div>
     );
   }
-  if (c.id === 'category') return <div key="category" className="reg-meta">{m.category || '—'}</div>;
-  if (c.id === 'productType') {
-    const id = m.productType;
-    let label = '—';
-    if (id) {
-      const tx = window.DEFAULT_TAXONOMIES?.productTypes;
-      const found = tx?.find(t => t.id === id);
-      label = found ? found.label.toLowerCase() : String(id).replace(/_/g, ' ');
-    }
-    return <div key="productType" className="reg-meta">{label}</div>;
+  if (c.id === 'category') {
+    const id = (m.category && window.categoryDef && window.categoryDef(m.category))
+      ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
+    const def = id && window.categoryDef && window.categoryDef(id);
+    return <div key="category" className="reg-meta">{(def && def.label) || m.category || '—'}</div>;
   }
-  if (c.id === 'supplier') return <div key="supplier" className="reg-meta">{m.supplier || '—'}</div>;
-  if (c.id === 'finish') return <div key="finish" className="reg-meta">{m.finish || '—'}</div>;
-  if (c.id === 'leadTime') return (
-    <div key="leadTime" className="reg-meta"
-      style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
-      {m.leadTime || '—'}
-    </div>
-  );
+  if (c.id === 'productType') {
+    // Phase 2: 'productType' column displays the v5 group label.
+    const id = (m.category && window.categoryDef && window.categoryDef(m.category))
+      ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
+    const def = id && window.categoryDef && window.categoryDef(id);
+    const grp = def && window.groupDef && window.groupDef(def.groupId);
+    return <div key="productType" className="reg-meta">{(grp && grp.label.toLowerCase()) || '—'}</div>;
+  }
+  if (c.id === 'supplier') {
+    const v = window.getFieldValue ? window.getFieldValue(m, 'supplier') : m.supplier;
+    return <div key="supplier" className="reg-meta">{v || '—'}</div>;
+  }
+  if (c.id === 'finish') {
+    const v = window.getFieldValue ? window.getFieldValue(m, 'finish') : m.finish;
+    return <div key="finish" className="reg-meta">{v || '—'}</div>;
+  }
+  if (c.id === 'leadTime') {
+    const v = window.getFieldValue ? window.getFieldValue(m, 'lead_time') : m.leadTime;
+    return (
+      <div key="leadTime" className="reg-meta"
+        style={{ fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
+        {v || '—'}
+      </div>
+    );
+  }
   if (c.id === 'unitCost') {
-    const v = m.unitCost;
+    const v = window.getFieldValue ? window.getFieldValue(m, 'unit_cost') : m.unitCost;
+    const unit = (window.getFieldValue && window.getFieldValue(m, 'unit')) || m.unit;
     return (
       <div key="unitCost" className="reg-price">
         {v != null && v !== '' ? (window.fmtCurrency ? window.fmtCurrency(v) : v) : '—'}
-        {m.unit && <span style={{ color: 'var(--ink-4)', fontSize: 9, marginLeft: 3 }}>/{m.unit}</span>}
+        {unit && <span style={{ color: 'var(--ink-4)', fontSize: 9, marginLeft: 3 }}>/{unit}</span>}
       </div>
     );
   }

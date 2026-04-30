@@ -18,18 +18,29 @@
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function productTypeLabel(id) {
-  if (!id) return null;
-  const tx = window.DEFAULT_TAXONOMIES?.productTypes;
-  const found = tx?.find(t => t.id === id);
-  if (found) return found.label.toLowerCase();
-  return String(id).replace(/_/g, ' ');
+// Resolve a v5 category id off a (possibly legacy) item.
+function resolveCategoryId(m) {
+  if (!m) return null;
+  if (m.category && window.categoryDef && window.categoryDef(m.category)) return m.category;
+  return window.legacyCategoryFor ? window.legacyCategoryFor(m) : null;
+}
+
+// Display label for the "category" column. Looks up the v5 category def by id
+// and uses its label. Falls back to whatever's on the item.
+function categoryDisplayLabel(m) {
+  const id = resolveCategoryId(m);
+  if (id && window.categoryDef) {
+    const def = window.categoryDef(id);
+    if (def) return def.label;
+  }
+  return m && m.category ? String(m.category) : null;
 }
 
 // Effective swatch — paintable products inherit the linked paint's tone.
 function effectiveSwatch(m, allMaterials) {
-  if (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId) {
-    const linked = (allMaterials || []).find(x => x.id === m.paintedWithId);
+  const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+  if (m.swatch?.inheritTone && paintedWithId) {
+    const linked = (allMaterials || []).find(x => x.id === paintedWithId);
     if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
   }
   return m.swatch;
@@ -58,27 +69,6 @@ function SwatchCell(row, ctx) {
   const { baseStyle, allMaterials, rowH = 32 } = ctx;
   const m = row;
   const thumbSize = Math.max(18, Math.min(rowH - 4, 36));
-  const kind = m.kind || 'material';
-  if (kind !== 'material') {
-    const glyph = (window.subtypeGlyph ? window.subtypeGlyph(kind, m.subtype) : window.kindGlyph?.(kind)) || '·';
-    const tone = m.swatch?.tone;
-    const bg = tone || 'var(--paper-2)';
-    const ink = tone
-      ? (window.readableInk ? window.readableInk(tone) : 'var(--ink-2)')
-      : 'var(--ink-3)';
-    return (
-      <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'center' }}>
-        <span style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: Math.round(thumbSize * 0.55), color: ink, lineHeight: 1,
-          display: 'inline-flex', width: thumbSize, height: thumbSize,
-          alignItems: 'center', justifyContent: 'center',
-          border: '1px solid var(--rule-2)',
-          background: bg,
-        }}>{glyph}</span>
-      </div>
-    );
-  }
   const swatch = effectiveSwatch(m, allMaterials);
   return (
     <div data-dt-raw="true" style={{ ...baseStyle, justifyContent: 'center' }}>
@@ -133,10 +123,10 @@ function LabelCell(row, ctx) {
   );
 }
 
-// Brand — sans 11. For paint, m.brand. For non-paint, blank-by-default.
+// Brand — sans 11. Reads via getFieldValue (supports new shape).
 function BrandCell(row, ctx) {
   const { baseStyle } = ctx;
-  const brand = row.brand;
+  const brand = window.getFieldValue ? window.getFieldValue(row, 'brand') : row.brand;
   return (
     <div data-dt-raw="true" style={{
       ...baseStyle,
@@ -149,14 +139,14 @@ function BrandCell(row, ctx) {
   );
 }
 
-// productType — mono 10 ink-3 lowercase. Falls back to legacy kind label.
+// Group — mono 10 ink-3 lowercase. Renders the v5 group's label (replaces
+// the legacy productType column). Falls back to '—' when category unknown.
 function ProductTypeCell(row, ctx) {
   const { baseStyle } = ctx;
-  let label = productTypeLabel(row.productType);
-  if (!label) {
-    const k = (window.kindById && window.kindById(row.kind)) || null;
-    label = k ? k.label.toLowerCase() : '—';
-  }
+  const catId = resolveCategoryId(row);
+  const cat = catId && window.categoryDef ? window.categoryDef(catId) : null;
+  const grp = cat && window.groupDef ? window.groupDef(cat.groupId) : null;
+  const label = grp ? grp.label.toLowerCase() : '—';
   return (
     <div data-dt-raw="true" style={{
       ...baseStyle,
@@ -258,7 +248,7 @@ function ActionsCell(row, ctx) {
 // ─── Legacy / optional cell renderers (still available via column chooser) ─
 
 function CategoryCell(row, ctx) {
-  const cat = row.category || '—';
+  const cat = categoryDisplayLabel(row) || '—';
   return (
     <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10, color: 'var(--ink-3)',
       textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -268,11 +258,16 @@ function CategoryCell(row, ctx) {
 }
 
 function KindCell(row, ctx) {
-  const k = (window.kindById && window.kindById(row.kind)) || { label: 'Material' };
+  // Phase 2: 'kind' is being phased out. Render the v5 group label, which
+  // is the closest analogue ("Finishes", "Lighting", etc.).
+  const catId = resolveCategoryId(row);
+  const cat = catId && window.categoryDef ? window.categoryDef(catId) : null;
+  const grp = cat && window.groupDef ? window.groupDef(cat.groupId) : null;
+  const label = grp ? grp.label : 'Material';
   return (
     <div data-dt-raw="true" style={{ ...ctx.baseStyle, fontSize: 10, color: 'var(--ink-3)',
       textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-      {k.label}
+      {label}
     </div>
   );
 }
@@ -348,13 +343,15 @@ function ProjectsCell(row, ctx) {
 
 function PaintedWithCell(row, ctx) {
   const { baseStyle, allMaterials } = ctx;
-  if (row.category === 'Paint') {
+  const catId = resolveCategoryId(row);
+  if (catId === 'paint') {
     return <div data-dt-raw="true" style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
   }
-  if (!row.paintedWithId) {
+  const paintedWithId = window.getFieldValue ? window.getFieldValue(row, 'paintedWith') : row.paintedWithId;
+  if (!paintedWithId) {
     return <div data-dt-raw="true" style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
   }
-  const p = (allMaterials || []).find(x => x.id === row.paintedWithId);
+  const p = (allMaterials || []).find(x => x.id === paintedWithId);
   if (!p) return <div data-dt-raw="true" style={{ ...baseStyle, color: 'var(--ink-4)' }}>—</div>;
   return (
     <div data-dt-raw="true" style={{ ...baseStyle, gap: 6 }}>
@@ -412,11 +409,21 @@ const LIBRARY_COLUMNS = [
   },
   { id: 'brand',    label: 'Brand', width: 130, minWidth: 80, defaultOn: true,
     render: BrandCell,
-    searchText: (m) => m.brand },
-  { id: 'productType', label: 'Type', width: 130, minWidth: 90, defaultOn: true,
+    searchText: (m) => window.getFieldValue ? window.getFieldValue(m, 'brand') : m.brand },
+  { id: 'productType', label: 'Group', width: 130, minWidth: 90, defaultOn: true,
     render: ProductTypeCell,
-    sortValue: (m) => productTypeLabel(m.productType) || (m.kind || 'material'),
-    searchText: (m) => productTypeLabel(m.productType) || '',
+    sortValue: (m) => {
+      const id = resolveCategoryId(m);
+      const c = id && window.categoryDef && window.categoryDef(id);
+      const g = c && window.groupDef && window.groupDef(c.groupId);
+      return g ? g.label : '';
+    },
+    searchText: (m) => {
+      const id = resolveCategoryId(m);
+      const c = id && window.categoryDef && window.categoryDef(id);
+      const g = c && window.groupDef && window.groupDef(c.groupId);
+      return g ? g.label : '';
+    },
   },
   { id: 'supplier', label: 'Supplier', width: 150, minWidth: 90, editable: true, defaultOn: true,
     render: SupplierCell,
@@ -428,14 +435,19 @@ const LIBRARY_COLUMNS = [
     render: ActionsCell },
 
   // Optional columns (off by default; available via column chooser):
-  { id: 'kind',     label: 'Kind', width: 120, minWidth: 80, render: KindCell,
-    sortValue: (m) => m.kind || 'material' },
+  { id: 'kind',     label: 'Group', width: 120, minWidth: 80, render: KindCell,
+    sortValue: (m) => {
+      const id = resolveCategoryId(m);
+      const c = id && window.categoryDef && window.categoryDef(id);
+      const g = c && window.groupDef && window.groupDef(c.groupId);
+      return g ? g.label : '';
+    } },
   { id: 'trade',    label: 'Trade', width: 140, minWidth: 90, render: TradeCell,
     sortValue: (m) => m.trade || '' },
   { id: 'tags',     label: 'Tags', width: 160, minWidth: 100, sortable: false,
     render: TagsCell },
   { id: 'category', label: 'Category', width: 100, minWidth: 70, render: CategoryCell,
-    searchText: (m) => m.category },
+    searchText: (m) => categoryDisplayLabel(m) || '' },
   { id: 'supplier_code', label: 'Supplier code', width: 120, minWidth: 70, mono: true, editable: true,
     render: genericEditable('supplier_code'),
     searchText: (m) => m.supplier_code },
@@ -479,5 +491,5 @@ Object.assign(window, {
   TagsCell, LibrariesCell, ProjectsCell, PaintedWithCell, UnitCostCell,
   BrandCell, ProductTypeCell, SupplierCell, ActionsCell, DragCell,
   genericEditable,
-  productTypeLabel,
+  resolveCategoryId, categoryDisplayLabel,
 });

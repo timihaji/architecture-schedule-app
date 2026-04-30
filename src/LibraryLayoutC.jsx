@@ -64,18 +64,34 @@ function LibraryLayoutC({
     setActiveId(next ? next.id : null);
   };
 
+  // Resolve the active item's v5 category id (may be legacy on un-migrated items).
+  const activeCatId = active
+    ? ((active.category && window.categoryDef && window.categoryDef(active.category))
+        ? active.category
+        : (window.legacyCategoryFor ? window.legacyCategoryFor(active) : 'other'))
+    : null;
+  const isPaint = activeCatId === 'paint';
+  const paintedWithId = active
+    ? (window.getFieldValue ? window.getFieldValue(active, 'paintedWith') : active.paintedWithId)
+    : null;
+  const paintedWith = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
+
   // Resolve effective swatch (paintable inheritTone path)
   const effSwatch = active ? (() => {
-    if (active.category !== 'Paint' && active.swatch?.inheritTone && active.paintedWithId) {
-      const linked = materials.find(x => x.id === active.paintedWithId);
-      if (linked) return { ...active.swatch, tone: linked.swatch?.tone };
+    if (!isPaint && active.swatch?.inheritTone && paintedWith) {
+      return { ...active.swatch, tone: paintedWith.swatch?.tone };
     }
     return active.swatch;
   })() : null;
 
-  const paintedWith = active && active.paintedWithId
-    ? materials.find(x => x.id === active.paintedWithId) : null;
-  const isPaint = active && active.category === 'Paint';
+  // Pick a small set of detail fields (similar to side panel / gallery detail).
+  const allDetailFields = active && window.fieldsForCategory
+    ? window.fieldsForCategory(activeCatId) : [];
+  const SKIP_DETAIL = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
+    'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
+  const detailFields = allDetailFields.filter(f =>
+    !SKIP_DETAIL.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef'
+  ).slice(0, 6);
 
   return (
     <div style={{ minWidth: 0 }}>
@@ -127,7 +143,13 @@ function LibraryLayoutC({
                           {item.name}
                         </span>
                       </div>
-                      <div className="split-sub">{item.category || item.type}</div>
+                      <div className="split-sub">{(() => {
+                        const id = (item.category && window.categoryDef && window.categoryDef(item.category))
+                          ? item.category
+                          : (window.legacyCategoryFor && window.legacyCategoryFor(item));
+                        const def = id && window.categoryDef && window.categoryDef(id);
+                        return (def && def.label) || item.category || item.type || '';
+                      })()}</div>
                     </div>
                   </div>
                 );
@@ -172,37 +194,31 @@ function LibraryLayoutC({
                     {active.name}
                   </h2>
                   <div className="detail-brand">
-                    {(isPaint ? (active.brand || active.supplier) : active.supplier) || '—'}
-                    {active.supplier && active.brand && active.supplier !== active.brand
-                      ? ` · ${active.supplier}` : ''}
+                    {(() => {
+                      const brand = window.getFieldValue ? window.getFieldValue(active, 'brand') : active.brand;
+                      const supplier = window.getFieldValue ? window.getFieldValue(active, 'supplier') : active.supplier;
+                      const primary = brand || supplier || '—';
+                      const secondary = (supplier && brand && supplier !== brand) ? ` · ${supplier}` : '';
+                      return primary + secondary;
+                    })()}
                   </div>
                 </div>
               </div>
 
               <div className="detail-fields">
-                {isPaint ? (
-                  <>
-                    <div><div className="detail-label">Brand</div><div className="detail-val">{active.brand || active.supplier || '—'}</div></div>
-                    <div><div className="detail-label">Colour code</div><div className="detail-val mono">{active.colourCode || '—'}</div></div>
-                    <div><div className="detail-label">Sheen</div><div className="detail-val">{active.sheen || '—'}</div></div>
-                    <div><div className="detail-label">System</div><div className="detail-val">{active.system || '—'}</div></div>
-                    <div><div className="detail-label">Coverage</div><div className="detail-val mono">{active.coveragePerL ? `${active.coveragePerL} m²/L` : '—'}</div></div>
-                    <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
-                  </>
-                ) : (
-                  <>
-                    <div><div className="detail-label">Type</div><div className="detail-val">{active.category || '—'}</div></div>
-                    <div><div className="detail-label">Finish</div><div className="detail-val">{active.finish || '—'}</div></div>
-                    <div><div className="detail-label">SKU</div><div className="detail-val mono">{active.sku || '—'}</div></div>
-                    <div><div className="detail-label">Price</div><div className="detail-val mono">
-                      {active.unitCost != null && window.fmtCurrency
-                        ? `${window.fmtCurrency(active.unitCost)} / ${active.unit || 'unit'}`
-                        : '—'}
-                    </div></div>
-                    <div><div className="detail-label">Supplier</div><div className="detail-val">{active.supplier || '—'}</div></div>
-                    <div><div className="detail-label">Lead time</div><div className="detail-val mono">{active.leadTime || '—'}</div></div>
-                  </>
-                )}
+                {detailFields.map(f => {
+                  const v = window.getFieldValue ? window.getFieldValue(active, f.id) : active[f.id];
+                  return (
+                    <div key={f.id}>
+                      <div className="detail-label">{f.unit ? `${f.label} (${f.unit})` : f.label}</div>
+                      <div className={'detail-val' + (f.type === 'number' || f.type === 'currency' ? ' mono' : '')}>
+                        {window.FieldRenderer
+                          ? <window.FieldRenderer field={f} value={v} mode="read" onChange={() => {}} materials={materials} />
+                          : (v || '—')}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {!isPaint && active.paintable && (

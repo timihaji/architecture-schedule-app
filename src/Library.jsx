@@ -368,25 +368,24 @@ function GalleryCard({
   const m = material;
 
   const displayName = window.formatLabel(m, labelTemplates);
-  const brand = m.category === 'Paint' ? (m.brand || m.supplier) : m.supplier;
+  const brand = (window.getFieldValue && window.getFieldValue(m, 'brand'))
+    || (window.getFieldValue && window.getFieldValue(m, 'supplier'))
+    || m.supplier;
 
-  // Type-corner badge: short label from productType id via taxonomy defaults;
-  // falls back to the id itself when a custom productType isn't in the seed.
-  // Custom user taxonomies aren't surfaced here; v2 wires this through the
-  // workspace's appState.taxonomies (per V2_BACKLOG §7).
-  const ptLabel = (() => {
-    const id = m.productType;
-    if (!id) return null;
-    const tx = window.DEFAULT_TAXONOMIES?.productTypes;
-    const found = tx?.find(t => t.id === id);
-    if (found) return found.label.toLowerCase();
-    return id.replace(/_/g, ' ');
-  })();
+  // v5 category id (may be legacy on un-migrated items).
+  const cardCatId = (m.category && window.categoryDef && window.categoryDef(m.category))
+    ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
+  const cardCatDef = cardCatId && window.categoryDef && window.categoryDef(cardCatId);
+
+  // Type-corner badge: now sourced from the v5 category label rather than the
+  // legacy productType id.
+  const ptLabel = cardCatDef ? cardCatDef.label.toLowerCase() : null;
 
   // Paintables inherit the linked paint's tone for visual continuity.
   const effSwatch = (() => {
-    if (m.category !== 'Paint' && m.swatch?.inheritTone && m.paintedWithId) {
-      const linked = materials.find(x => x.id === m.paintedWithId);
+    const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+    if (cardCatId !== 'paint' && m.swatch?.inheritTone && paintedWithId) {
+      const linked = materials.find(x => x.id === paintedWithId);
       if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
     }
     return m.swatch;
@@ -661,8 +660,21 @@ function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLi
 function MaterialDetail({ material: m, materials = [], libraries, labelTemplates, onEdit, onDelete, onNavigateTo }) {
   const projectNames = (m.projects || []).map(pid => (window.PROJECTS.find(p => p.id === pid) || {}).name).filter(Boolean);
   const libs = (m.libraryIds || []).map(lid => libraries.find(l => l.id === lid)).filter(Boolean);
-  const isPaint = m.category === 'Paint';
-  const paintedWith = m.paintedWithId ? materials.find(x => x.id === m.paintedWithId) : null;
+  // v5: resolve the active category id (may be legacy on un-migrated items).
+  const catId = (m.category && window.categoryDef && window.categoryDef(m.category))
+    ? m.category
+    : (window.legacyCategoryFor ? window.legacyCategoryFor(m) : 'other');
+  const isPaint = catId === 'paint';
+  const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+  const paintedWith = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
+  // Pick up to 6 fields to show in the detail grid (skip common ids that are
+  // surfaced separately and tags/notes/long fields).
+  const allFields = window.fieldsForCategory ? window.fieldsForCategory(catId) : [];
+  const SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
+    'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
+  const detailFields = allFields.filter(f =>
+    !SKIP.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef'
+  ).slice(0, 8);
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: '260px 1fr', gap: 36,
@@ -709,32 +721,24 @@ function MaterialDetail({ material: m, materials = [], libraries, labelTemplates
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 24 }}>
-          {isPaint ? (
-            <>
-              <DetailField label="Brand" value={m.brand || m.supplier} />
-              <DetailField label="Colour code" value={m.colourCode || '—'} mono />
-              <DetailField label="Sheen" value={m.sheen || '—'} />
-              <DetailField label="Coats" value={String(m.coats || 2)} mono />
-              <DetailField label="System" value={m.system || '—'} />
-              <DetailField label="Substrates" value={m.substrates || '—'} />
-              <DetailField label="Coverage" value={m.coveragePerL ? `${m.coveragePerL} m²/L` : '—'} mono />
-              <DetailField label="Lead time" value={m.leadTime} mono />
-            </>
-          ) : (
-            <>
-              <DetailField label="Finish" value={m.finish} />
-              <DetailField label="Thickness" value={m.thickness} mono />
-              <DetailField label="Dimensions" value={m.dimensions} mono />
-              <DetailField label="Lead time" value={m.leadTime} mono />
-            </>
-          )}
+          {detailFields.map(f => {
+            const v = window.getFieldValue ? window.getFieldValue(m, f.id) : m[f.id];
+            return (
+              <div key={f.id}>
+                <Eyebrow style={{ marginBottom: 4 }}>{f.unit ? `${f.label} (${f.unit})` : f.label}</Eyebrow>
+                {window.FieldRenderer
+                  ? <window.FieldRenderer field={f} value={v} mode="read" onChange={() => {}} materials={materials} />
+                  : <span style={{ fontSize: 13, color: 'var(--ink)' }}>{v || '—'}</span>}
+              </div>
+            );
+          })}
         </div>
         <Eyebrow style={{ marginBottom: 8 }}>Specification</Eyebrow>
         <p style={{
           ...ui.serif, fontSize: 15, lineHeight: 1.55,
           color: 'var(--ink)', margin: 0, maxWidth: '62ch', textWrap: 'pretty',
         }}>
-          {m.spec}
+          {(window.getFieldValue ? window.getFieldValue(m, 'notes') : null) || m.spec || ''}
         </p>
 
         {!isPaint && m.paintable && (

@@ -1142,20 +1142,20 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
 
   // Flip swatch kind when category changes in/out of Paint
   React.useEffect(() => {
-    if (draft.category === 'Paint' && draft.swatch?.kind !== 'paint') {
+    if ((draft.category === 'Paint' || draft.category === 'paint') && draft.swatch?.kind !== 'paint') {
       setDraft(d => ({
         ...d,
         swatch: { kind: 'paint', tone: d.swatch?.tone || '#e5e2d8', sheen: d.sheen || '' },
         unit: d.unit || 'm²',
       }));
-    } else if (draft.category !== 'Paint' && draft.swatch?.kind === 'paint') {
+    } else if (draft.category !== 'Paint' && draft.category !== 'paint' && draft.swatch?.kind === 'paint') {
       setDraft(d => ({ ...d, swatch: { kind: 'solid', tone: d.swatch?.tone || '#b8aa94' } }));
     }
   }, [draft.category]);
 
   // Keep paint swatch's sheen in sync with the sheen field
   React.useEffect(() => {
-    if (draft.category === 'Paint' && draft.swatch?.kind === 'paint' && draft.swatch?.sheen !== draft.sheen) {
+    if ((draft.category === 'Paint' || draft.category === 'paint') && draft.swatch?.kind === 'paint' && draft.swatch?.sheen !== draft.sheen) {
       setDraft(d => ({ ...d, swatch: { ...d.swatch, sheen: d.sheen || '' } }));
     }
   }, [draft.sheen, draft.category]);

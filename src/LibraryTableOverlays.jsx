@@ -1,4 +1,15 @@
 // Library Table — side panel, column picker, bulk bar, command palette, cheatsheet
+//
+// Phase 2 (v5 schema): the side panel's KV grid is generated from
+// fieldsForCategory(m.category) via FieldRenderer in read mode. No more
+// kind-conditional ladder — categories control what shows.
+
+// Field ids that get rendered in the side panel's KV grid. Common-fields
+// section first (supplier, lead time, unit cost), then category-specific
+// up to a sensible cap. Tags + notes + image_ref live in their own sections.
+const SIDE_PANEL_TOP_IDS = ['supplier', 'country_of_origin', 'lead_time', 'unit_cost'];
+const SIDE_PANEL_SKIP_IDS = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
+  'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
 
 // ───────── Side panel (Linear-style right drawer) ─────────
 function LTSidePanel({ material: m, materials, libraries, labelTemplates,
@@ -6,12 +17,36 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
   if (!m) return null;
   const label = window.formatLabel(m, labelTemplates);
   const mLibs = libraries.filter(l => (m.libraryIds || []).includes(l.id));
-  const linkedPaint = m.paintedWithId ? materials.find(x => x.id === m.paintedWithId) : null;
-  const usedByPaintable = m.category === 'Paint'
-    ? materials.filter(x => x.paintedWithId === m.id) : [];
+  const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+  const linkedPaint = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
+  const catId = (m.category && window.categoryDef && window.categoryDef(m.category))
+    ? m.category
+    : (window.legacyCategoryFor ? window.legacyCategoryFor(m) : 'other');
+  const catDef = window.categoryDef ? window.categoryDef(catId) : null;
+  const grpDef = catDef && window.groupDef ? window.groupDef(catDef.groupId) : null;
+  const usedByPaintable = catId === 'paint'
+    ? materials.filter(x => {
+        const pw = window.getFieldValue ? window.getFieldValue(x, 'paintedWith') : x.paintedWithId;
+        return pw === m.id;
+      })
+    : [];
 
   const swatchFor = (m.swatch?.inheritTone && linkedPaint)
     ? { ...m.swatch, tone: linkedPaint.swatch?.tone } : m.swatch;
+
+  // Compose the field list for the KV grid: top common ids first, then
+  // category-specific fields, deduped, capped to keep the panel scannable.
+  const allFields = window.fieldsForCategory ? window.fieldsForCategory(catId) : [];
+  const topFields = allFields.filter(f => SIDE_PANEL_TOP_IDS.indexOf(f.id) !== -1)
+    .sort((a, b) => SIDE_PANEL_TOP_IDS.indexOf(a.id) - SIDE_PANEL_TOP_IDS.indexOf(b.id));
+  const restFields = allFields.filter(f =>
+    !SIDE_PANEL_SKIP_IDS.has(f.id) &&
+    SIDE_PANEL_TOP_IDS.indexOf(f.id) === -1 &&
+    !f.tagAxis &&
+    f.type !== 'itemRef' && // itemRefs are surfaced as their own section (e.g. paintedWith)
+    f.type !== 'longText'
+  ).slice(0, 8);
+  const kvFields = [].concat(topFields, restFields);
 
   return (
     <div className="lt-sp">
@@ -21,7 +56,7 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
             {m.code}
           </Mono>
           <span className="lt-sp-badge">
-            {((window.kindById && window.kindById(m.kind))?.label) || 'Material'}
+            {(catDef && catDef.label) || 'Material'}
           </span>
           {m.trade && (
             <span className="lt-sp-trade">· {m.trade}</span>
@@ -40,57 +75,20 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
             ? window.subtypeGlyph(m.kind, m.subtype) : null}
           style={{ width: '100%', aspectRatio: '3/2', marginBottom: 14 }} />
         <Serif size={22} style={{ lineHeight: 1.15, display: 'block' }}>{label}</Serif>
-        {m.customName && (
-          <Mono size={10} color="var(--accent-ink)"
+        {grpDef && (
+          <Mono size={10} color="var(--ink-4)"
             style={{ letterSpacing: '0.1em', textTransform: 'uppercase',
-              display: 'inline-block', marginTop: 6 }}>Custom label</Mono>
+              display: 'inline-block', marginTop: 6 }}>{grpDef.label}</Mono>
         )}
       </div>
 
       <div className="lt-sp-fields">
-        <PanelKV label="Supplier" value={m.supplier} />
-        <PanelKV label="Origin"   value={m.origin} />
-        <PanelKV label="Finish"   value={m.finish} />
-        {m.category === 'Paint' ? (
-          <>
-            <PanelKV label="Brand"     value={m.brand} />
-            <PanelKV label="Colour"    value={m.colourName} />
-            <PanelKV label="Sheen"     value={m.sheen} />
-            <PanelKV label="LRV"       value={m.lrv} />
-          </>
-        ) : (m.kind === 'appliance' || m.kind === 'fitting') ? (
-          <>
-            <PanelKV label="Model"     value={m.model} />
-            <PanelKV label="Finish"    value={m.finish} />
-            <PanelKV label="Dimensions" value={m.dimensions} />
-            <PanelKV label="Rough-in"  value={m.roughIn} />
-            <PanelKV label="Power"     value={m.power} />
-          </>
-        ) : (m.kind === 'light') ? (
-          <>
-            <PanelKV label="Model"     value={m.model} />
-            <PanelKV label="Lamp"      value={m.lamp} />
-            <PanelKV label="Wattage"   value={m.wattage} />
-            <PanelKV label="Colour temp" value={m.kelvin} />
-            <PanelKV label="Dimmable"  value={m.dimmable} />
-          </>
-        ) : (m.kind && m.kind.startsWith('ffe-')) ? (
-          <>
-            <PanelKV label="Model"     value={m.model} />
-            <PanelKV label="Finish"    value={m.finish} />
-            <PanelKV label="Fabric"    value={m.fabric} />
-            <PanelKV label="Dimensions" value={m.dimensions} />
-          </>
-        ) : (
-          <>
-            <PanelKV label="Species"   value={m.species} />
-            <PanelKV label="Thickness" value={m.thickness} />
-            <PanelKV label="Dimensions" value={m.dimensions} />
-          </>
-        )}
-        <PanelKV label="Lead time" value={m.leadTime} />
-        <PanelKV label="Unit cost"
-          value={m.unitCost != null ? `$${Number(m.unitCost).toFixed(0)} / ${m.unit || 'u'}` : null} />
+        {kvFields.map(f => {
+          const val = window.getFieldValue ? window.getFieldValue(m, f.id) : m[f.id];
+          return (
+            <PanelKVField key={f.id} field={f} value={val} />
+          );
+        })}
       </div>
 
       {linkedPaint && (
@@ -154,6 +152,23 @@ function PanelKV({ label, value }) {
     <div className="panel-kv">
       <span className="panel-kv-label">{label}</span>
       <span className={'panel-kv-value' + (value ? '' : ' empty')}>{value || '—'}</span>
+    </div>
+  );
+}
+
+// Schema-driven KV row — uses FieldRenderer in read mode so each type
+// (currency, number+unit, color, etc.) gets its own formatting.
+function PanelKVField({ field, value }) {
+  const isEmpty = value == null || value === '' || (Array.isArray(value) && value.length === 0);
+  const lblText = field.unit ? `${field.label} (${field.unit})` : field.label;
+  return (
+    <div className="panel-kv">
+      <span className="panel-kv-label">{lblText}</span>
+      <span className={'panel-kv-value' + (isEmpty ? ' empty' : '')}>
+        {window.FieldRenderer
+          ? <window.FieldRenderer field={field} value={value} mode="read" onChange={() => {}} />
+          : (value == null ? '—' : String(value))}
+      </span>
     </div>
   );
 }
