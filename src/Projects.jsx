@@ -5,7 +5,7 @@ function Projects({ projects, materials, onOpen, onAdd, onEdit, onDelete }) {
     <div>
       <div className="sched-page-header">
         <div>
-          <div className="sched-page-eyebrow">Volume II · Projects</div>
+          <div className="sched-page-eyebrow">Projects</div>
           <span className="sched-page-title" style={{ fontSize: 36 }}>Projects</span>
           <div className="sched-page-meta">
             <span className="sched-meta-mono">

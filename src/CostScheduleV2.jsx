@@ -331,7 +331,7 @@
       <>
         <div className="sched-page-header">
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="sched-page-eyebrow">III · Cost Schedule</div>
+            <div className="sched-page-eyebrow">Cost Schedule</div>
             <span className="sched-page-title">{project.name || 'Untitled project'}</span>
             <div className="sched-page-meta">
               {project.code && <span className="sched-meta-mono">{project.code}</span>}

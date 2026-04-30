@@ -317,7 +317,7 @@
       <>
         <div className="sched-page-header">
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="sched-page-eyebrow">IV · Project Schedule</div>
+            <div className="sched-page-eyebrow">Project Schedule</div>
             <span className="sched-page-title">{project.name || 'Untitled project'}</span>
             {projectMeta && (
               <div className="sched-page-meta">

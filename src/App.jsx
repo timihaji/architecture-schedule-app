@@ -978,10 +978,10 @@ function RevisionBadge() {
 
 function Nav({ view, setView, settings, setSettings }) {
   const items = [
-    { key: 'library',  label: 'Library',  num: 'I' },
-    { key: 'projects', label: 'Projects', num: 'II' },
-    { key: 'cost',     label: 'Cost Schedule', num: 'III' },
-    { key: 'schedule', label: 'Schedule',      num: 'IV' },
+    { key: 'library',  label: 'Library' },
+    { key: 'projects', label: 'Projects' },
+    { key: 'cost',     label: 'Cost Schedule' },
+    { key: 'schedule', label: 'Schedule' },
   ];
   const settingsActive = view === 'settings';
   return (
@@ -1006,7 +1006,6 @@ function Nav({ view, setView, settings, setSettings }) {
               className={'sched-nav-btn' + (view === it.key ? ' active' : '')}
               onClick={() => setView(it.key)}
             >
-              <span className="sched-nav-num">{it.num}</span>
               {it.label}
             </button>
           ))}
