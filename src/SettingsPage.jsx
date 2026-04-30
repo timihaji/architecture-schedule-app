@@ -771,6 +771,13 @@ const PRESET_DESCRIPTIONS = {
   D: 'Free-form. Duplicates are warned but never blocked. Codes default to blank on new materials.',
 };
 
+const PRESET_EXAMPLES = {
+  A: 'Example: PT-01, PT-02, PT-03 …',
+  B: 'Example: PT-01, PT-02 (gaps closed on delete)',
+  C: 'Example: PT-247 (same on every project)',
+  D: 'Example: any code, light validation',
+};
+
 function CodesSection({ settings, set, onFindDupes }) {
   const policy = settings.dupePolicy || window.DUPE_PRESET_A || {};
   const preset = policy.preset || 'A';
@@ -823,6 +830,11 @@ function CodesSection({ settings, set, onFindDupes }) {
                 <div>
                   <span style={{ fontSize: 13, fontWeight: active ? 500 : 400 }}>{p.label}</span>
                   {p.meta && <span className="codes-preset-meta">{p.meta}</span>}
+                  {PRESET_EXAMPLES[p.key] && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-muted)', marginTop: 2 }}>
+                      {PRESET_EXAMPLES[p.key]}
+                    </div>
+                  )}
                 </div>
               </button>
             );
@@ -842,14 +854,12 @@ function CodesSection({ settings, set, onFindDupes }) {
               options={[{ key: 'project', label: 'Per-project' }, { key: 'library', label: 'Office-wide' }]} />
           </SubRow>
 
-          <SubRow label="Auto-assign code — new material">
-            <Segmented value={policy.autoAssign || 'series'} onChange={v => setPolicy('autoAssign', v)}
-              options={[
-                { key: 'none', label: 'None' },
-                { key: 'series', label: 'Next in series' },
-                { key: 'project-max', label: 'Project max + 1' },
-                { key: 'library-max', label: 'Library max + 1' },
-              ]} />
+          <SubRow label="Auto-assign code on row add">
+            <Toggle
+              value={policy.autoAssign === 'on' || policy.autoAssign === 'series'
+                || policy.autoAssign === 'project-max' || policy.autoAssign === 'library-max'}
+              onChange={v => setPolicy('autoAssign', v ? 'on' : 'off')}
+              onLabel="On" offLabel="Off" />
           </SubRow>
 
           <SubRow label="On duplicate — name">
@@ -905,10 +915,12 @@ function CodesSection({ settings, set, onFindDupes }) {
               onLabel="On" offLabel="Off" />
           </SubRow>
 
-          <SubRow label="Require code on save">
-            <Toggle value={!!policy.requireCodeOnSave} onChange={v => setPolicy('requireCodeOnSave', v)}
-              onLabel="Required" offLabel="Optional" />
-          </SubRow>
+          {policy.scope === 'library' && (
+            <SubRow label="Require code on save">
+              <Toggle value={!!policy.requireCodeOnSave} onChange={v => setPolicy('requireCodeOnSave', v)}
+                onLabel="Required" offLabel="Optional" />
+            </SubRow>
+          )}
         </div>
       )}
 

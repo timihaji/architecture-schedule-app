@@ -221,7 +221,7 @@ const SETTINGS_DEFAULTS = {
     scope: 'project',
     uniquenessProject: 'block',
     uniquenessLibrary: 'warn',
-    autoAssign: 'series',
+    autoAssign: 'on',
     duplicateName: 'keep',
     duplicateCode: 'series',
     onDelete: 'leave',

@@ -61,7 +61,7 @@
   }
 
   // ─── Common fields ─────────────────────────────────────────────────────────
-  fText('code', 'Code', { helpText: 'Auto-generated per category, user-editable.' });
+  fText('code', 'Code', { helpText: 'Office-wide library code. Visible only in office mode (Settings → Codes & duplicates → Preset C).' });
   fText('name', 'Name');
   fText('supplier', 'Supplier');
   fText('country_of_origin', 'Country of origin');
@@ -1858,7 +1858,7 @@
   // snapshot with a fresh clone if they differ.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
-    _reseedVersion: 1,
+    _reseedVersion: 2,
     groups: GROUPS,
     categories: CATEGORIES,
     fields: Object.values(FIELDS),

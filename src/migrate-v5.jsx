@@ -1,20 +1,21 @@
-// src/migrate-v5.jsx — v4 → v5 schema migration.
+// src/migrate-v5.jsx — v4 → v5 → v6 schema migration runner.
 //
 // Hard-cut migration described in /Users/timihajnady/.claude/plans/eventual-popping-axolotl.md §Phase 3.
-// Runs once per workspace at LoadingGate boot, gated by appState.schemaVersion < 5.
+// Runs at LoadingGate boot, gated by appState.schemaVersion < MIGRATION_VERSION.
 //
-// REWRITES every material to the v5 shape:
-//   { id, code, name, category(v5), fields, _touched, swatch, libraryIds, projects }
-// All legacy top-level fields (kind, productType, subtype, brand, sheen, …)
-// move into material.fields[fieldId] via the LEGACY_TO_V5 alias map, then
-// drop. Tags become { performance: [], location: [], materialFamily: [] }.
+// v4 → v5: REWRITES every material to the v5 shape, renames project.rooms →
+// locations, etc. (See lower in file for full details.)
 //
-// Renames project.rooms → project.locations, project.roomIds → project.locationIds,
-// project.location (address string) → project.address, and row.roomId → row.locationId.
-// Adds row defaults: category, state, specMode, typeOrInstance.
+// v5 → v6 (new): adds `row.code` to every schedule row.
+//   - When dupePolicy.scope === 'library': seed row.code from the resolved
+//     material.code (preserves the office's existing catalog).
+//   - When dupePolicy.scope === 'project' (or unset): regenerate codes from
+//     scratch per-category, per-project (PT-01, PT-02, … TL-01, TL-02, …).
+//   Also collapses dupePolicy.autoAssign from {none|series|project-max|library-max}
+//   to {off|on}. See plan should-codes-be-removed-twinkling-blum.md.
 //
-// Idempotent: re-running on an already-v5 workspace is a no-op (every transform
-// short-circuits when target shape is already present).
+// Idempotent: re-running on an already-current workspace is a no-op (every
+// transform short-circuits when target shape is already present).
 //
 // API:
 //   window.migrateV5.transform({ appState, materials, projects, schedulesByProjectId })
@@ -23,7 +24,7 @@
 //     → loads schedule blobs, transforms, writes back, returns result
 
 (function () {
-  const MIGRATION_VERSION = 5;
+  const MIGRATION_VERSION = 6;
 
   // ─── Idempotency gates ────────────────────────────────────────────────────
   function isMaterialV5(m) {
@@ -38,11 +39,13 @@
     return Array.isArray(p.locations) && Array.isArray(p.locationIds);
   }
 
-  function isScheduleBlobV5(blob) {
+  function isScheduleBlobCurrent(blob) {
     if (!blob) return true;
-    if ((blob.schemaVersion | 0) >= 5) return true;
+    if ((blob.schemaVersion | 0) >= MIGRATION_VERSION) return true;
     return false;
   }
+  // Back-compat alias retained so any external caller doesn't break.
+  const isScheduleBlobV5 = isScheduleBlobCurrent;
 
   // ─── Legacy → v5 category map ─────────────────────────────────────────────
   // Deterministic. Returns a v5 category id that exists in DEFAULT_SCHEMA_V5.
@@ -413,22 +416,139 @@
       changed = true;
     }
 
+    // v6: row owns its own code. Default to null; regen pass below fills it.
+    if (next.code === undefined) {
+      next.code = null;
+      changed = true;
+    }
+
     return changed ? next : row;
   }
 
-  function migrateScheduleBlob(blob, materialsById) {
+  // ─── v6 row code regeneration ─────────────────────────────────────────────
+  // Per the plan: scope 'library' seeds row.code from material.code; scope
+  // 'project' (default) regenerates codes per-category, per-project starting
+  // at PREFIX-01.
+  //
+  // Prefix derivation mirrors DupePolicy._categoryFallbackPrefix (kept inline
+  // here since that helper is private to DupePolicy.jsx).
+  function _regenPrefixFor(material) {
+    if (!material || !material.category) return '';
+    const def = (typeof window !== 'undefined' && window.categoryDef)
+      ? window.categoryDef(material.category)
+      : null;
+    if (def && def.code) return String(def.code).toUpperCase();
+    return String(material.category).slice(0, 2).toUpperCase();
+  }
+
+  function regenerateRowCodes(rows, materialsById, scope) {
+    if (!Array.isArray(rows) || rows.length === 0) return rows;
+
+    if (scope === 'library') {
+      // Seed each row.code from the resolved material's code.
+      return rows.map(r => {
+        if (!r) return r;
+        const matId = r.specRef && r.specRef.id;
+        const mat = matId && materialsById ? materialsById.get(matId) : null;
+        const seed = (mat && mat.code) ? String(mat.code) : null;
+        return Object.assign({}, r, { code: seed });
+      });
+    }
+
+    // project mode: walk each category in array order, assign sequential codes.
+    const newCodes = new Map(); // row.id → code
+    const counters = new Map(); // category id → next number
+    const prefixes = new Map(); // category id → prefix
+
+    for (const r of rows) {
+      if (!r || !r.id) continue;
+      const matId = r.specRef && r.specRef.id;
+      const mat = matId && materialsById ? materialsById.get(matId) : null;
+      const cat = (mat && mat.category) || r.category || null;
+      if (!cat || !mat) continue; // unresolved rows stay null
+      if (!prefixes.has(cat)) prefixes.set(cat, _regenPrefixFor(mat));
+      const n = (counters.get(cat) || 0) + 1;
+      counters.set(cat, n);
+      const prefix = prefixes.get(cat) || '';
+      const numStr = String(n).padStart(2, '0');
+      newCodes.set(r.id, prefix ? `${prefix}-${numStr}` : numStr);
+    }
+
+    return rows.map(r => {
+      if (!r) return r;
+      if (newCodes.has(r.id)) return Object.assign({}, r, { code: newCodes.get(r.id) });
+      // Unresolved row: preserve any existing value, else null.
+      if (r.code === undefined) return Object.assign({}, r, { code: null });
+      return r;
+    });
+  }
+
+  function migrateScheduleBlob(blob, materialsById, opts) {
     if (!blob) return blob;
-    if (isScheduleBlobV5(blob)) return blob;
-    const rows = Array.isArray(blob.rows)
+    if (isScheduleBlobCurrent(blob)) return blob;
+    const prevVersion = blob.schemaVersion | 0;
+    let rows = Array.isArray(blob.rows)
       ? blob.rows.map(r => migrateScheduleRow(r, materialsById))
       : [];
+    // v5 → v6: regenerate codes once.
+    if (prevVersion < 6) {
+      const scope = (opts && opts.scope) || 'project';
+      rows = regenerateRowCodes(rows, materialsById, scope);
+    }
     return Object.assign({}, blob, { rows, schemaVersion: MIGRATION_VERSION });
+  }
+
+  // ─── Settings migration (v5 → v6) ─────────────────────────────────────────
+  // Collapse dupePolicy.autoAssign from 4-value enum to 'on'/'off'.
+  function migrateSettings(settings) {
+    if (!settings) return settings;
+    const dp = settings.dupePolicy;
+    if (!dp) return settings;
+    let nextDp = dp;
+    if (dp.autoAssign === 'series' || dp.autoAssign === 'project-max' || dp.autoAssign === 'library-max') {
+      nextDp = Object.assign({}, dp, { autoAssign: 'on' });
+    } else if (dp.autoAssign === 'none') {
+      nextDp = Object.assign({}, dp, { autoAssign: 'off' });
+    }
+    if (nextDp === dp) return settings;
+    return Object.assign({}, settings, { dupePolicy: nextDp });
+  }
+
+  // ─── Post-migration validation ────────────────────────────────────────────
+  // Logs (does NOT block) when row codes within a schedule collide and the
+  // policy says we should care about it.
+  function validateRowCodes(schedules, policy) {
+    if (!policy) return;
+    const level = (policy.scope === 'library')
+      ? policy.uniquenessLibrary
+      : policy.uniquenessProject;
+    if (!level || level === 'off') return;
+    for (const [pid, sched] of Object.entries(schedules || {})) {
+      if (!sched || !Array.isArray(sched.rows)) continue;
+      const counts = new Map();
+      for (const r of sched.rows) {
+        const c = r && r.code;
+        if (!c) continue;
+        counts.set(c, (counts.get(c) || 0) + 1);
+      }
+      const dupes = [];
+      for (const [code, n] of counts.entries()) if (n > 1) dupes.push(code);
+      if (dupes.length > 0) {
+        console.warn(`[migrateV6] WARN: duplicate codes in project ${pid}:`, dupes);
+      }
+    }
   }
 
   // ─── Top-level pure transform ─────────────────────────────────────────────
   function transform({ appState, materials, projects, schedulesByProjectId }) {
     const schema = window.DEFAULT_SCHEMA_V5;
     const unmapped = [];
+
+    // v6 settings migration runs first so the resulting policy drives the
+    // schedule blob regen scope.
+    const migratedSettings = migrateSettings(appState && appState.settings);
+    const policy = (migratedSettings && migratedSettings.dupePolicy) || null;
+    const scope = (policy && policy.scope) || 'project';
 
     const nextMaterials = (materials || []).map(m => migrateMaterial(m, schema, unmapped));
 
@@ -440,7 +560,7 @@
 
     const nextSchedules = {};
     for (const [pid, blob] of Object.entries(schedulesByProjectId || {})) {
-      nextSchedules[pid] = migrateScheduleBlob(blob, matById);
+      nextSchedules[pid] = migrateScheduleBlob(blob, matById, { scope });
     }
 
     // Counts for the migrations[] entry.
@@ -460,6 +580,9 @@
     const nextAppState = Object.assign({}, appState || {}, {
       schemaVersion: MIGRATION_VERSION,
     });
+    if (migratedSettings && migratedSettings !== (appState && appState.settings)) {
+      nextAppState.settings = migratedSettings;
+    }
 
     return {
       appState:  nextAppState,
@@ -488,16 +611,43 @@
   async function runLive({ appState, materials, projects, libraries,
                             loadSchedule, saveSchedule, upsertItem, saveAppStateNow }) {
     const projectIds = (projects || []).map(p => p.id);
+    const projectsById = new Map((projects || []).map(p => [p.id, p]));
+
+    console.log(`[migrateV6] starting migration: ${projectIds.length} projects`);
 
     // 1. Load per-project schedules.
     const schedulesByProjectId = await loadAllSchedules(projectIds, loadSchedule);
+
+    // 1.5. Pre-v6 backup of every blob that will be mutated this run.
+    //      Stored in localStorage; cleared once the entire run succeeds.
+    const backupKeys = [];
+    if (typeof localStorage !== 'undefined') {
+      for (const [pid, blob] of Object.entries(schedulesByProjectId)) {
+        if (!blob) continue;
+        if ((blob.schemaVersion | 0) >= MIGRATION_VERSION) continue;
+        try {
+          const key = `_v5_backup_${pid}`;
+          localStorage.setItem(key, JSON.stringify(blob));
+          backupKeys.push(key);
+        } catch (err) {
+          console.warn('[migrateV6] backup failed for', pid, err);
+        }
+      }
+    }
 
     // 2. Transform.
     const result = transform({ appState, materials, projects, schedulesByProjectId });
 
     // 3. Write per-project schedules.
     let savedSchedules = 0;
+    let idx = 0;
+    const total = Object.keys(result.schedules).length;
     for (const [pid, sched] of Object.entries(result.schedules)) {
+      idx++;
+      const proj = projectsById.get(pid);
+      const name = (proj && proj.name) || pid;
+      const rowCount = (sched && Array.isArray(sched.rows)) ? sched.rows.length : 0;
+      console.log(`[migrateV6] project ${idx}/${total}: ${name} (${rowCount} rows)`);
       try {
         await saveSchedule(pid, sched);
         savedSchedules++;
@@ -556,6 +706,22 @@
       }
     }
 
+    // 7. Post-migration validation pass (logs duplicate codes; non-blocking).
+    try {
+      const policy = (finalAppState && finalAppState.settings && finalAppState.settings.dupePolicy) || null;
+      validateRowCodes(result.schedules, policy);
+    } catch (err) {
+      console.warn('[migrateV6] validation pass failed:', err);
+    }
+
+    // 8. Clear backup keys now that everything succeeded.
+    if (typeof localStorage !== 'undefined') {
+      for (const key of backupKeys) {
+        try { localStorage.removeItem(key); } catch (err) { /* ignore */ }
+      }
+    }
+    console.log(`[migrateV6] complete (${projectIds.length} projects)`);
+
     return {
       appState:  finalAppState,
       materials: result.materials,
@@ -570,12 +736,16 @@
   window.migrateV5 = {
     transform,
     runLive,
+    MIGRATION_VERSION,
     _internals: {
       legacyToV5Category,
       migrateMaterial,
       migrateProject,
       migrateScheduleRow,
       migrateScheduleBlob,
+      regenerateRowCodes,
+      migrateSettings,
+      validateRowCodes,
       bucketTags,
       coerceUnit,
       LEGACY_TO_V5,

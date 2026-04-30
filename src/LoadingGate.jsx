@@ -496,15 +496,14 @@
       }
     }
 
-    // 5c. v5 schema migration. Idempotent. Gated by appState.schemaVersion < 5.
-    //     HARD CUT: rewrites materials to the v5 shape (m.fields, m.category as
-    //     v5 id, _touched), renames project.rooms → locations, row.roomId →
-    //     locationId, ensures rows have category + state + specMode +
-    //     typeOrInstance defaults. Drops every legacy top-level material key.
-    //     On failure: do NOT bump schemaVersion → next boot retries.
-    if (window.migrateV5 && (appState.schemaVersion | 0) < 5) {
+    // 5c. v5+ schema migration. Idempotent. Gated by appState.schemaVersion <
+    //     migrateV5.MIGRATION_VERSION (currently 6). Runs the v4→v5 hard-cut
+    //     plus v5→v6 row-code work in a single pass. On failure: do NOT bump
+    //     schemaVersion → next boot retries.
+    const targetVersion = (window.migrateV5 && window.migrateV5.MIGRATION_VERSION) || 6;
+    if (window.migrateV5 && (appState.schemaVersion | 0) < targetVersion) {
       try {
-        console.log('[LoadingGate] running v5 migration…');
+        console.log(`[LoadingGate] running schema migration → v${targetVersion}…`);
         const result = await window.migrateV5.runLive({
           appState, materials, projects, libraries,
           loadSchedule:    (id) => window.cloud.loadSchedule(id),
@@ -517,11 +516,11 @@
         projects  = result.projects;
         appStateChanged = false;
         if (result.unmapped && result.unmapped.length > 0) {
-          console.warn('[LoadingGate] v5 migration: unmapped materials —', result.unmapped);
+          console.warn('[LoadingGate] schema migration: unmapped materials —', result.unmapped);
         }
-        console.log('[LoadingGate] v5 migration succeeded:', result.summary);
+        console.log(`[LoadingGate] schema migration succeeded → v${targetVersion}:`, result.summary);
       } catch (err) {
-        console.error('[LoadingGate] v5 migration failed — workspace remains at v4:', err);
+        console.error('[LoadingGate] schema migration failed — workspace not advanced:', err);
       }
     }
 

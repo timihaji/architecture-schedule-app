@@ -326,7 +326,14 @@ function App() {
         unit: defaultUnit,
       },
       _touched: {},
-      code: (window.autoAssignCode ? window.autoAssignCode(materials, settings.dupePolicy || window.DUPE_PRESET_A, category, category) : null) || '',
+      code: (() => {
+        const pol = settings.dupePolicy || window.DUPE_PRESET_A;
+        // Library codes are an office-catalog concept; only auto-assign in
+        // office mode (Preset C / scope:'library'). Project-mode firms hide
+        // library codes entirely.
+        if (!window.isOfficeMode || !window.isOfficeMode(pol)) return '';
+        return (window.autoAssignCode && window.autoAssignCode(materials, pol, category, category)) || '';
+      })(),
       name: '',
       projects: [],
       libraryIds: preselectLib,
