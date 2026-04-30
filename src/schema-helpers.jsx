@@ -230,7 +230,90 @@
     return [];
   }
 
+  // ─── Group-by bucketing (Phase 4) ──────────────────────────────────────────
+  // Bucket items by an axis id (from groupableFields()) into ordered groups.
+  // Multi-value axes (tags, multi-select fields) expand: an item with two
+  // values appears under both groups. Empty/missing values land in '—'.
+  // Returns [[label, items], ...] in first-appearance order.
+  function bucketItems(items, axisId) {
+    if (!axisId) return [['', items || []]];
+    const fields = (schemaActive().fields || []);
+    const tagAxes = schemaActive().tagAxes || {};
+    let axis = null;
+    if (axisId === '_category' || axisId === '_group' || axisId === '_trade' || axisId === '_supplier') {
+      axis = { id: axisId, type: 'synthetic' };
+    } else if (axisId.indexOf('_tag_') === 0) {
+      const t = axisId.substring(5);
+      axis = { id: axisId, tagAxis: t, type: 'tag' };
+    } else {
+      const f = fields.find(x => x.id === axisId);
+      if (f) axis = { id: f.id, type: f.type, multiple: f.multiple };
+    }
+    if (!axis) return [['', items || []]];
+
+    const out = new Map();
+    function push(key, item) {
+      const k = (key == null || key === '') ? '—' : String(key);
+      if (!out.has(k)) out.set(k, []);
+      out.get(k).push(item);
+    }
+
+    (items || []).forEach(item => {
+      const keys = bucketKeysFor(axis, item);
+      const arr = Array.isArray(keys) ? keys : [keys];
+      if (arr.length === 0) push('—', item);
+      else arr.forEach(k => push(k, item));
+    });
+
+    // Pretty-label the keys for known axes.
+    const out2 = [];
+    out.forEach((arr, k) => {
+      let label = k;
+      if (axis.id === '_category') {
+        const cat = categoryDef(k);
+        if (cat) label = cat.label;
+      } else if (axis.id === '_group') {
+        const g = groupDef(k);
+        if (g) label = g.label;
+      } else if (axis.tagAxis) {
+        const t = (tagAxes[axis.tagAxis] || []).find(x => x.id === k);
+        if (t) label = t.label;
+      } else if (axis.type === 'select') {
+        const f = fields.find(x => x.id === axis.id);
+        const opt = f && (f.options || []).find(o => o.value === k);
+        if (opt) label = opt.label;
+      }
+      out2.push([label, arr]);
+    });
+    return out2;
+  }
+
+  // ─── Clone helpers (Phase 4 — Field Manager) ───────────────────────────────
+  // Returns a structuredClone-deep copy of DEFAULT_SCHEMA_V5. Used by the
+  // taxonomies setter to seed appState.taxonomies the first time the user
+  // opens the Field Manager (so edits don't mutate the shared default).
+  function cloneDefaultSchemaV5() {
+    if (!window.DEFAULT_SCHEMA_V5) return null;
+    if (typeof structuredClone === 'function') return structuredClone(window.DEFAULT_SCHEMA_V5);
+    return JSON.parse(JSON.stringify(window.DEFAULT_SCHEMA_V5));
+  }
+
+  // Stable id maker — slugifies a label, ensures uniqueness within a list of
+  // existing ids by appending _2, _3, …
+  function makeStableId(label, existingIds) {
+    const base = String(label || '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'item';
+    if (!existingIds || !existingIds.includes(base)) return base;
+    let n = 2;
+    while (existingIds.includes(base + '_' + n)) n++;
+    return base + '_' + n;
+  }
+
   // ─── Expose ────────────────────────────────────────────────────────────────
+  window.cloneDefaultSchemaV5 = cloneDefaultSchemaV5;
+  window.makeStableId = makeStableId;
+  window.bucketItems = bucketItems;
   window.schemaActive = schemaActive;
   window.commonFields = commonFields;
   window.commonFieldIds = commonFieldIds;

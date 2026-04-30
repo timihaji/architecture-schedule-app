@@ -9,11 +9,20 @@ function LibraryToolbar({
   sort, setSort,
   filterCategory, setFilterCategory, categories = [],
   group, setGroup,
+  groupBy, setGroupBy,
+  groupableItems,
   count, total,
   onFindDupes,
   searchPlaceholder = 'Search name, code, supplier, finish…',
   columnsButton = null,
 }) {
+  // Phase 4: groupBy axis dropdown — replaces the boolean Group toggle when
+  // setGroupBy is provided. Falls back to the boolean toggle for legacy
+  // call-sites that still pass setGroup.
+  const groupByOptions = React.useMemo(() => {
+    if (!setGroupBy || !window.groupableFields) return [];
+    return window.groupableFields(groupableItems || []);
+  }, [setGroupBy, groupableItems]);
   const showCount = (count != null) ? (
     total != null && count !== total
       ? `${count} of ${total}`
@@ -66,12 +75,26 @@ function LibraryToolbar({
         <option value="lead">Lead time</option>
       </select>
 
-      <button type="button"
-        className={'btn-ghost' + (group ? ' on' : '')}
-        onClick={() => setGroup(!group)}
-        title="Group by category">
-        Group
-      </button>
+      {setGroupBy ? (
+        <>
+          <span className="tb-lbl">Group by</span>
+          <select className="filter-sel"
+            value={groupBy || ''}
+            onChange={e => setGroupBy(e.target.value)}>
+            <option value="">None</option>
+            {groupByOptions.map(o => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <button type="button"
+          className={'btn-ghost' + (group ? ' on' : '')}
+          onClick={() => setGroup(!group)}
+          title="Group by category">
+          Group
+        </button>
+      )}
 
       {onFindDupes && (
         <button type="button" className="btn-ghost"

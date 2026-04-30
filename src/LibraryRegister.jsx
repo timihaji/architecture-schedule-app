@@ -49,7 +49,7 @@ function LibraryRegister({
   toolbarState,
   setColumnsButton,
 }) {
-  const { query, sort, group, toolbarFiltered } = toolbarState;
+  const { query, sort, group, groupBy, toolbarFiltered } = toolbarState;
   const [colsOpen, setColsOpen] = React.useState(false);
   const [visibleCols, setVisibleCols] = React.useState(() =>
     loadRegisterCols() || new Set(REGISTER_COLS.filter(c => c.defaultOn).map(c => c.id)));
@@ -82,18 +82,12 @@ function LibraryRegister({
 
   // Groups
   const groups = React.useMemo(() => {
-    if (!group) return [{ key: 'all', label: null, items: filtered }];
-    const map = new Map();
-    for (const m of filtered) {
-      const id = (m.category && window.categoryDef && window.categoryDef(m.category))
-        ? m.category : (window.legacyCategoryFor && window.legacyCategoryFor(m));
-      const def = id && window.categoryDef && window.categoryDef(id);
-      const k = (def && def.label) || m.category || 'Uncategorised';
-      if (!map.has(k)) map.set(k, []);
-      map.get(k).push(m);
-    }
-    return Array.from(map, ([label, items]) => ({ key: label, label, items }));
-  }, [filtered, group]);
+    if (!groupBy) return [{ key: 'all', label: null, items: filtered }];
+    const buckets = window.bucketItems
+      ? window.bucketItems(filtered, groupBy)
+      : [['All', filtered]];
+    return buckets.map(([label, items]) => ({ key: label, label, items }));
+  }, [filtered, groupBy]);
 
   // Selection helpers
   const visibleIds = filtered.map(m => m.id);

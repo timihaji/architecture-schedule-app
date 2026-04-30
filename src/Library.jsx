@@ -18,9 +18,12 @@ function Library({
 
   // Phase 2 — lifted toolbar state. Single LibraryToolbar mount drives
   // every mode, so query/sort/group/filterCategory persist across switches.
+  // Phase 4 — `groupBy` is an axis id (or '' for none). Defaults to '_category'
+  // so the existing UX (group by Category) is preserved.
   const [query, setQuery] = React.useState('');
   const [sort, setSort] = React.useState('code');           // code|name|cost|lead
-  const [group, setGroup] = React.useState(true);           // boolean: group by category
+  const [groupBy, setGroupBy] = React.useState('_category');
+  const group = !!groupBy;                                   // back-compat for old code
   const [filterCategory, setFilterCategory] = React.useState('All');
 
   // Library-scoped row set (used by toolbar derivations + every mode).
@@ -67,7 +70,8 @@ function Library({
   const toolbarState = {
     query, setQuery,
     sort, setSort,
-    group, setGroup,
+    group, setGroup: (v) => setGroupBy(v ? '_category' : ''),
+    groupBy, setGroupBy,
     filterCategory, setFilterCategory,
     categories,
     libraryScoped,
@@ -99,7 +103,9 @@ function Library({
         sort={sort} setSort={setSort}
         filterCategory={filterCategory} setFilterCategory={setFilterCategory}
         categories={categories}
-        group={group} setGroup={setGroup}
+        group={group} setGroup={(v) => setGroupBy(v ? '_category' : '')}
+        groupBy={groupBy} setGroupBy={setGroupBy}
+        groupableItems={libraryScoped}
         count={toolbarFiltered.length}
         total={libraryScoped.length}
         onFindDupes={onFindDupes}
@@ -203,7 +209,7 @@ function LibraryGallery({
   compareIds, toggleCompare, showImagery, density,
   toolbarState,
 }) {
-  const { query, setQuery, sort, group, filterCategory, libraryScoped, toolbarFiltered } = toolbarState;
+  const { query, setQuery, sort, group, groupBy, filterCategory, libraryScoped, toolbarFiltered } = toolbarState;
   const [openId, setOpenId] = React.useState(null);
   const [menuForId, setMenuForId] = React.useState(null);
   const [flashId, setFlashId] = React.useState(null);
@@ -246,15 +252,11 @@ function LibraryGallery({
   }, [toolbarFiltered, sort]);
 
   const grouped = React.useMemo(() => {
-    if (!group) return [['All', filtered]];
-    const map = new Map();
-    filtered.forEach(m => {
-      const key = m.category || 'Uncategorised';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(m);
-    });
-    return Array.from(map.entries());
-  }, [filtered, group]);
+    if (!groupBy) return [['All', filtered]];
+    return window.bucketItems
+      ? window.bucketItems(filtered, groupBy)
+      : [['All', filtered]];
+  }, [filtered, groupBy]);
 
   return (
     <div className="lib-gallery">

@@ -11,7 +11,7 @@ function LibraryLayoutC({
   selected, setSelected,
   toolbarState,
 }) {
-  const { query, sort, group, toolbarFiltered } = toolbarState;
+  const { query, sort, group, groupBy, toolbarFiltered } = toolbarState;
   const [activeId, setActiveId] = React.useState(null);
 
   // Sort the toolbar-filtered list with the canonical sort axis.
@@ -28,15 +28,12 @@ function LibraryLayoutC({
   }, [toolbarFiltered, sort]);
 
   const groups = React.useMemo(() => {
-    if (!group) return [{ key: 'all', items: filtered }];
-    const map = new Map();
-    filtered.forEach(m => {
-      const key = m.category || 'Other';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(m);
-    });
-    return Array.from(map.entries()).map(([key, items]) => ({ key, items }));
-  }, [filtered, group]);
+    if (!groupBy) return [{ key: 'all', items: filtered }];
+    const buckets = window.bucketItems
+      ? window.bucketItems(filtered, groupBy)
+      : [['All', filtered]];
+    return buckets.map(([key, items]) => ({ key, items }));
+  }, [filtered, groupBy]);
 
   // Keep activeId valid when filter set changes; default to first item.
   React.useEffect(() => {

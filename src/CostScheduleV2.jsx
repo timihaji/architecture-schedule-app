@@ -79,6 +79,9 @@
     // PickerDrawer state.
     //   { mode: 'single' | 'multi', rowId?, group?, eyebrow, title, subtitle }
     const [picker, setPicker] = useState(null);
+    // Phase 4: group-by axis. Default '_group' preserves the prior UX (rows
+    // bucket by the v5 group label). Empty string disables grouping.
+    const [groupByAxis, setGroupByAxis] = useState('_group');
     // Cell clipboard — holds a row's specRef. Hover sets the focused row id.
     const [clipboard, setClipboard] = useState(null);  // { specRef, fromRowId }
     const [hoverRowId, setHoverRowId] = useState(null);
@@ -103,21 +106,55 @@
     }
     function newRowId() { return 'sr-' + Math.random().toString(36).slice(2, 10); }
 
-    // Resolve each row to its material + group label.
+    // Resolve each row to its material + group key.
+    // Phase 4: bucket key is computed per the active groupByAxis (default
+    // '_group' for parity with the prior UX). Multi-value axes (tags) get the
+    // first value so a row appears in exactly one section here — split-view
+    // duplication is not a fit for cost row totals.
+    function bucketLabelForRow(material, matKind) {
+      if (!material) return matKind === 'type' ? 'Assemblies' : 'Unspecified';
+      if (!groupByAxis) return 'All';
+      if (groupByAxis === '_group') return groupLabelFor(material);
+      if (groupByAxis === '_category') {
+        const cat = window.categoryDef && window.categoryDef(material.category);
+        return (cat && cat.label) || material.category || 'Unspecified';
+      }
+      if (groupByAxis === '_trade') return fv(material, 'trade') || 'Unspecified';
+      if (groupByAxis === '_supplier') return fv(material, 'supplier') || material.supplier || 'Unspecified';
+      if (groupByAxis.indexOf('_tag_') === 0) {
+        const ax = groupByAxis.substring(5);
+        const tags = (material.fields && material.fields.tags && material.fields.tags[ax]) || [];
+        if (tags.length === 0) return '—';
+        // Resolve to label
+        const def = (window.schemaActive && window.schemaActive().tagAxes && window.schemaActive().tagAxes[ax]) || [];
+        const t = def.find(x => x.id === tags[0]);
+        return (t && t.label) || tags[0];
+      }
+      // Field id (select)
+      const v = fv(material, groupByAxis);
+      const f = window.fieldDef && window.fieldDef(groupByAxis);
+      if (f && f.options) {
+        const opt = f.options.find(o => o.value === v);
+        if (opt) return opt.label;
+      }
+      return v || '—';
+    }
+
     const resolved = useMemo(() => {
       return rows.map(r => {
         const matKind = r.specRef && r.specRef.kind;
         const m = (matKind === 'product' && r.specRef.id)
           ? materials.find(x => x.id === r.specRef.id)
           : null;
-        const category = m ? groupLabelFor(m) : (matKind === 'type' ? 'Assemblies' : 'Unspecified');
+        const category = bucketLabelForRow(m, matKind);
         const qty = (r.qty != null && r.qty !== '') ? parseFloat(r.qty) : null;
         const unitCost = m ? Number(fv(m, 'unit_cost')) : null;
         const subtotal = (m && Number.isFinite(unitCost) && qty != null && Number.isFinite(qty))
           ? qty * unitCost : null;
         return { row: r, material: m, unitCost, category, qty, subtotal };
       });
-    }, [rows, materials]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows, materials, groupByAxis]);
 
     // Group, preserving first-appearance order.
     const grouped = useMemo(() => {
@@ -131,6 +168,25 @@
         entries,
         subtotal: entries.reduce((s, e) => s + (e.subtotal || 0), 0),
       }));
+    }, [resolved]);
+
+    // Available group-by axes for the dropdown — drawn from groupableFields()
+    // over the visible materials.
+    const groupByOptions = useMemo(() => {
+      if (!window.groupableFields) return [];
+      // Add '_group' synthetic explicitly since groupableFields doesn't include it.
+      const visibleMaterials = resolved.map(e => e.material).filter(Boolean);
+      const opts = window.groupableFields(visibleMaterials);
+      // Ensure _group is first (cost schedule's traditional axis).
+      if (!opts.find(o => o.id === '_group')) {
+        opts.unshift({ id: '_group', label: 'Group', type: 'synthetic' });
+      } else {
+        // Move _group to front.
+        const idx = opts.findIndex(o => o.id === '_group');
+        const [g] = opts.splice(idx, 1);
+        opts.unshift(g);
+      }
+      return opts;
     }, [resolved]);
 
     const grandTotal = grouped.reduce((s, g) => s + g.subtotal, 0);
@@ -283,6 +339,21 @@
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              ...window.ui.label, color: 'var(--ink-4)',
+            }}>Group by</span>
+            <select
+              value={groupByAxis}
+              onChange={e => setGroupByAxis(e.target.value)}
+              style={{
+                background: 'transparent', border: '1px solid var(--rule-2)',
+                padding: '5px 26px 5px 9px',
+                fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--ink-2)',
+                cursor: 'pointer', appearance: 'none', borderRadius: 0,
+              }}>
+              <option value="">None</option>
+              {groupByOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
             {projects.length > 1 && (
               <select
                 value={project.id}

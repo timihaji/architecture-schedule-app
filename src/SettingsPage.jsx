@@ -27,12 +27,13 @@ function SettingsPage({
     { key: 'density',    label: 'Density',    num: '04', group: 'Style' },
     { key: 'layout',     label: 'Layout',     num: '05', group: 'Style' },
     { key: 'library',    label: 'Library defaults',  num: '06', group: 'Defaults' },
-    { key: 'codes',      label: 'Codes & duplicates', num: '07', group: 'Defaults' },
-    { key: 'projects',   label: 'Project defaults',  num: '08', group: 'Defaults' },
-    { key: 'cloud',      label: 'Cloud',      num: '09', group: 'System' },
-    { key: 'data',       label: 'Data',       num: '10', group: 'System' },
-    { key: 'keyboard',   label: 'Keyboard',   num: '11', group: 'System' },
-    { key: 'about',      label: 'About',      num: '12', group: 'System' },
+    { key: 'libraryFields', label: 'Library fields', num: '07', group: 'Defaults' },
+    { key: 'codes',      label: 'Codes & duplicates', num: '08', group: 'Defaults' },
+    { key: 'projects',   label: 'Project defaults',  num: '09', group: 'Defaults' },
+    { key: 'cloud',      label: 'Cloud',      num: '10', group: 'System' },
+    { key: 'data',       label: 'Data',       num: '11', group: 'System' },
+    { key: 'keyboard',   label: 'Keyboard',   num: '12', group: 'System' },
+    { key: 'about',      label: 'About',      num: '13', group: 'System' },
   ];
   const groups = [...new Set(sections.map(s => s.group))];
 
@@ -79,6 +80,9 @@ function SettingsPage({
         {section === 'density'    && <DensitySection {...sectionProps} />}
         {section === 'layout'     && <LayoutSection {...sectionProps} />}
         {section === 'library'    && <LibraryDefaultsSection {...sectionProps} />}
+        {section === 'libraryFields' && (window.FieldManager
+          ? <window.FieldManager />
+          : <div style={{ padding: 40, color: 'var(--ink-4)' }}>Field Manager not loaded.</div>)}
         {section === 'codes'      && <CodesSection {...sectionProps} />}
         {section === 'projects'   && <ProjectDefaultsSection {...sectionProps} />}
         {section === 'cloud'      && <CloudSection {...sectionProps} />}

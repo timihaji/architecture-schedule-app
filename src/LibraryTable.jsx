@@ -25,7 +25,41 @@ function LibraryTable(props) {
   } = props;
 
   const { query, sort: tbSort, setSort: setTbSort,
-          filterCategory, toolbarFiltered } = toolbarState;
+          filterCategory, groupBy: tbGroupBy, toolbarFiltered } = toolbarState;
+
+  // Phase 4: thread the toolbar's groupBy axis into DataTable's grouping hook.
+  // DataTable wants a (row) => key fn (single bucket per row). For the multi-
+  // value tag axes, we collapse to the first value — table grouping doesn't
+  // support row duplication. Group-by tag still works in Gallery / Register /
+  // Split which can render the same row in multiple groups.
+  const tableGroupByFn = React.useMemo(() => {
+    if (!tbGroupBy || !window.bucketKeysFor) return null;
+    let axis = null;
+    if (tbGroupBy === '_category' || tbGroupBy === '_group' || tbGroupBy === '_trade' || tbGroupBy === '_supplier') {
+      axis = { id: tbGroupBy, type: 'synthetic' };
+    } else if (tbGroupBy.indexOf('_tag_') === 0) {
+      axis = { id: tbGroupBy, tagAxis: tbGroupBy.substring(5), type: 'tag' };
+    } else {
+      const f = window.fieldDef && window.fieldDef(tbGroupBy);
+      if (f) axis = { id: f.id, type: f.type, multiple: f.multiple };
+    }
+    if (!axis) return null;
+    return (row) => {
+      const keys = window.bucketKeysFor(axis, row);
+      const arr = Array.isArray(keys) ? keys : [keys];
+      const k = arr[0] || '—';
+      // Resolve to label
+      if (axis.id === '_category') {
+        const c = window.categoryDef && window.categoryDef(k);
+        return (c && c.label) || k || '—';
+      }
+      if (axis.id === '_group') {
+        const g = window.groupDef && window.groupDef(k);
+        return (g && g.label) || k || '—';
+      }
+      return k || '—';
+    };
+  }, [tbGroupBy]);
 
   // Keep labelTemplates accessible to column sort fns (they can't take args)
   window._labelTemplatesCache = labelTemplates;
@@ -181,6 +215,7 @@ function LibraryTable(props) {
         }}
         onAdd={onAdd}
         onAddRow={onAdd ? (groupKey) => onAdd(groupKey ? { productType: groupKey } : undefined) : undefined}
+        groupBy={tableGroupByFn}
         topBar={null}
         kindTabs={null}
         filtersBar={null}

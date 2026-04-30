@@ -211,6 +211,11 @@
   .btn-ghost { background: none; border: 1px solid var(--rule-2); padding: 5px 10px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
   .btn-ghost:hover { border-color: var(--ink-3); color: var(--ink-2); }
   .btn-ghost.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  /* Field Manager mini-buttons (reorder, hide, rename, delete) */
+  .fm-mini-btn { background: none; border: 1px solid transparent; padding: 2px 6px; cursor: pointer; font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); line-height: 1; min-width: 22px; }
+  .fm-mini-btn:hover:not(:disabled) { border-color: var(--rule-2); color: var(--ink-2); background: var(--paper-2); }
+  .fm-mini-btn:disabled { cursor: not-allowed; }
+  .fm-mini-btn.danger:hover:not(:disabled) { color: #a04545; border-color: rgba(160,69,69,0.3); }
   .btn-add { border: none; padding: 7px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: opacity 0.1s; white-space: nowrap; background: var(--ink); color: var(--paper); }
   .btn-add:hover { opacity: 0.85; }
 
@@ -1013,7 +1018,8 @@
 <script type="text/babel" src="src/CardVariantD.jsx"></script>
 <script type="text/babel" src="src/PickerDrawer.jsx"></script>
 <script type="text/babel" src="src/SchedulePage.jsx"></script>
-<script type="text/babel" src="src/SettingsPage.jsx?v=d9"></script>
+<script type="text/babel" src="src/SettingsPage.jsx?v=d10"></script>
+<script type="text/babel" src="src/FieldManager.jsx"></script>
 <script type="text/babel" src="src/Tweaks.jsx"></script>
 <script type="text/babel" src="src/FieldRenderer.jsx"></script>
 <script type="text/babel" src="src/ProductFieldBlocks.jsx"></script>

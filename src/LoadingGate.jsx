@@ -160,6 +160,23 @@
       });
     }, []);
 
+    // Phase 4 — Field Manager edits land here. Updater receives the live
+    // taxonomies blob (or a deep clone of DEFAULT_SCHEMA_V5 if missing) and
+    // must return a complete v5-shaped blob. Mirrored onto window.appState so
+    // schema-helpers' schemaActive() picks it up synchronously.
+    const setTaxonomies = useCallback((updater) => {
+      if (degradedRef.current) return;
+      _setAppState(prev => {
+        const prevTax = (prev && prev.taxonomies && prev.taxonomies.schemaVersion === 5)
+          ? prev.taxonomies
+          : (window.cloneDefaultSchemaV5 ? window.cloneDefaultSchemaV5() : null);
+        const nextTax = typeof updater === 'function' ? updater(prevTax) : updater;
+        const nextState = { ...(prev || {}), taxonomies: nextTax };
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
+        return nextState;
+      });
+    }, []);
+
     // ───── Collection setters: diff prev vs next, push add/update/delete ─────
     const makeCollectionSetter = (table, setter) => (updater) => {
       if (degradedRef.current) return;
@@ -183,13 +200,25 @@
     const setProjects  = useCallback(makeCollectionSetter('projects',  _setProjects),  []);
     const setLibraries = useCallback(makeCollectionSetter('libraries', _setLibraries), []);
 
+    // Mirror appState onto window so schema-helpers (window.schemaActive) can
+    // read live taxonomies edits without going through React context. Also
+    // exposes materials + projects to schema-helpers' findReferencesToCategory.
+    useEffect(() => {
+      window.appState = appState;
+      window._csMaterials = materials || [];
+      window._csProjects  = projects  || [];
+    }, [appState, materials, projects]);
+
     const ctxValue = useMemo(() => ({
       // Singleton
       settings:       mergeWithSettingsDefaults(appState && appState.settings),
       ui:             (appState && appState.ui) || {},
       seedVersion:    (appState && appState.seed_version) || 0,
       labelTemplates: (appState && appState.label_templates) || (window.DEFAULT_TEMPLATES || {}),
-      setSettings, setUi, setSeedVersion, setLabelTemplates,
+      taxonomies:     (appState && appState.taxonomies && appState.taxonomies.schemaVersion === 5)
+        ? appState.taxonomies
+        : (window.DEFAULT_SCHEMA_V5 || null),
+      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies,
       // Collections
       materials: materials || [],
       projects:  projects  || [],
@@ -201,7 +230,7 @@
       _appState: appState,
     }), [
       appState, materials, projects, libraries, degraded,
-      setSettings, setUi, setSeedVersion, setLabelTemplates,
+      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies,
       setMaterials, setProjects, setLibraries,
     ]);
 
