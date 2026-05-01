@@ -173,10 +173,20 @@
 
   // ─── Tag / multi-select chip picker ────────────────────────────────────────
   function ChipMultiSelect({ field, value, onChange, mode }) {
-    // Read tag axis live (no useMemo) so inline-create appends surface
-    // immediately. The list is tiny — recomputing per render is cheap.
-    const options = (field.tagAxis && window.tagsForAxis)
-      ? (window.tagsForAxis(field.tagAxis) || []).map(t => ({ value: t.id, label: t.label }))
+    // Read taxonomies from React context (cs.taxonomies) when available so
+    // inline-create appends propagate on the very next render. The window
+    // mirror used by window.tagsForAxis updates in a useEffect that runs
+    // AFTER render — too late for the re-render triggered by addTagToAxis,
+    // which is why a freshly-created chip used to lag a render cycle.
+    let cs = null;
+    try { cs = window.useCloudState ? window.useCloudState() : null; }
+    catch (_) { cs = null; /* rendered outside provider — fall back */ }
+    const taxonomies = cs && cs.taxonomies;
+    const options = field.tagAxis
+      ? (taxonomies && taxonomies.tagAxes && taxonomies.tagAxes[field.tagAxis]
+          ? taxonomies.tagAxes[field.tagAxis]
+          : (window.tagsForAxis ? window.tagsForAxis(field.tagAxis) : [])
+        ).filter(t => !t.hidden).map(t => ({ value: t.id, label: t.label }))
       : (field.options || []);
     const arr = Array.isArray(value) ? value : [];
     const [draft, setDraft] = useState('');
