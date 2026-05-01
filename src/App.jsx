@@ -1122,8 +1122,7 @@ function SettingsGearButton({ active, onClick }) {
       title={active ? 'Close settings' : 'Open settings'}
       aria-label="Settings"
     >
-      <GearIcon size={13} />
-      <span className="sched-gear-ver">V</span>
+      <GearIcon size={14} />
     </button>
   );
 }

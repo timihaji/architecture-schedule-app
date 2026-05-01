@@ -627,11 +627,10 @@
   .theme-toggle.light .theme-toggle-icon.moon { opacity: 0; transform: translateY(3px) rotate(-12deg) scale(0.88); }
   .theme-toggle.dark .theme-toggle-icon.sun { opacity: 0; transform: translateY(-3px) rotate(12deg) scale(0.88); }
   .theme-toggle.dark .theme-toggle-icon.moon { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
-  .sched-gear { background: transparent; border: 1px solid var(--rule-2); padding: 5px 8px; cursor: pointer; color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-sans); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: all 0.14s ease; }
-  .sched-gear:hover { border-color: var(--ink); }
+  .sched-gear { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); cursor: pointer; transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease; }
+  .sched-gear:hover { border-color: var(--ink); background: var(--tint); color: var(--ink); }
+  .sched-gear:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
   .sched-gear.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .sched-gear-ver { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; opacity: 0.55; }
-  .sched-gear.active .sched-gear-ver, .sched-gear:hover .sched-gear-ver { opacity: 0.8; }
   .save-status { display: inline-flex; align-items: center; gap: 6px; color: inherit; }
   .save-status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
   .save-status-dot.pulsing { animation: amlSavePulse 1.2s ease-in-out infinite; }
