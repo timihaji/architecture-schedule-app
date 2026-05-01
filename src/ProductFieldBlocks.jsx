@@ -266,10 +266,41 @@ function PFB_Visual({ draft, set, setSwatch, materials = [] }) {
   );
 }
 
+// Progressive disclosure: a value is "empty" if null/undefined/'' or an empty
+// array. Filled fields stay visible by default; empty ones hide behind a
+// chevron until the user reveals them.
+function isFieldEmpty(draft, fieldId) {
+  const v = window.getFieldValue ? window.getFieldValue(draft, fieldId) : draft[fieldId];
+  if (v == null || v === '') return true;
+  if (Array.isArray(v) && v.length === 0) return true;
+  return false;
+}
+
+// Pack fields into rows of 2, except wide types (longText, multi-select,
+// tag-axis, itemRef) which take a full row.
+function packIntoRows(fields) {
+  const rows = [];
+  let bucket = [];
+  function flush() {
+    if (bucket.length === 0) return;
+    rows.push(bucket);
+    bucket = [];
+  }
+  fields.forEach(f => {
+    const isWide = f.type === 'longText' || (f.type === 'select' && f.multiple) || f.tagAxis || f.type === 'itemRef';
+    if (isWide) { flush(); rows.push([f]); }
+    else {
+      bucket.push(f);
+      if (bucket.length === 2) flush();
+    }
+  });
+  flush();
+  return rows;
+}
+
 function PFB_Specs({ draft, set, materials = [] }) {
   const cat = activeCategoryId(draft);
   const fields = window.fieldsForCategory ? window.fieldsForCategory(cat) : [];
-  // Specs = everything not in identity/commercial/notes/visual buckets.
   const specsFields = fields.filter(f => !SPECS_EXCLUDE.has(f.id));
 
   // Auto-inherit paint finish + tone when a paint is linked. paintedWith id
@@ -285,32 +316,45 @@ function PFB_Specs({ draft, set, materials = [] }) {
     }
   }, [linkedPaint && linkedPaint.swatch && linkedPaint.swatch.tone, draft.inheritPaintTone]);
 
-  // Render each field. We split into rows of 2 except for longText / boolean
-  // / multi-select which take a full row.
-  const rows = [];
-  let bucket = [];
-  function flush() {
-    if (bucket.length === 0) return;
-    rows.push(bucket);
-    bucket = [];
-  }
-  specsFields.forEach(f => {
-    const isWide = f.type === 'longText' || (f.type === 'select' && f.multiple) || f.tagAxis || f.type === 'itemRef';
-    if (isWide) { flush(); rows.push([f]); }
-    else {
-      bucket.push(f);
-      if (bucket.length === 2) flush();
-    }
-  });
-  flush();
+  const filled = specsFields.filter(f => !isFieldEmpty(draft, f.id));
+  const empty  = specsFields.filter(f =>  isFieldEmpty(draft, f.id));
+  const [showAll, setShowAll] = React.useState(false);
+
+  const filledRows = packIntoRows(filled);
+  const emptyRows  = packIntoRows(empty);
 
   return (
     <PFB_Section num="03" label="Specs">
-      {rows.map((row, i) => (
-        <div key={i} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
+      {filledRows.map((row, i) => (
+        <div key={`f-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
           {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
         </div>
       ))}
+      {showAll && emptyRows.map((row, i) => (
+        <div key={`e-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
+          {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
+        </div>
+      ))}
+      {empty.length > 0 && (
+        <button type="button"
+          onClick={() => setShowAll(v => !v)}
+          style={{
+            marginTop: filled.length > 0 ? 6 : 0,
+            padding: '4px 10px',
+            fontSize: 11,
+            fontFamily: 'var(--font-sans)',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            border: '1px dashed var(--rule-2)',
+            background: 'transparent',
+            color: 'var(--ink-3)',
+            cursor: 'pointer',
+          }}>
+          {showAll
+            ? `▴ Hide ${empty.length} empty field${empty.length === 1 ? '' : 's'}`
+            : `▾ + ${empty.length} more field${empty.length === 1 ? '' : 's'}`}
+        </button>
+      )}
     </PFB_Section>
   );
 }

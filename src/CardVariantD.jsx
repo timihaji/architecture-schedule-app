@@ -22,6 +22,79 @@
   const STATE_INK = { new: '#3a6645', existing: '#6b6559', repair: '#7a5e20', match: '#2e5a7a', demolish: '#a04545' };
   const MODE_INK  = { prop: '#3a3630', perf: '#3a6645', open: '#2e5a7a', pc: '#7a5e20', tba: '#9a9385' };
 
+  // Room picker for schedule cards. Mirrors the ChipMultiSelect type-and-Enter
+  // UX from FieldRenderer, but as single-select against project.locations:
+  // click a chip to toggle, type a new name + Enter to inline-create and assign.
+  function RoomPicker({ value, options, onChange, onAddLocation }) {
+    const [draft, setDraft] = useState('');
+    const canCreate = !!onAddLocation;
+
+    function commitDraft() {
+      const trimmed = draft.trim();
+      if (!trimmed) return;
+      const lc = trimmed.toLowerCase();
+      const match = options.find(o => String(o.name || '').toLowerCase() === lc);
+      if (match) {
+        onChange && onChange(match.id);
+        setDraft('');
+        return;
+      }
+      if (!canCreate) return;
+      const newId = onAddLocation(trimmed);
+      if (newId && onChange) onChange(newId);
+      setDraft('');
+    }
+
+    return (
+      <div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {options.map(o => {
+            const on = value === o.id;
+            return (
+              <button key={o.id} type="button"
+                onClick={() => onChange && onChange(on ? null : o.id)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-sans)',
+                  border: '1px solid ' + (on ? 'var(--ink)' : 'var(--rule-2)'),
+                  background: on ? 'var(--tint)' : 'var(--paper)',
+                  color: on ? 'var(--ink)' : 'var(--ink-3)',
+                  cursor: 'pointer',
+                }}>
+                {o.name}
+              </button>
+            );
+          })}
+        </div>
+        {canCreate && (
+          <input
+            type="text"
+            value={draft}
+            placeholder="Add new — type and press Enter"
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); commitDraft(); }
+              else if (e.key === 'Escape') { setDraft(''); }
+            }}
+            onBlur={() => { if (draft.trim()) commitDraft(); }}
+            style={{
+              marginTop: 6,
+              padding: '4px 8px',
+              fontSize: 11,
+              fontFamily: 'var(--font-sans)',
+              border: '1px dashed var(--rule-2)',
+              background: 'transparent',
+              color: 'var(--ink-3)',
+              outline: 'none',
+              minWidth: 180,
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
   function CardVariantD({
     card,                   // { id, kind:'product'|'type'|'empty', element, elementLabel,
                             //   locationId, locationName,
@@ -100,27 +173,13 @@
     function renderFieldVal(f) {
       if (isEditing && !f.readonly) {
         if (f.type === 'room') {
-          const ADD_NEW = '__add_new__';
           return (
-            <select className="sched-edit-select" value={f.rawVal || ''}
-              onChange={e => {
-                const v = e.target.value;
-                if (v === ADD_NEW) {
-                  const name = window.prompt('New room name?');
-                  const trimmed = (name || '').trim();
-                  if (!trimmed || !onAddLocation) return;
-                  const newId = onAddLocation(trimmed);
-                  if (newId && f.onChange) f.onChange(newId);
-                } else {
-                  f.onChange && f.onChange(v || null);
-                }
-              }}>
-              <option value="">— pick a room —</option>
-              {locations.map(l => (
-                <option key={l.id} value={l.id}>{l.name}</option>
-              ))}
-              {onAddLocation && <option value={ADD_NEW}>+ Add room…</option>}
-            </select>
+            <RoomPicker
+              value={f.rawVal || null}
+              options={locations}
+              onChange={f.onChange}
+              onAddLocation={onAddLocation}
+            />
           );
         }
         if (f.type === 'select') return (
