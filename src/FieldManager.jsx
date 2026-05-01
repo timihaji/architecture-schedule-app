@@ -800,7 +800,7 @@
   function TagsTab({ tax, patch }) {
     const axes = [
       { id: 'performance',    label: 'Performance' },
-      { id: 'location',       label: 'Location' },
+      { id: 'area',           label: 'Area' },
       { id: 'materialFamily', label: 'Material family' },
     ];
     return (

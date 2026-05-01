@@ -69,6 +69,7 @@
       kind,
       element: row.element || null,
       elementLabel,
+      locationId: row.locationId || null,
       locationName,
       name, code, sku, supplier, trade, trades,
       slots, swatchColor, swatchBrand,
@@ -123,6 +124,7 @@
     // card visible, all others still hidden; toolbar-on clears the key from every row.
     const FIELD_TOGGLES = [
       { key: 'element',  label: 'Element' },
+      { key: 'room',     label: 'Room' },
       { key: 'state',    label: 'State' },
       { key: 'mode',     label: 'Spec Mode' },
       { key: 'supplier', label: 'Supplier' },
@@ -357,10 +359,30 @@
       if (field === 'mode' || field === 'specMode') return updateRow(cardId, { specMode: value });
       if (field === 'hiddenFields') return updateRow(cardId, { hiddenFields: value });
       if (field === 'code') return updateRow(cardId, { code: value || null });
+      if (field === 'locationId') return updateRow(cardId, { locationId: value || null });
       // Other field edits flow into the row directly (e.g. supplier, sku, trade)
       // — for product-bound rows these are derived from the material so the edit
       // doesn't persist. We still allow it on free rows.
       return updateRow(cardId, { [field]: value });
+    }
+
+    // Inline-create a new room: appends { id, name } to project.locations and
+    // returns the new id so the caller can immediately assign it to a row.
+    function addLocationInline(name) {
+      if (!project || !cs || !cs.setProjects) return null;
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return null;
+      const newId = 'loc-' + Date.now();
+      const entry = { id: newId, name: trimmed };
+      cs.setProjects(list => list.map(p =>
+        p.id === project.id
+          ? Object.assign({}, p, {
+              locations: [...(p.locations || []), entry],
+              locationIds: [...(p.locationIds || []), newId],
+            })
+          : p
+      ));
+      return newId;
     }
 
     // Project header derived bits.
@@ -503,6 +525,8 @@
               {g.cards.map(c => (
                 <window.CardVariantD
                   key={c.id} card={c} elements={elements}
+                  locations={locations}
+                  onAddLocation={addLocationInline}
                   density={density}
                   onSwatchClick={() => openPickerForRow(c)}
                   onStateChange={v => updateRow(c.id, { state: v })}

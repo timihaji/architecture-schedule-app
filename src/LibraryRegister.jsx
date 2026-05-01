@@ -29,7 +29,7 @@ const REGISTER_COLS = [
 // Fields to never expose as columns (structural, tag axes, long text).
 const REG_FIELD_SKIP = new Set([
   'code', 'name', 'swatch', 'image_ref', 'notes', 'libraries',
-  'tags_performance', 'tags_location', 'tags_material_family',
+  'tags_performance', 'tags_area', 'tags_material_family',
 ]);
 const REG_LOCKED_COLS = REGISTER_COLS.filter(c => c.locked);
 const REG_DEFAULT_SUPPLEMENT = REGISTER_COLS.filter(c => !c.locked);

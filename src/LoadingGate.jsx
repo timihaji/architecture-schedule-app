@@ -209,6 +209,13 @@
       window._csProjects  = projects  || [];
     }, [appState, materials, projects]);
 
+    // Expose setTaxonomies on window so non-React helpers (e.g. ChipMultiSelect's
+    // inline-create flow via window.addTagToAxis) can mutate the workspace
+    // taxonomies without going through React context.
+    useEffect(() => {
+      window.setTaxonomies = setTaxonomies;
+    }, [setTaxonomies]);
+
     const ctxValue = useMemo(() => ({
       // Singleton
       settings:       mergeWithSettingsDefaults(appState && appState.settings),

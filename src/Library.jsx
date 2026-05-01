@@ -690,7 +690,7 @@ function MaterialDetail({ material: m, materials = [], libraries, labelTemplates
   // surfaced separately and tags/notes/long fields).
   const allFields = window.fieldsForCategory ? window.fieldsForCategory(catId) : [];
   const SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
-    'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
+    'tags_performance', 'tags_area', 'tags_material_family', 'libraries']);
   const detailFields = allFields.filter(f =>
     !SKIP.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef'
   ).slice(0, 8);

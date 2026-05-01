@@ -24,9 +24,12 @@
 
   function CardVariantD({
     card,                   // { id, kind:'product'|'type'|'empty', element, elementLabel,
+                            //   locationId, locationName,
                             //   name, code, sku, supplier, trade, trades, slots, swatchColor,
                             //   swatchBrand, state, mode, hiddenFields, notes }
     elements,               // [{ id, label }] from taxonomies — for element <select>
+    locations = [],         // [{ id, name }] from project.locations — for room <select>
+    onAddLocation,          // (name) => newLocationId   — inline-create new room
     onSwatchClick,          // () => open PickerDrawer (D1d, future)
     onStateChange,          // (newState) => void
     onModeChange,           // (newMode) => void
@@ -53,6 +56,12 @@
         options: elementOptions.map(e => e.id),
         labelMap: Object.fromEntries(elementOptions.map(e => [e.id, e.label])),
         onChange: (v) => onFieldChange && onFieldChange('element', v) },
+      { key: 'room', label: 'Room',
+        // Resolve from card.locationId so an empty locationId reads as '—'
+        // rather than the upstream "Unassigned" fallback in card.locationName.
+        val: (locations.find(l => l.id === card.locationId) || {}).name || '—',
+        rawVal: card.locationId || '', type: 'room',
+        onChange: (v) => onFieldChange && onFieldChange('locationId', v) },
       { key: 'state', label: 'State', val: window.CHIP_STATE_LABEL[stateNorm],
         rawVal: stateNorm, color: STATE_INK[stateNorm], type: 'select',
         options: window.CHIP_STATES, labelMap: window.CHIP_STATE_LABEL,
@@ -90,6 +99,30 @@
 
     function renderFieldVal(f) {
       if (isEditing && !f.readonly) {
+        if (f.type === 'room') {
+          const ADD_NEW = '__add_new__';
+          return (
+            <select className="sched-edit-select" value={f.rawVal || ''}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === ADD_NEW) {
+                  const name = window.prompt('New room name?');
+                  const trimmed = (name || '').trim();
+                  if (!trimmed || !onAddLocation) return;
+                  const newId = onAddLocation(trimmed);
+                  if (newId && f.onChange) f.onChange(newId);
+                } else {
+                  f.onChange && f.onChange(v || null);
+                }
+              }}>
+              <option value="">— pick a room —</option>
+              {locations.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+              {onAddLocation && <option value={ADD_NEW}>+ Add room…</option>}
+            </select>
+          );
+        }
         if (f.type === 'select') return (
           <select className="sched-edit-select" value={f.rawVal}
             onChange={e => f.onChange && f.onChange(e.target.value)}

@@ -80,7 +80,7 @@ function LibraryLayoutC({
   const allDetailFields = active && window.fieldsForCategory
     ? window.fieldsForCategory(activeCatId) : [];
   const SKIP_DETAIL = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
-    'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
+    'tags_performance', 'tags_area', 'tags_material_family', 'libraries']);
   const detailFields = allDetailFields.filter(f =>
     !SKIP_DETAIL.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef'
   ).slice(0, 6);

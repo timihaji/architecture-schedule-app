@@ -441,9 +441,45 @@
     return base + '_' + n;
   }
 
+  // ─── Inline tag-axis create ────────────────────────────────────────────────
+  // Adds a new entry to a tag axis (used by ChipMultiSelect's create-on-Enter
+  // flow). Reads existing axis entries via schemaActive(), generates a stable
+  // id (slug + dedupe), and persists via window.setTaxonomies (LoadingGate
+  // setter — do NOT spread window._appState).
+  //
+  // If an existing entry's id or label matches the trimmed input (case-
+  // insensitive), no-op-and-return that id so callers can simply toggle it on.
+  function addTagToAxis(axis, rawLabel) {
+    if (!axis) return null;
+    const label = String(rawLabel || '').trim();
+    if (!label) return null;
+    const existing = (((schemaActive().tagAxes || {})[axis]) || []);
+    const lc = label.toLowerCase();
+    const match = existing.find(t =>
+      String(t.id).toLowerCase() === lc ||
+      String(t.label || '').toLowerCase() === lc
+    );
+    if (match) return match.id;
+    const id = makeStableId(label, existing.map(t => t.id));
+    if (typeof window.setTaxonomies !== 'function') {
+      console.warn('[addTagToAxis] window.setTaxonomies not yet available');
+      return null;
+    }
+    window.setTaxonomies(prev => {
+      const base = prev || cloneDefaultSchemaV5() || { tagAxes: {} };
+      const tagAxes = Object.assign({}, base.tagAxes || {});
+      const list = (tagAxes[axis] || []).slice();
+      list.push({ id, label, sortOrder: list.length + 1, hidden: false });
+      tagAxes[axis] = list;
+      return Object.assign({}, base, { tagAxes });
+    });
+    return id;
+  }
+
   // ─── Expose ────────────────────────────────────────────────────────────────
   window.cloneDefaultSchemaV5 = cloneDefaultSchemaV5;
   window.makeStableId = makeStableId;
+  window.addTagToAxis = addTagToAxis;
   window.bucketItems = bucketItems;
   window.schemaActive = schemaActive;
   window.commonFields = commonFields;

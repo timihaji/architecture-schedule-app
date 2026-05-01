@@ -24,7 +24,7 @@
 //     → loads schedule blobs, transforms, writes back, returns result
 
 (function () {
-  const MIGRATION_VERSION = 6;
+  const MIGRATION_VERSION = 7;
 
   // ─── Idempotency gates ────────────────────────────────────────────────────
   function isMaterialV5(m) {
@@ -211,14 +211,14 @@
 
   // ─── Tag bucketing ────────────────────────────────────────────────────────
   function bucketTags(legacyTags, schema) {
-    const out = { performance: [], location: [], materialFamily: [] };
+    const out = { performance: [], area: [], materialFamily: [] };
     if (!Array.isArray(legacyTags) || legacyTags.length === 0) return out;
     const axes = (schema && schema.tagAxes) || (window.DEFAULT_SCHEMA_V5 && window.DEFAULT_SCHEMA_V5.tagAxes);
     if (!axes) return out;
 
     function findAxis(tag) {
       const t = String(tag).toLowerCase();
-      for (const axis of ['performance', 'location', 'materialFamily']) {
+      for (const axis of ['performance', 'area', 'materialFamily']) {
         const list = axes[axis] || [];
         for (const entry of list) {
           if (entry.id === t) return axis;
@@ -240,6 +240,17 @@
   // ─── Material migration ───────────────────────────────────────────────────
   function migrateMaterial(material, schema, unmappedSink) {
     if (!material) return material;
+    // v6→v7: rename inner tag axis 'location' → 'area'. Applies to both legacy
+    // and already-v5 materials, so the rename lands on every workspace at the
+    // first MIGRATION_VERSION ≥ 7 boot.
+    if (material.fields && material.fields.tags && material.fields.tags.location) {
+      const t = Object.assign({}, material.fields.tags);
+      t.area = Array.from(new Set([].concat(t.area || [], t.location || [])));
+      delete t.location;
+      material = Object.assign({}, material, {
+        fields: Object.assign({}, material.fields, { tags: t }),
+      });
+    }
     if (isMaterialV5(material)) return material;
 
     const v5Cat = legacyToV5Category(material);
@@ -301,11 +312,11 @@
       const existing = (fields.tags && typeof fields.tags === 'object') ? fields.tags : {};
       fields.tags = {
         performance:    Array.from(new Set([...(existing.performance || []),    ...bucketed.performance])),
-        location:       Array.from(new Set([...(existing.location || []),       ...bucketed.location])),
+        area:           Array.from(new Set([...(existing.area || existing.location || []), ...bucketed.area])),
         materialFamily: Array.from(new Set([...(existing.materialFamily || []), ...bucketed.materialFamily])),
       };
     } else if (!fields.tags || typeof fields.tags !== 'object') {
-      fields.tags = { performance: [], location: [], materialFamily: [] };
+      fields.tags = { performance: [], area: [], materialFamily: [] };
     }
 
     // Trade: explicit field, with _touched.trade flag indicating user override.

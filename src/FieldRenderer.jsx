@@ -40,9 +40,9 @@
   // any axis-specific id is requested.
   function getFieldValue(item, fieldId) {
     if (!item) return undefined;
-    if (fieldId === 'tags_performance' || fieldId === 'tags_location' || fieldId === 'tags_material_family') {
+    if (fieldId === 'tags_performance' || fieldId === 'tags_area' || fieldId === 'tags_material_family') {
       const axis = fieldId === 'tags_performance' ? 'performance'
-                 : fieldId === 'tags_location'    ? 'location'
+                 : fieldId === 'tags_area'        ? 'area'
                  :                                  'materialFamily';
       const fieldsBucket = item.fields && item.fields.tags && item.fields.tags[axis];
       if (Array.isArray(fieldsBucket)) return fieldsBucket;
@@ -63,16 +63,16 @@
   // form (key, value) => setDraft(d => ({ ...d, [key]: value })).
   function setFieldOnDraft(set, fieldId, value, draft) {
     // Tags by axis: replace the right slot inside fields.tags = { axis: [] }.
-    if (fieldId === 'tags_performance' || fieldId === 'tags_location' || fieldId === 'tags_material_family') {
+    if (fieldId === 'tags_performance' || fieldId === 'tags_area' || fieldId === 'tags_material_family') {
       const axis = fieldId === 'tags_performance' ? 'performance'
-                 : fieldId === 'tags_location'    ? 'location'
+                 : fieldId === 'tags_area'        ? 'area'
                  :                                  'materialFamily';
       const prevTags = (draft && draft.fields && draft.fields.tags) || {};
       const nextTags = Object.assign({}, prevTags, { [axis]: value || [] });
       const prevFields = (draft && draft.fields) || {};
       set('fields', Object.assign({}, prevFields, { tags: nextTags }));
       // Also keep legacy m.tags (flat) loosely in sync — union of all axes.
-      const flat = [].concat(nextTags.performance || [], nextTags.location || [], nextTags.materialFamily || []);
+      const flat = [].concat(nextTags.performance || [], nextTags.area || [], nextTags.materialFamily || []);
       set('tags', Array.from(new Set(flat)));
       return;
     }
@@ -173,13 +173,13 @@
 
   // ─── Tag / multi-select chip picker ────────────────────────────────────────
   function ChipMultiSelect({ field, value, onChange, mode }) {
-    const options = useMemo(() => {
-      if (field.tagAxis && window.tagsForAxis) {
-        return (window.tagsForAxis(field.tagAxis) || []).map(t => ({ value: t.id, label: t.label }));
-      }
-      return field.options || [];
-    }, [field]);
+    // Read tag axis live (no useMemo) so inline-create appends surface
+    // immediately. The list is tiny — recomputing per render is cheap.
+    const options = (field.tagAxis && window.tagsForAxis)
+      ? (window.tagsForAxis(field.tagAxis) || []).map(t => ({ value: t.id, label: t.label }))
+      : (field.options || []);
     const arr = Array.isArray(value) ? value : [];
+    const [draft, setDraft] = useState('');
 
     if (mode === 'read') {
       if (arr.length === 0) return emDash();
@@ -201,7 +201,32 @@
       onChange(has ? arr.filter(x => x !== v) : arr.concat(v));
     }
 
-    return React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
+    // Inline create flow — only meaningful for tag-axis fields (workspace
+    // taxonomy, mutable). Plain field.options can't be appended to at runtime.
+    const canCreate = !!(field.tagAxis && window.addTagToAxis);
+
+    function commitDraft() {
+      const trimmed = draft.trim();
+      if (!trimmed) return;
+      const lc = trimmed.toLowerCase();
+      // Existing match? Just toggle it on.
+      const match = options.find(o =>
+        String(o.value).toLowerCase() === lc ||
+        String(o.label || '').toLowerCase() === lc
+      );
+      if (match) {
+        if (arr.indexOf(match.value) === -1) onChange(arr.concat(match.value));
+        setDraft('');
+        return;
+      }
+      if (!canCreate) return;
+      const newId = window.addTagToAxis(field.tagAxis, trimmed);
+      if (newId) onChange(arr.concat(newId));
+      setDraft('');
+    }
+
+    const chipsRow = React.createElement('div',
+      { style: { display: 'flex', flexWrap: 'wrap', gap: 6 } },
       options.map(o => {
         const on = arr.indexOf(o.value) !== -1;
         return React.createElement('button', {
@@ -220,6 +245,33 @@
         }, o.label);
       })
     );
+
+    if (!canCreate) return chipsRow;
+
+    const input = React.createElement('input', {
+      type: 'text',
+      value: draft,
+      placeholder: 'Add new — type and press Enter',
+      onChange: e => setDraft(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') { e.preventDefault(); commitDraft(); }
+        else if (e.key === 'Escape') { setDraft(''); }
+      },
+      onBlur: () => { if (draft.trim()) commitDraft(); },
+      style: {
+        marginTop: 6,
+        padding: '4px 8px',
+        fontSize: 11,
+        fontFamily: 'var(--font-sans)',
+        border: '1px dashed var(--rule-2)',
+        background: 'transparent',
+        color: 'var(--ink-3)',
+        outline: 'none',
+        minWidth: 180,
+      },
+    });
+
+    return React.createElement('div', null, chipsRow, input);
   }
 
   // ─── Main component ────────────────────────────────────────────────────────

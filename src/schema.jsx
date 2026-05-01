@@ -73,14 +73,14 @@
   fLong('notes', 'Notes');
   // tags is a special composite — implemented as three multi-selects, one per axis:
   fTag('tags_performance', 'Performance', 'performance');
-  fTag('tags_location', 'Location', 'location');
+  fTag('tags_area', 'Area', 'area');
   fTag('tags_material_family', 'Material family', 'materialFamily');
   fMSel('libraries', 'Libraries', []); // options resolved at runtime
 
   const COMMON_FIELD_IDS = [
     'code', 'name', 'supplier', 'country_of_origin', 'lead_time',
     'unit', 'unit_cost', 'swatch', 'image_ref', 'notes',
-    'tags_performance', 'tags_location', 'tags_material_family',
+    'tags_performance', 'tags_area', 'tags_material_family',
     'libraries'
   ];
 
@@ -91,9 +91,9 @@
       'wet-area', 'slip-resistant', 'accessible', 'automatic', 'weatherproof',
       'non-combustible', 'low-voc'
     ].map((id, i) => ({ id, label: id.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()), sortOrder: i + 1, hidden: false })),
-    location: [
-      'internal', 'external', 'wet-area', 'public', 'back-of-house',
-      'roof', 'semi-exposed', 'clinical', 'food-prep', 'high-traffic'
+    area: [
+      'kitchen', 'living', 'dining', 'bedroom', 'bathroom', 'ensuite',
+      'powder', 'laundry', 'office', 'hallway', 'entry', 'outdoor'
     ].map((id, i) => ({ id, label: id.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()), sortOrder: i + 1, hidden: false })),
     materialFamily: [
       'timber', 'stone', 'ceramic', 'concrete', 'metal', 'glass', 'plastic',
@@ -1858,7 +1858,7 @@
   // snapshot with a fresh clone if they differ.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
-    _reseedVersion: 2,
+    _reseedVersion: 3,
     groups: GROUPS,
     categories: CATEGORIES,
     fields: Object.values(FIELDS),

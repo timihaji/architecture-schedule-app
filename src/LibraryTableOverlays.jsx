@@ -9,7 +9,7 @@
 // up to a sensible cap. Tags + notes + image_ref live in their own sections.
 const SIDE_PANEL_TOP_IDS = ['supplier', 'country_of_origin', 'lead_time', 'unit_cost'];
 const SIDE_PANEL_SKIP_IDS = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
-  'tags_performance', 'tags_location', 'tags_material_family', 'libraries']);
+  'tags_performance', 'tags_area', 'tags_material_family', 'libraries']);
 
 // ───────── Side panel (Linear-style right drawer) ─────────
 function LTSidePanel({ material: m, materials, libraries, labelTemplates,

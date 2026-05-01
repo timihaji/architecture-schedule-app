@@ -23,7 +23,7 @@ function mk(id, code, name, category, fields, swatch, opts) {
   }
   // Always have a tags shape so renderers never have to null-check.
   if (!cleanFields.tags) {
-    cleanFields.tags = { performance: [], location: [], materialFamily: [] };
+    cleanFields.tags = { performance: [], area: [], materialFamily: [] };
   }
   return {
     id, code, name,
