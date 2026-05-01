@@ -650,8 +650,6 @@ function App() {
         {view === 'projects' && (
           <Projects
             projects={projects}
-            materials={materials}
-            labelTemplates={labelTemplates}
             onOpen={(pid) => { setActiveProjectId(pid); setView('cost'); }}
             onAdd={addProject}
             onEdit={setEditingProject}

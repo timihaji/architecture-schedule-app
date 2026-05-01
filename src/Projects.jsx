@@ -1,6 +1,6 @@
 // Projects list — index view
 
-function Projects({ projects, materials, onOpen, onAdd, onEdit, onDelete }) {
+function Projects({ projects, onOpen, onAdd, onEdit, onDelete }) {
   return (
     <div>
       <div className="sched-page-header">
@@ -23,7 +23,6 @@ function Projects({ projects, materials, onOpen, onAdd, onEdit, onDelete }) {
         <span className="sched-page-eyebrow">Client · Location</span>
         <span className="sched-page-eyebrow">Stage</span>
         <span className="sched-page-eyebrow" style={{ textAlign: 'right' }}>Budget</span>
-        <span className="sched-page-eyebrow" style={{ textAlign: 'right' }}>Materials</span>
         <div />
       </div>
       <Rule />
@@ -37,21 +36,18 @@ function Projects({ projects, materials, onOpen, onAdd, onEdit, onDelete }) {
         </div>
       )}
 
-      {projects.map((p, i) => {
-        const mats = materials.filter(m => (m.projects || []).includes(p.id));
-        return (
-          <ProjectRow key={p.id} project={p} materials={mats}
-            onOpen={() => onOpen(p.id)}
-            onEdit={() => onEdit(p)}
-            onDelete={() => onDelete(p.id)}
-            index={i} />
-        );
-      })}
+      {projects.map((p, i) => (
+        <ProjectRow key={p.id} project={p}
+          onOpen={() => onOpen(p.id)}
+          onEdit={() => onEdit(p)}
+          onDelete={() => onDelete(p.id)}
+          index={i} />
+      ))}
     </div>
   );
 }
 
-function ProjectRow({ project: p, materials, onOpen, onEdit, onDelete }) {
+function ProjectRow({ project: p, onOpen, onEdit, onDelete }) {
   return (
     <div className="reg-row">
       <div className="proj-reg-row-grid" onClick={onOpen}>
@@ -72,28 +68,6 @@ function ProjectRow({ project: p, materials, onOpen, onEdit, onDelete }) {
         </div>
         <StageIndicator stage={p.stage} />
         <Mono size={12} color="var(--ink)" style={{ textAlign: 'right' }}>{p.budget || '—'}</Mono>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 3 }}>
-          {materials.length > 0 ? (
-            <>
-              <div style={{ display: 'flex' }}>
-                {materials.slice(0, 4).map((m, j) => (
-                  <Swatch
-                    key={m.id}
-                    swatch={m.swatch}
-                    size="xs"
-                    seed={parseInt(m.id.slice(2)) || 1}
-                    style={{ marginLeft: j === 0 ? 0 : -6, outline: '1px solid var(--paper)' }}
-                  />
-                ))}
-              </div>
-              <Mono size={11} color="var(--ink-3)" style={{ marginLeft: 6 }}>
-                {String(materials.length).padStart(2, '0')}
-              </Mono>
-            </>
-          ) : (
-            <Mono size={11} color="var(--ink-4)">—</Mono>
-          )}
-        </div>
         <div className="reg-actions" onClick={e => e.stopPropagation()}>
           <button type="button" className="proj-reg-action-btn" onClick={onEdit} title="Edit">edit</button>
           <button type="button" className="proj-reg-action-del" onClick={onDelete} title="Delete">×</button>
