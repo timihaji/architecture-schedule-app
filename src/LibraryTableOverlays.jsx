@@ -52,9 +52,11 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
     <div className="lt-sp">
       <div className="lt-sp-head">
         <div className="lt-sp-head-left">
-          <Mono size={10} color="var(--ink-4)" style={{ letterSpacing: '0.12em' }}>
-            {m.code}
-          </Mono>
+          {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+            <Mono size={10} color="var(--ink-4)" style={{ letterSpacing: '0.12em' }}>
+              {m.code}
+            </Mono>
+          )}
           <span className="lt-sp-badge">
             {(catDef && catDef.label) || 'Material'}
           </span>
@@ -176,7 +178,7 @@ function PanelKVField({ field, value }) {
 function LTColumnPicker({ colPref, setColPref, onClose }) {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
-  const COLUMNS = window.LIBRARY_COLUMNS || [];
+  const COLUMNS = (window.LIBRARY_COLUMNS || []).filter(c => !c.visible || c.visible());
   const DEFAULT_VISIBLE = window.LIBRARY_DEFAULT_VISIBLE || [];
   const DEFAULT_ORDER = window.LIBRARY_DEFAULT_ORDER || COLUMNS.map(c => c.id);
 

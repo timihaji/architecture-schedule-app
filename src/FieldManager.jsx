@@ -753,7 +753,9 @@
   // COMMON TAB
   // ───────────────────────────────────────────────────────────────────────────
   function CommonTab({ tax, patch, onEditField, onCreateField }) {
-    const ids = tax.commonFieldIds || [];
+    const allIds = tax.commonFieldIds || [];
+    const officeMode = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
+    const ids = officeMode ? allIds : allIds.filter(id => id !== 'code');
     return (
       <div style={{ maxWidth: 720, border: '1px solid var(--rule-2)' }}>
         <SectionBar

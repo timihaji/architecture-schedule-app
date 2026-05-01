@@ -126,7 +126,9 @@ function LibraryLayoutC({
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                        <window.CodeChip>{item.code}</window.CodeChip>
+                        {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+                          <window.CodeChip>{item.code}</window.CodeChip>
+                        )}
                         <span
                           className="split-name"
                           style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}

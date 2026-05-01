@@ -25,7 +25,7 @@ function Library({
   // category (session-only memory). Recent-axes list drives the "Recent"
   // section in the Group by dropdown.
   const [query, setQuery] = React.useState('');
-  const [sort, setSort] = React.useState('code');           // code|name|cost|lead
+  const [sort, setSort] = React.useState('name');           // code|name|cost|lead
   const [filterCategory, setFilterCategory] = React.useState('All');
   const DEFAULT_GROUP_BY = '_category';
   const [groupByByCat, setGroupByByCat] = React.useState({});
@@ -499,9 +499,11 @@ function GalleryCard({
         flexDirection: 'column',
         minWidth: 0,
       }}>
-        <div style={{ marginBottom: 4 }}>
-          <window.CodeChip size="gallery">{m.code}</window.CodeChip>
-        </div>
+        {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+          <div style={{ marginBottom: 4 }}>
+            <window.CodeChip size="gallery">{m.code}</window.CodeChip>
+          </div>
+        )}
         <Serif size={15} style={{
           display: 'block',
           lineHeight: 1.2,
@@ -876,7 +878,9 @@ function CompareStrip({ ids, materials, labelTemplates, onClose }) {
             <Swatch swatch={m.swatch} size="md" seed={parseInt(m.id.slice(2)) || 1}
               style={{ width: '100%', height: 64 }} />
             <div style={{ marginTop: 8 }}>
-              <Mono size={10} color="var(--ink-4)">{m.code}</Mono>
+              {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+                <Mono size={10} color="var(--ink-4)">{m.code}</Mono>
+              )}
               <Serif size={15} style={{ display: 'block', lineHeight: 1.15, marginTop: 2 }}>
                 {window.formatLabel(m, labelTemplates)}
               </Serif>

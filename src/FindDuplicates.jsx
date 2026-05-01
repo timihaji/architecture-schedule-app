@@ -84,13 +84,14 @@ function FindDuplicatesPanel({ materials, libraries, settings, onMerge, onUpdate
     }
   }
 
+  const officeMode = !!(window.isOfficeMode && window.isOfficeMode(policy));
   const groupLabels = {
     'exact': 'Exact matches',
     'code-supplier': 'Same code & supplier',
     'name-supplier': 'Same name & supplier',
     'name-fuzzy': 'Similar names',
   };
-  const groups = ['exact', 'code-supplier', 'name-supplier', 'name-fuzzy'];
+  const groups = ['exact', ...(officeMode ? ['code-supplier'] : []), 'name-supplier', 'name-fuzzy'];
 
   const byLevel = {};
   for (const p of pairs) {
@@ -178,6 +179,7 @@ function DupePair({ pair, matA, matB, onMergeLeft, onMergeRight, onKeepBoth }) {
 
 function MaterialCard({ mat, side }) {
   const label = window.formatLabel ? window.formatLabel(mat, window._labelTemplatesCache) : mat.name;
+  const officeMode = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
   return (
     <div className={'fd-mat-card' + (side === 'left' ? ' left' : '')}>
       <div className="fd-mat-top">
@@ -185,7 +187,7 @@ function MaterialCard({ mat, side }) {
           <div className="fd-mat-swatch"
             style={{ background: mat.swatch.tone || 'var(--paper-2)' }} />
         )}
-        <span className="fd-mat-code">{mat.code}</span>
+        {officeMode && <span className="fd-mat-code">{mat.code}</span>}
       </div>
       <div className="fd-mat-name">{label}</div>
       {mat.supplier && <div className="fd-mat-supplier">{mat.supplier}</div>}

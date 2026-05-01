@@ -311,9 +311,11 @@ function LibraryRegister({
   }
 
   const pickerSections = React.useMemo(() => {
+    const isOffice = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
+    const filterCode = cols => isOffice ? cols : cols.filter(c => c.id !== 'code');
     const q = colSearch.trim().toLowerCase();
-    if (!q) return columnModel.sections;
-    const matches = availableCols.filter(c => {
+    if (!q) return columnModel.sections.map(sec => ({ ...sec, cols: filterCode(sec.cols) }));
+    const matches = filterCode(availableCols).filter(c => {
       const hay = [
         c.label, c.id, c.fieldId, c.scopeLabel,
         fieldIdForRegCol(c),
@@ -406,7 +408,8 @@ function LibraryRegister({
   }, [colsOpen, colsAlignLeft, visibleCols, colSearch, pickerSections, columnModel.suggestedIds, setColumnsButton]);
 
   // Render
-  const visibleColDefs = availableCols.filter(c => visibleCols.has(c.id));
+  const officeMode = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
+  const visibleColDefs = availableCols.filter(c => visibleCols.has(c.id) && (c.id !== 'code' || officeMode));
   const gridTemplate = visibleColDefs.map(c => c.width).join(' ');
 
   return (

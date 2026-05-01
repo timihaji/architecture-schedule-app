@@ -463,8 +463,11 @@ function App() {
     };
     window.buildCSVFromIds = function(ids) {
       const rows = materials.filter(m => ids.includes(m.id));
-      const cols = ['code', 'name', 'category', 'supplier', 'origin', 'finish',
+      const pol = settings.dupePolicy || window.DUPE_PRESET_A;
+      const baseCols = ['name', 'category', 'supplier', 'origin', 'finish',
         'species', 'thickness', 'dimensions', 'unit', 'unitCost', 'leadTime'];
+      const cols = (window.isOfficeMode && window.isOfficeMode(pol))
+        ? ['code', ...baseCols] : baseCols;
       const esc = (v) => {
         if (v == null) return '';
         const s = String(v);
@@ -762,6 +765,7 @@ function App() {
             setTimeout(() => createNewItem(m.category || 'wall'), 0);
           } : undefined}
           requireCodeOnSave={!!(settings.dupePolicy || window.DUPE_PRESET_A).requireCodeOnSave}
+          showLibraryCode={!!(window.isOfficeMode && window.isOfficeMode(settings.dupePolicy || window.DUPE_PRESET_A))}
         />
       )}
 
@@ -1207,7 +1211,7 @@ function DuplicatePicker({ products = [], onPick }) {
   );
 }
 
-function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave }) {
+function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave, showLibraryCode = false }) {
   // Phase 1B (commit 4): normalise tradeDiscounts/currency on existing rows
   // that pre-date these fields so Commercial doesn't crash on undefined.
   const [draft, setDraft] = React.useState(() => ({
@@ -1291,7 +1295,7 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
                 onOpenLabelBuilder={onOpenLabelBuilder} />
 
               <window.ProductFieldBlocks.Identity
-                draft={draft} set={set} codeError={codeError} />
+                draft={draft} set={set} codeError={codeError} showCode={showLibraryCode} />
 
               <window.ProductFieldBlocks.Visual
                 draft={draft} set={set} setSwatch={setSwatch} materials={materials} />

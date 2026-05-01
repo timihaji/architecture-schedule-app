@@ -118,11 +118,12 @@ function LibraryToolbar({
 
       <span className="tb-lbl">Sort</span>
       <Dropdown
-        value={sort || 'code'}
+        value={sort || 'name'}
         onChange={setSort}
-        defaultValue="code"
+        defaultValue="name"
         options={[
-          { value: 'code', label: 'Code' },
+          ...(!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy))
+            ? [{ value: 'code', label: 'Code' }] : []),
           { value: 'name', label: 'Name' },
           { value: 'cost', label: 'Cost' },
           { value: 'lead', label: 'Lead time' },

@@ -88,7 +88,7 @@ function categoryPickerOptions() {
   return out;
 }
 
-function PFB_Identity({ draft, set, codeError = false }) {
+function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
   const cat = activeCategoryId(draft);
   const catDef = window.categoryDef ? window.categoryDef(cat) : null;
   const grpDef = catDef && window.groupDef ? window.groupDef(catDef.groupId) : null;
@@ -102,20 +102,23 @@ function PFB_Identity({ draft, set, codeError = false }) {
 
   return (
     <PFB_Section num="01" label="Identity">
-      {/* Row 1 — Code + Name (kept bespoke: required + custom input chrome) */}
+      {/* Row 1 — Code (office mode only) + Name */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 2fr',
+        display: 'grid',
+        gridTemplateColumns: showCode ? '1fr 2fr' : '1fr',
         gap: '10px 14px', marginBottom: 10,
       }}>
-        <div>
-          <label className="lbl-d">Code<span className="req-d">*</span></label>
-          <input
-            className="inp-d mono"
-            value={draft.code || ''}
-            onChange={e => set('code', e.target.value)}
-            style={codeError ? { borderColor: 'var(--accent)' } : undefined}
-          />
-        </div>
+        {showCode && (
+          <div>
+            <label className="lbl-d">Code<span className="req-d">*</span></label>
+            <input
+              className="inp-d mono"
+              value={draft.code || ''}
+              onChange={e => set('code', e.target.value)}
+              style={codeError ? { borderColor: 'var(--accent)' } : undefined}
+            />
+          </div>
+        )}
         <div>
           <label className="lbl-d">Name<span className="req-d">*</span></label>
           <input

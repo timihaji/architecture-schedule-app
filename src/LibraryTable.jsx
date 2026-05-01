@@ -124,19 +124,21 @@ function LibraryTable(props) {
 
   // Need columns with labelTemplates baked into searchText (so query catches labels)
   const columns = React.useMemo(() => {
-    return window.LIBRARY_COLUMNS.map(c => {
-      if (c.id === 'label') {
-        return {
-          ...c,
-          searchText: (m) => {
-            const label = window.formatLabel(m, labelTemplates);
-            return label + ' ' + (m.name || '') + ' ' + (m.customName || '');
-          },
-          sortValue: (m) => window.formatLabel(m, labelTemplates).toLowerCase(),
-        };
-      }
-      return c;
-    });
+    return window.LIBRARY_COLUMNS
+      .filter(c => !c.visible || c.visible())
+      .map(c => {
+        if (c.id === 'label') {
+          return {
+            ...c,
+            searchText: (m) => {
+              const label = window.formatLabel(m, labelTemplates);
+              return label + ' ' + (m.name || '') + ' ' + (m.customName || '');
+            },
+            sortValue: (m) => window.formatLabel(m, labelTemplates).toLowerCase(),
+          };
+        }
+        return c;
+      });
   }, [labelTemplates]);
 
   // Additional text fields to include in full-text search
