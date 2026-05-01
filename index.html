@@ -527,9 +527,10 @@
   .cs-clip-toast button:hover { opacity: 1; }
 
   /* PROJECTS PAGE (D3) — page header mirrors .sched-page-header; rows use .reg-row.
-     Register grid: drag-handle | code | name | client+loc | stage | budget | actions */
-  .proj-reg-cols { display: grid; grid-template-columns: 20px 68px minmax(220px, 2.4fr) minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(96px, 0.8fr) 52px; column-gap: 16px; padding: 10px 0; }
-  .proj-reg-row-grid { display: grid; grid-template-columns: 20px 68px minmax(220px, 2.4fr) minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(96px, 0.8fr) 52px; column-gap: 16px; padding: 18px 0 20px; align-items: center; cursor: pointer; }
+     Register grid: actions | drag-handle | code | name | client+loc | stage | budget */
+  .proj-reg-cols { display: grid; grid-template-columns: 58px 20px 68px minmax(220px, 2.4fr) minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(96px, 0.8fr); column-gap: 16px; padding: 10px 0; }
+  .proj-reg-row-grid { display: grid; grid-template-columns: 58px 20px 68px minmax(220px, 2.4fr) minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(96px, 0.8fr); column-gap: 16px; padding: 18px 0 20px; align-items: center; cursor: pointer; }
+  .proj-reg-row-actions { align-self: start; justify-content: flex-start; padding-top: 1px; }
   .proj-drag-handle { color: var(--ink-4); font-size: 12px; cursor: grab; user-select: none; letter-spacing: -1px; line-height: 1; }
   .proj-reg-action-btn { background: none; border: none; cursor: pointer; padding: 0; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
   .proj-reg-action-btn:hover { color: var(--ink-2); }
