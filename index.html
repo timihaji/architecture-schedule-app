@@ -368,11 +368,18 @@
   .sched-vt { display: inline-flex; border: 1px solid var(--rule-2); }
   .sched-vt button { background: transparent; color: var(--ink-4); border: none; padding: 4px 10px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; transition: all 0.1s; }
   .sched-vt button.on { background: var(--ink); color: var(--paper); }
+  .sched-group-select { display: inline-flex; align-items: center; border: 1px solid var(--rule-2); background: transparent; }
+  .sched-group-select span { padding: 4px 0 4px 9px; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+  .sched-group-select select { min-width: 112px; background: transparent; border: none; padding: 4px 24px 4px 6px; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); outline: none; appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239a9385' stroke-width='1.2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
   .sched-fields-btn { background: none; border: 1px solid var(--rule-2); padding: 4px 9px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); position: relative; }
   .sched-fields-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
-  .sched-fields-pop { position: absolute; top: calc(100% + 4px); left: 0; background: var(--paper); border: 1px solid var(--ink); padding: 10px 12px; min-width: 180px; z-index: 60; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; }
+  .sched-fields-pop { position: absolute; top: calc(100% + 4px); left: 0; background: var(--paper); border: 1px solid var(--ink); padding: 10px 12px; min-width: 240px; max-height: 420px; overflow: auto; z-index: 60; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+  .sched-fields-group { display: flex; flex-direction: column; gap: 6px; }
+  .sched-fields-heading { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); padding-top: 2px; border-top: 1px dotted var(--rule-2); }
+  .sched-fields-group:first-child .sched-fields-heading { border-top: none; padding-top: 0; }
   .sched-fields-pop label { display: flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-2); cursor: pointer; }
   .sched-fields-pop input[type=checkbox] { accent-color: var(--ink); }
+  .sched-fields-empty { font-family: var(--font-serif); font-style: italic; font-size: 12.5px; color: var(--ink-4); }
   .sched-tb-grow { flex: 1; }
   .sched-tb-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.08em; text-transform: uppercase; }
   .sched-sec { margin-bottom: 32px; }
@@ -419,12 +426,10 @@
   .sched-card-supplier { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-3); }
   .sched-card-trade { font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
   .trade-chip { display: inline-block; padding: 2px 6px; border: 1px solid var(--rule-2); font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; margin-top: 3px; }
-  .sched-state-chip { display: inline-block; padding: 2px 6px; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; }
+  .sched-category-chip { display: inline-block; padding: 2px 6px; border: 1px solid var(--rule-2); background: var(--paper-2); color: var(--ink-3); font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; }
   .sched-edit-btn { background: none; border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); transition: all 0.1s; white-space: nowrap; }
   .sched-edit-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
   .sched-edit-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-  .sched-remove-btn { background: none; border: 1px solid rgba(160,69,69,0.3); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #a04545; }
-  .sched-remove-btn:hover { background: rgba(160,69,69,0.06); }
   .fgrid-d { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
   .fgrid-d .fcell { position: relative; }
   .fgrid-d .fcell-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px; gap: 6px; }
@@ -452,6 +457,34 @@
   .hidden-tray-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .hidden-show-btn { background: var(--paper); border: 1px solid var(--rule-2); padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; color: var(--ink-3); letter-spacing: 0.04em; transition: border-color 0.1s; }
   .hidden-show-btn:hover { border-color: var(--ink-3); color: var(--ink); }
+  .sched-field-renderer { min-width: 0; font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-2); }
+  .sched-card:not(.editing) .sched-field-renderer span,
+  .sched-card:not(.editing) .sched-field-renderer a {
+    font-family: var(--font-sans) !important;
+    font-size: 11.5px !important;
+    color: var(--ink-2);
+  }
+  .sched-card:not(.editing) .sched-field-renderer span[style*="font-family: var(--font-mono)"] {
+    font-family: var(--font-mono) !important;
+    font-size: 10.5px !important;
+  }
+  .sched-field-renderer .inp-d, .sched-field-renderer .sel-d, .sched-field-renderer .tarea-d {
+    background-color: var(--paper);
+    border: 1px solid var(--rule-2);
+    padding: 5px 8px;
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--ink);
+    border-radius: 0;
+  }
+  .sched-field-renderer .inp-d.mono { font-family: var(--font-mono); font-size: 11px; }
+  .sched-field-renderer .tarea-d { min-height: 54px; line-height: 1.5; font-family: var(--font-serif); font-style: italic; font-size: 13px; }
+  .sched-card-item-edit { margin-top: 10px; padding-top: 9px; border-top: 1px dotted var(--rule-2); }
+  .sched-edit-item-btn { background: transparent; border: 1px solid var(--rule-2); padding: 4px 9px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); }
+  .sched-edit-item-btn:hover { border-color: var(--ink-3); color: var(--ink-2); }
+  .sched-item-editor { margin-top: 10px; padding: 12px; border: 1px solid var(--rule-2); background: var(--paper); }
+  .sched-item-editor-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dotted var(--rule-2); font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
+  .sched-item-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
 
   /* CHIP (D1c) — lifted from the CHIP BASE block in design/handoff/v2/Schedule Cards.html */
   .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; cursor: pointer; font-family: var(--font-sans); font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 500; white-space: nowrap; border: none; transition: opacity 0.1s; background: transparent; }

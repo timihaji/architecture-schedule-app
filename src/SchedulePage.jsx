@@ -20,10 +20,23 @@
   const { useState, useMemo, useEffect, useRef } = React;
 
   const GROUP_OPTIONS_BASE = [
-    { id: 'location', label: 'By Location' },
-    { id: 'element',  label: 'By Element' },
-    { id: 'trade',    label: 'By Trade' },
+    { id: 'section',  label: 'Section' },
+    { id: 'category', label: 'Category' },
+    { id: 'none',     label: 'None' },
   ];
+  const FIELD_CHOOSER_SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'longText']);
+
+  function categoryLabel(catId) {
+    if (!catId) return 'Uncategorised';
+    const cat = window.categoryDef
+      ? window.categoryDef(catId)
+      : ((window.schemaActive && window.schemaActive().categories) || []).find(c => c.id === catId);
+    return (cat && cat.label) || catId;
+  }
+
+  function fieldLabelForToolbar(field) {
+    return field && field.unit ? `${field.label} (${field.unit})` : ((field && field.label) || '');
+  }
 
   // Resolve a row → ScheduleCard props (the shape CardVariantD expects).
   // materials is the materials list from App; locations is project.locations.
@@ -32,10 +45,12 @@
     let kind = 'empty';
     let name = null, code = null, sku = null, supplier = null, trade = null;
     let swatchColor = null, swatchBrand = null, slots = null, trades = null;
+    let material = null;
 
     if (matchKind === 'product' && row.specRef.id) {
       const m = materials.find(x => x.id === row.specRef.id);
       if (m) {
+        material = m;
         kind = 'product';
         name = m.name || 'Unnamed';
         code = row.code || null;
@@ -71,9 +86,11 @@
       elementLabel,
       locationId: row.locationId || null,
       locationName,
+      category: row.category || (material && material.category) || null,
+      material,
+      resolvedItem: material,
       name, code, sku, supplier, trade, trades,
       slots, swatchColor, swatchBrand,
-      state: row.state, mode: row.specMode,
       hiddenFields: row.hiddenFields || [],
       notes: row.note || row.notes || '',
       _row: row,
@@ -106,8 +123,18 @@
       });
     };
 
+    const scheduleHiddenFields = Array.isArray(blob.scheduleHiddenFields) ? blob.scheduleHiddenFields : [];
+    const setScheduleHiddenFields = (updater) => {
+      sched.set(prev => {
+        const base = prev || fallback;
+        const prevHidden = Array.isArray(base.scheduleHiddenFields) ? base.scheduleHiddenFields : [];
+        const nextHidden = typeof updater === 'function' ? updater(prevHidden) : updater;
+        return { ...base, scheduleHiddenFields: Array.from(new Set(nextHidden || [])) };
+      });
+    };
+
     // Local UI state.
-    const [grouping, setGrouping] = useState('location');
+    const [grouping, setGrouping] = useState('section');
     const [view, setView] = useState('schedule');   // 'schedule' | 'specification'
     const [editingId, setEditingId] = useState(null);
     const [fieldsOpen, setFieldsOpen] = useState(false);
@@ -116,22 +143,6 @@
     // null when closed. { mode, rowId?, element, eyebrow, title, subtitle, seed? }
     const [picker, setPicker] = useState(null);
 
-    // Default visible fields per card. The Fields popover toggles these — the
-    // toggle adds/removes the key from every row's hiddenFields[] simultaneously.
-    // Resolution rule: per-card showField() removes the key from ONE row only,
-    // overriding the toolbar hide for that card. New rows inherit toolbar state
-    // because their hiddenFields starts as []. So toolbar-off + card-show → that
-    // card visible, all others still hidden; toolbar-on clears the key from every row.
-    const FIELD_TOGGLES = [
-      { key: 'element',  label: 'Element' },
-      { key: 'room',     label: 'Room' },
-      { key: 'state',    label: 'State' },
-      { key: 'mode',     label: 'Spec Mode' },
-      { key: 'supplier', label: 'Supplier' },
-      { key: 'sku',      label: 'SKU' },
-      { key: 'trade',    label: 'Trade' },
-      { key: 'notes',    label: 'Notes' },
-    ];
     const fieldsPopRef = useRef(null);
     useEffect(() => {
       if (!fieldsOpen) return;
@@ -149,7 +160,8 @@
 
     // Taxonomies for element <select> + element labels.
     const cs = window.useCloudState ? window.useCloudState() : null;
-    const taxonomies = (cs && cs.appState && cs.appState.taxonomies)
+    const taxonomies = (cs && cs.taxonomies)
+      || (cs && cs.appState && cs.appState.taxonomies)
       || window.DEFAULT_TAXONOMIES || { elements: [] };
     const elements = taxonomies.elements || [];
     const elementsById = useMemo(
@@ -176,18 +188,67 @@
       [rows, materials, locations, elementsById]
     );
 
+    const categoriesPresent = useMemo(() => {
+      const seen = new Set();
+      const out = [];
+      cards.forEach(c => {
+        if (c.category && !seen.has(c.category)) {
+          seen.add(c.category);
+          out.push(c.category);
+        }
+      });
+      return out;
+    }, [cards]);
+
+    const fieldChooserGroups = useMemo(() => {
+      const groups = [];
+      const seen = new Set();
+      const clean = (fields) => (fields || []).filter(f =>
+        f && !f.hidden && !FIELD_CHOOSER_SKIP.has(f.id)
+      );
+      const present = categoriesPresent.length ? categoriesPresent : [];
+      const commonIds = new Set(window.commonFieldIds ? window.commonFieldIds() : []);
+      const common = clean(window.commonFields ? window.commonFields() : [])
+        .filter(f => {
+          if (seen.has(f.id)) return false;
+          seen.add(f.id);
+          return true;
+        });
+      if (common.length) groups.push({ key: 'common', label: 'Common', fields: common });
+      present.forEach(catId => {
+        const fields = clean(window.fieldsForCategory ? window.fieldsForCategory(catId) : [])
+          .filter(f => {
+            if (commonIds.has(f.id) || seen.has(f.id)) return false;
+            seen.add(f.id);
+            return true;
+          });
+        if (fields.length) groups.push({ key: catId, label: categoryLabel(catId), fields });
+      });
+      return groups;
+    }, [categoriesPresent]);
+
     // Filtered + grouped.
     const filteredCards = cards;  // No active filters in D1a; D1d adds the picker.
     const filteredOut = cards.length > 0 && filteredCards.length === 0;
 
     const groups = useMemo(() => {
+      if (grouping === 'none') {
+        return [{ key: 'all', title: 'All items', groupValue: null, cards: filteredCards }];
+      }
       const buckets = new Map();
       for (const c of filteredCards) {
         let key, title;
-        if (grouping === 'location')    { key = c.locationName || 'Unassigned'; title = key; }
-        else if (grouping === 'element'){ key = c.elementLabel || 'Unassigned'; title = key; }
-        else                            { key = c.trade || (c.trades && c.trades[0]) || 'Unassigned'; title = key; }
-        if (!buckets.has(key)) buckets.set(key, { key, title, cards: [] });
+        let groupValue = null;
+        if (grouping === 'category') {
+          groupValue = c.category || null;
+          key = groupValue || 'uncategorised';
+          title = categoryLabel(groupValue);
+        } else {
+          groupValue = c.element || null;
+          key = groupValue || c.elementLabel || 'Unassigned';
+          title = c.elementLabel || c.element || 'Unassigned';
+        }
+        if (!buckets.has(key)) buckets.set(key, { key, title, groupValue, cards: [] });
         buckets.get(key).cards.push(c);
       }
       return Array.from(buckets.values());
@@ -203,7 +264,7 @@
         specRef: null,
         element: seed.element || null,
         locationId: seed.locationId || (locations[0] && locations[0].id) || null,
-        category: null,
+        category: seed.category || null,
         state: 'new',
         specMode: 'proprietary',
         typeOrInstance: 'instance',
@@ -225,6 +286,24 @@
     function deleteRow(id) {
       setRows(prev => prev.filter(r => r.id !== id));
       if (editingId === id) setEditingId(null);
+    }
+
+    function updateMaterialField(materialId, fieldId, value) {
+      if (!cs || !cs.setMaterials) return;
+      cs.setMaterials(list => (list || []).map(m => {
+        if (!m || m.id !== materialId) return m;
+        if (window.setFieldOnDraft) {
+          let next = { ...m };
+          const set = (key, val) => { next = { ...next, [key]: val }; };
+          window.setFieldOnDraft(set, fieldId, value, m);
+          return next;
+        }
+        return {
+          ...m,
+          fields: { ...(m.fields || {}), [fieldId]: value },
+          [fieldId]: value,
+        };
+      }));
     }
 
     function openPickerForRow(card) {
@@ -350,13 +429,10 @@
     }
 
     // Per-card change handlers — translates CardVariantD fields back into the
-    // row shape. State and mode write the chip's short codes; Notes writes
-    // row.note (singular, matching the migration shape).
+    // row shape. Notes writes row.note (singular, matching the migration shape).
     function onCardFieldChange(cardId, field, value) {
       if (field === 'notes') return updateRow(cardId, { note: value });
       if (field === 'element') return updateRow(cardId, { element: value });
-      if (field === 'state') return updateRow(cardId, { state: value });
-      if (field === 'mode' || field === 'specMode') return updateRow(cardId, { specMode: value });
       if (field === 'hiddenFields') return updateRow(cardId, { hiddenFields: value });
       if (field === 'code') return updateRow(cardId, { code: value || null });
       if (field === 'locationId') return updateRow(cardId, { locationId: value || null });
@@ -436,48 +512,42 @@
         </div>
 
         <div className="sched-toolbar">
-          <div className="sched-vt" role="tablist">
-            {GROUP_OPTIONS_BASE.map(opt => (
-              <button key={opt.id} type="button"
-                className={grouping === opt.id ? 'on' : ''}
-                onClick={() => setGrouping(opt.id)}>
-                {opt.label}
-              </button>
-            ))}
+          <div className="sched-group-select">
+            <span>Group</span>
+            <select value={grouping} onChange={e => setGrouping(e.target.value)}>
+              {GROUP_OPTIONS_BASE.map(opt => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
           </div>
           <div ref={fieldsPopRef} style={{ position: 'relative' }}>
             <button type="button" className="sched-fields-btn"
               onClick={() => setFieldsOpen(o => !o)}>
-              Fields ▾
+              Columns ▾
             </button>
             {fieldsOpen && (
               <div className="sched-fields-pop">
-                {FIELD_TOGGLES.map(f => {
-                  // A field is "shown" if it isn't hidden on any row.
-                  const allHidden = rows.length > 0 && rows.every(
-                    r => (r.hiddenFields || []).includes(f.key));
-                  const checked = !allHidden;
-                  return (
-                    <label key={f.key}>
-                      <input type="checkbox" checked={checked}
-                        onChange={() => {
-                          // Toggle: if currently shown, hide on every row; else show on every row.
-                          if (checked) {
-                            setRows(prev => prev.map(r => ({
-                              ...r,
-                              hiddenFields: Array.from(new Set([...(r.hiddenFields || []), f.key])),
-                            })));
-                          } else {
-                            setRows(prev => prev.map(r => ({
-                              ...r,
-                              hiddenFields: (r.hiddenFields || []).filter(k => k !== f.key),
-                            })));
-                          }
-                        }} />
-                      {f.label}
-                    </label>
-                  );
-                })}
+                {fieldChooserGroups.length === 0 ? (
+                  <div className="sched-fields-empty">No category fields yet</div>
+                ) : fieldChooserGroups.map(group => (
+                  <div key={group.key} className="sched-fields-group">
+                    <div className="sched-fields-heading">{group.label}</div>
+                    {group.fields.map(f => {
+                      const checked = !scheduleHiddenFields.includes(f.id);
+                      return (
+                        <label key={f.id}>
+                          <input type="checkbox" checked={checked}
+                            onChange={() => {
+                              setScheduleHiddenFields(prev => checked
+                                ? Array.from(new Set([...(prev || []), f.id]))
+                                : (prev || []).filter(k => k !== f.id));
+                            }} />
+                          {fieldLabelForToolbar(f)}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -526,14 +596,15 @@
                 <window.CardVariantD
                   key={c.id} card={c} elements={elements}
                   locations={locations}
+                  materials={materials}
+                  globalHiddenFields={scheduleHiddenFields}
+                  onGlobalHiddenFieldsChange={setScheduleHiddenFields}
                   onAddLocation={addLocationInline}
                   density={density}
                   onSwatchClick={() => openPickerForRow(c)}
-                  onStateChange={v => updateRow(c.id, { state: v })}
-                  onModeChange={v => updateRow(c.id, { specMode: v })}
                   onFieldChange={(f, v) => onCardFieldChange(c.id, f, v)}
                   onHiddenFieldsChange={(arr) => updateRow(c.id, { hiddenFields: arr })}
-                  onDelete={deleteRow}
+                  onMaterialFieldChange={updateMaterialField}
                   isEditing={editingId === c.id}
                   onEdit={() => setEditingId(c.id)}
                   onSave={() => setEditingId(null)}
@@ -541,21 +612,21 @@
               ))}
               <div className="sched-add-row" style={{ display: 'flex', gap: 16 }}>
                 <button type="button" onClick={() => {
-                  const seed = grouping === 'location'
-                    ? { locationId: locations.find(r => r.name === g.title)?.id }
-                    : grouping === 'element'
-                    ? { element: elements.find(e => e.label === g.title)?.id }
-                    : { trade: g.title };
+                  const seed = grouping === 'category'
+                    ? { category: g.groupValue }
+                    : grouping === 'section'
+                    ? { element: g.groupValue || elements.find(e => e.label === g.title)?.id }
+                    : {};
                   openPickerForBulkAdd(seed, g.title);
                 }}>
                   + Add from Library to {g.title}
                 </button>
                 <button type="button" onClick={() => {
-                  const seed = grouping === 'location'
-                    ? { locationId: locations.find(r => r.name === g.title)?.id }
-                    : grouping === 'element'
-                    ? { element: elements.find(e => e.label === g.title)?.id }
-                    : { trade: g.title };
+                  const seed = grouping === 'category'
+                    ? { category: g.groupValue }
+                    : grouping === 'section'
+                    ? { element: g.groupValue || elements.find(e => e.label === g.title)?.id }
+                    : {};
                   addEmptyRow(seed);
                 }}>
                   + Add empty row

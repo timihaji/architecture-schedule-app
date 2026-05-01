@@ -1,30 +1,40 @@
 // Phase D1b — CardVariantD. Canonical schedule row card per
 // design/handoff/v2/Schedule Cards.html (variant D, "Editorial + Edit").
 //
-// Layout: 178px swatch column | content column. Three swatch kinds:
-//   • product → solid colour block + brand watermark
-//   • type    → sage-tinted block + serif italic code + "— N layers —"
-//   • empty   → paper-2 ghost block + +-icon
-//
-// Hover reveals Edit button + per-cell × hide buttons. Edit mode renders
-// inputs in place + a hidden-fields tray. Read-mode chips cycle on click;
-// edit-mode chips become <select>. Save/Done is a no-op for the parent —
-// state changes flow through onCardChange + onHiddenFieldsChange as they
-// happen, so the Done button just exits edit mode.
-//
-// Element label is intentionally pulled from props.elementLabel (resolved
-// upstream from the row.element id via taxonomies) rather than re-resolving
-// here, so this stays a presentation component.
+// Schedule now mirrors the Library Detail field model: card fields are derived
+// from fieldsForCategory(category), with row-level and project-level hidden
+// field ids applied as presentation state. State/spec-mode row orthogonals stay
+// in old blobs but are no longer rendered here.
 
 (function () {
-  const { useState } = React;
+  const { useState, useEffect } = React;
 
-  const STATE_INK = { new: '#3a6645', existing: '#6b6559', repair: '#7a5e20', match: '#2e5a7a', demolish: '#a04545' };
-  const MODE_INK  = { prop: '#3a3630', perf: '#3a6645', open: '#2e5a7a', pc: '#7a5e20', tba: '#9a9385' };
+  const FIELD_SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'longText']);
 
-  // Room picker for schedule cards. Mirrors the ChipMultiSelect type-and-Enter
-  // UX from FieldRenderer, but as single-select against project.locations:
-  // click a chip to toggle, type a new name + Enter to inline-create and assign.
+  function hasValue(value) {
+    if (value == null) return false;
+    if (typeof value === 'boolean') return true;
+    if (typeof value === 'string') return value.trim() !== '';
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+  }
+
+  function fieldLabel(field) {
+    if (!field) return '';
+    return field.unit ? `${field.label} (${field.unit})` : field.label;
+  }
+
+  function getCategoryLabel(catId) {
+    if (!catId) return 'Uncategorised';
+    const cat = window.categoryDef
+      ? window.categoryDef(catId)
+      : ((window.schemaActive && window.schemaActive().categories) || []).find(c => c.id === catId);
+    return (cat && cat.label) || catId;
+  }
+
+  // Room picker for legacy row fields. Kept available for any custom schema
+  // fields that still call into the schedule row's locationId path.
   function RoomPicker({ value, options, onChange, onAddLocation }) {
     const [draft, setDraft] = useState('');
     const canCreate = !!onAddLocation;
@@ -96,124 +106,129 @@
   }
 
   function CardVariantD({
-    card,                   // { id, kind:'product'|'type'|'empty', element, elementLabel,
-                            //   locationId, locationName,
-                            //   name, code, sku, supplier, trade, trades, slots, swatchColor,
-                            //   swatchBrand, state, mode, hiddenFields, notes }
-    elements,               // [{ id, label }] from taxonomies — for element <select>
-    locations = [],         // [{ id, name }] from project.locations — for room <select>
-    onAddLocation,          // (name) => newLocationId   — inline-create new room
-    onSwatchClick,          // () => open PickerDrawer (D1d, future)
-    onStateChange,          // (newState) => void
-    onModeChange,           // (newMode) => void
-    onFieldChange,          // (key, val) => void   — for editable fields
-    onHiddenFieldsChange,   // (nextArr) => void
-    onDelete,               // (id) => void
+    card,                   // resolved schedule row projection
+    elements,               // kept for compatibility with older callers
+    locations = [],
+    materials = [],
+    globalHiddenFields = [],
+    onGlobalHiddenFieldsChange,
+    onAddLocation,
+    onSwatchClick,
+    onFieldChange,
+    onHiddenFieldsChange,
+    onMaterialFieldChange,
     isEditing,
     onEdit,
     onSave,
-    q5trade = 'truncate',   // 'truncate' | 'chips' | 'suppress'
   }) {
     const [hovered, setHovered] = useState(false);
-    const hidden = card.hiddenFields || [];
-    const stateNorm = window.normState(card.state);
-    const modeNorm  = window.normMode(card.mode);
+    const [itemEditorOpen, setItemEditorOpen] = useState(false);
 
-    const elementOptions = (elements && elements.length > 0)
-      ? elements
-      : [{ id: card.element, label: card.elementLabel || card.element || '—' }];
+    useEffect(() => {
+      if (!isEditing) setItemEditorOpen(false);
+    }, [isEditing]);
 
-    const allFields = [
-      { key: 'element', label: 'Element', val: card.elementLabel || card.element || '—',
-        rawVal: card.element || '', type: 'select',
-        options: elementOptions.map(e => e.id),
-        labelMap: Object.fromEntries(elementOptions.map(e => [e.id, e.label])),
-        onChange: (v) => onFieldChange && onFieldChange('element', v) },
-      { key: 'room', label: 'Room',
-        // Resolve from card.locationId so an empty locationId reads as '—'
-        // rather than the upstream "Unassigned" fallback in card.locationName.
-        val: (locations.find(l => l.id === card.locationId) || {}).name || '—',
-        rawVal: card.locationId || '', type: 'room',
-        onChange: (v) => onFieldChange && onFieldChange('locationId', v) },
-      { key: 'state', label: 'State', val: window.CHIP_STATE_LABEL[stateNorm],
-        rawVal: stateNorm, color: STATE_INK[stateNorm], type: 'select',
-        options: window.CHIP_STATES, labelMap: window.CHIP_STATE_LABEL,
-        onChange: onStateChange },
-      { key: 'mode', label: 'Spec Mode', val: window.CHIP_MODE_LABEL[modeNorm],
-        rawVal: modeNorm, color: MODE_INK[modeNorm], type: 'select',
-        options: window.CHIP_MODES, labelMap: window.CHIP_MODE_LABEL,
-        onChange: onModeChange },
-      card.supplier != null && card.supplier !== ''
-        ? { key: 'supplier', label: 'Supplier', val: card.supplier,
-            rawVal: card.supplier, type: 'text',
-            onChange: (v) => onFieldChange && onFieldChange('supplier', v) }
-        : null,
-      card.sku != null && card.sku !== ''
-        ? { key: 'sku', label: 'SKU', val: card.sku, rawVal: card.sku, type: 'text', mono: true,
-            onChange: (v) => onFieldChange && onFieldChange('sku', v) }
-        : null,
-      (card.trade || (card.trades && card.trades.length))
-        ? { key: 'trade', label: 'Trade',
-            val: card.trade || (card.trades || []).join(' · '), rawVal: '',
-            type: 'text', readonly: true }
-        : null,
-      { key: 'notes', label: 'Notes', val: card.notes || '', rawVal: card.notes || '',
-        type: 'textarea', wide: true,
-        onChange: (v) => onFieldChange && onFieldChange('notes', v) },
-    ].filter(Boolean);
+    const row = card._row || {};
+    const resolvedItem = card.material || card.resolvedItem || null;
+    const cat = row.category || (resolvedItem && resolvedItem.category) || card.category || null;
+    const categoryLabel = getCategoryLabel(cat);
+    const schemaFields = cat && window.fieldsForCategory ? window.fieldsForCategory(cat) : [];
+    const candidateFields = schemaFields.filter(f => f && !f.hidden && !FIELD_SKIP.has(f.id));
+    const rowHidden = card.hiddenFields || [];
+    const rowHiddenSet = new Set(rowHidden);
+    const globalHiddenSet = new Set(globalHiddenFields || []);
+    const hiddenSet = new Set([].concat(rowHidden, globalHiddenFields || []));
+    const fv = window.getFieldValue || ((x, k) => (x && x.fields && x.fields[k]) ?? (x && x[k]));
 
-    const visFields = allFields.filter(f => !hidden.includes(f.key) && (f.val || isEditing));
-    const hidFields = allFields.filter(f => hidden.includes(f.key));
+    function getFieldValue(fieldId) {
+      if (resolvedItem) {
+        const itemVal = fv(resolvedItem, fieldId);
+        if (hasValue(itemVal)) return itemVal;
+      }
+      if (fieldId === 'notes') {
+        const rowNote = row.note != null ? row.note : row.notes;
+        if (hasValue(rowNote)) return rowNote;
+      }
+      return fv(row, fieldId);
+    }
+
+    const allFields = candidateFields.map(field => ({
+      key: field.id,
+      field,
+      label: fieldLabel(field),
+      value: getFieldValue(field.id),
+      wide: field.type === 'longText' || field.id === 'notes',
+    }));
+
+    const visFields = isEditing
+      ? allFields.filter(f => !hiddenSet.has(f.key))
+      : allFields.filter(f => !hiddenSet.has(f.key) && hasValue(f.value));
+    const hidFields = allFields.filter(f => hiddenSet.has(f.key));
     const gridFields = visFields.filter(f => !f.wide);
-    const wideFields = visFields.filter(f => f.wide && (f.val || isEditing));
+    const wideFields = visFields.filter(f => f.wide);
 
-    const hideField = (key) => onHiddenFieldsChange && onHiddenFieldsChange([...hidden, key]);
-    const showField = (key) => onHiddenFieldsChange && onHiddenFieldsChange(hidden.filter(k => k !== key));
+    const hideField = (key) => {
+      if (!rowHiddenSet.has(key)) {
+        onHiddenFieldsChange && onHiddenFieldsChange(Array.from(new Set(rowHidden.concat(key))));
+      }
+    };
+    const showField = (key) => {
+      if (rowHiddenSet.has(key)) {
+        onHiddenFieldsChange && onHiddenFieldsChange(rowHidden.filter(k => k !== key));
+      }
+      if (globalHiddenSet.has(key) && onGlobalHiddenFieldsChange) {
+        onGlobalHiddenFieldsChange((globalHiddenFields || []).filter(k => k !== key));
+      }
+    };
+
+    function commitField(field, value) {
+      if (field.id === 'locationId') {
+        onFieldChange && onFieldChange('locationId', value);
+        return;
+      }
+      if (resolvedItem && onMaterialFieldChange) {
+        onMaterialFieldChange(resolvedItem.id, field.id, value);
+        return;
+      }
+      onFieldChange && onFieldChange(field.id, value);
+    }
 
     function renderFieldVal(f) {
-      if (isEditing && !f.readonly) {
-        if (f.type === 'room') {
-          return (
-            <RoomPicker
-              value={f.rawVal || null}
-              options={locations}
-              onChange={f.onChange}
-              onAddLocation={onAddLocation}
-            />
-          );
-        }
-        if (f.type === 'select') return (
-          <select className="sched-edit-select" value={f.rawVal}
-            onChange={e => f.onChange && f.onChange(e.target.value)}
-            style={{ color: f.color, fontWeight: f.color ? 500 : 400 }}>
-            {f.options.map(o => (
-              <option key={o} value={o}>{f.labelMap ? f.labelMap[o] : o}</option>
-            ))}
-          </select>
-        );
-        if (f.type === 'textarea') return (
-          <textarea className="sched-edit-input" rows={2} value={f.rawVal || ''}
-            onChange={e => f.onChange && f.onChange(e.target.value)}
-            placeholder="Add a note…" />
-        );
-        return (
-          <input className={`sched-edit-input${f.mono ? ' mono' : ''}`}
-            value={f.rawVal || ''}
-            onChange={e => f.onChange && f.onChange(e.target.value)} />
-        );
-      }
-      if (f.type === 'textarea') {
-        return f.val
+      if (!isEditing && (f.key === 'notes' || f.field.type === 'longText')) {
+        return hasValue(f.value)
           ? <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13,
                           color: 'var(--ink-3)', fontStyle: 'italic', lineHeight: 1.6 }}>
-              {f.val}
+              {f.value}
             </div>
           : null;
       }
+      if (isEditing && f.field.id === 'locationId') {
+        return (
+          <RoomPicker
+            value={f.value || null}
+            options={locations}
+            onChange={v => commitField(f.field, v)}
+            onAddLocation={onAddLocation}
+          />
+        );
+      }
+      if (window.FieldRenderer) {
+        return (
+          <div className="sched-field-renderer">
+            <window.FieldRenderer
+              field={f.field}
+              value={f.value}
+              mode={isEditing ? 'edit' : 'read'}
+              onChange={v => commitField(f.field, v)}
+              materials={materials}
+              draft={resolvedItem || row}
+            />
+          </div>
+        );
+      }
       return (
-        <div className={`fcell-val${f.mono ? ' mono' : ''}${f.color ? ' colored' : ''}`}
-          style={{ color: f.color || undefined }}>
-          {f.val}
+        <div className="fcell-val">
+          {hasValue(f.value) ? String(f.value) : '—'}
         </div>
       );
     }
@@ -256,6 +271,9 @@
     }
 
     const eyebrowKind = card.kind === 'type' ? 'type' : card.kind === 'empty' ? 'empty' : 'product';
+    const itemFields = resolvedItem && window.fieldsForCategory
+      ? window.fieldsForCategory(resolvedItem.category || cat).filter(f => f && !f.hidden)
+      : [];
 
     return (
       <div className={`sched-card${isEditing ? ' editing' : ''}`}
@@ -275,58 +293,20 @@
                     {card.name || <em style={{ color: 'var(--ink-4)' }}>Unnamed</em>}
                     <CodeChip
                       value={card.code}
+                      editable={isEditing}
                       onCommit={(v) => onFieldChange && onFieldChange('code', v)}
                     />
                   </span>}
-              <div className="sched-card-meta">
-                {card.sku && !hidden.includes('sku') && (
-                  <span className="sched-card-sku">{card.sku}</span>
-                )}
-                {card.supplier && !hidden.includes('supplier') && (
-                  <span className="sched-card-supplier">{card.supplier}</span>
-                )}
-                {card.trade && !hidden.includes('trade') && (
-                  <span className="sched-card-trade">{card.trade}</span>
-                )}
-              </div>
-              {card.trades && card.trades.length > 0 && q5trade !== 'suppress' && (
-                q5trade === 'chips'
-                  ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 3 }}>
-                      {card.trades.map(t => <span key={t} className="trade-chip">{t}</span>)}
-                    </div>
-                  : <div style={{ marginTop: 3 }}>
-                      <span className="sched-card-trade">
-                        {card.trades[0]}{card.trades.length > 1 ? ` +${card.trades.length - 1}` : ''}
-                      </span>
-                    </div>
-              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8,
                           flexShrink: 0, paddingTop: 2 }}>
-              {!isEditing && (
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <span className="sched-state-chip"
-                    style={{ background: `${STATE_INK[stateNorm]}18`, color: STATE_INK[stateNorm] }}>
-                    {window.CHIP_STATE_LABEL[stateNorm]}
-                  </span>
-                  <span className="sched-state-chip"
-                    style={{ background: `${MODE_INK[modeNorm]}14`, color: MODE_INK[modeNorm] }}>
-                    {window.CHIP_MODE_LABEL[modeNorm]}
-                  </span>
-                </div>
-              )}
+              <span className="sched-category-chip">{categoryLabel}</span>
               {(hovered || isEditing) && (
-                <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                  {isEditing && onDelete && (
-                    <button type="button" className="sched-remove-btn"
-                      onClick={() => onDelete(card.id)}>Remove</button>
-                  )}
-                  <button type="button"
-                    className={`sched-edit-btn${isEditing ? ' active' : ''}`}
-                    onClick={isEditing ? onSave : onEdit}>
-                    {isEditing ? 'Done' : 'Edit'}
-                  </button>
-                </div>
+                <button type="button"
+                  className={`sched-edit-btn${isEditing ? ' active' : ''}`}
+                  onClick={isEditing ? onSave : onEdit}>
+                  {isEditing ? 'Done' : 'Edit'}
+                </button>
               )}
             </div>
           </div>
@@ -337,11 +317,10 @@
                 <div key={f.key} className="fcell">
                   <div className="fcell-head">
                     <div className="field-label">{f.label}</div>
-                    {isEditing
-                      ? <button type="button" className="fcell-editbtn"
-                          onClick={() => hideField(f.key)}>Hide ×</button>
-                      : <button type="button" className="fcell-hide"
-                          onClick={() => hideField(f.key)}>×</button>}
+                    {isEditing && (
+                      <button type="button" className="fcell-editbtn"
+                        onClick={() => hideField(f.key)}>Hide ×</button>
+                    )}
                   </div>
                   {renderFieldVal(f)}
                 </div>
@@ -353,17 +332,16 @@
             <div key={f.key} className="fwide-d">
               <div className="fcell-head">
                 <div className="field-label">{f.label}</div>
-                {isEditing
-                  ? <button type="button" className="fcell-editbtn"
-                      onClick={() => hideField(f.key)}>Hide ×</button>
-                  : <button type="button" className={`fwide-hide${hovered ? ' fwide-hide-vis' : ''}`}
-                      onClick={() => hideField(f.key)}>×</button>}
+                {isEditing && (
+                  <button type="button" className="fcell-editbtn"
+                    onClick={() => hideField(f.key)}>Hide ×</button>
+                )}
               </div>
               {renderFieldVal(f)}
             </div>
           ))}
 
-          {hidFields.length > 0 && (
+          {isEditing && hidFields.length > 0 && (
             <div className="hidden-tray">
               <div className="hidden-tray-label">Hidden fields</div>
               <div className="hidden-tray-btns">
@@ -374,18 +352,56 @@
               </div>
             </div>
           )}
+
+          {isEditing && row.specRef && row.specRef.id && resolvedItem && (
+            <div className="sched-card-item-edit">
+              <button type="button" className="sched-edit-item-btn"
+                onClick={() => setItemEditorOpen(open => !open)}>
+                {itemEditorOpen ? 'Close item' : 'Edit item'}
+              </button>
+              {itemEditorOpen && (
+                <div className="sched-item-editor">
+                  <div className="sched-item-editor-head">
+                    <span>{resolvedItem.name || 'Library item'}</span>
+                    <span>{getCategoryLabel(resolvedItem.category || cat)}</span>
+                  </div>
+                  <div className="sched-item-editor-grid">
+                    {itemFields.map(field => {
+                      const value = fv(resolvedItem, field.id);
+                      return (
+                        <div key={field.id}>
+                          <label className="lbl-d">{fieldLabel(field)}</label>
+                          {window.FieldRenderer
+                            ? <window.FieldRenderer
+                                field={field}
+                                value={value}
+                                mode="edit"
+                                onChange={v => onMaterialFieldChange && onMaterialFieldChange(resolvedItem.id, field.id, v)}
+                                materials={materials}
+                                draft={resolvedItem}
+                              />
+                            : <input className="inp-d" value={value || ''}
+                                onChange={e => onMaterialFieldChange && onMaterialFieldChange(resolvedItem.id, field.id, e.target.value)} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  // Inline-editable row code chip. Hidden when blank in read-mode; renders an
-  // empty-placeholder slot in edit-mode so users can click to type a code.
-  function CodeChip({ value, onCommit }) {
+  // Inline-editable row code chip. Empty codes only surface while editing so
+  // read mode stays clean.
+  function CodeChip({ value, editable, onCommit }) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(value || '');
-    React.useEffect(() => { setDraft(value || ''); }, [value]);
-    if (editing) {
+    useEffect(() => { setDraft(value || ''); }, [value]);
+    if (editing && editable) {
       return (
         <input className="sched-card-code"
           autoFocus value={draft}
@@ -408,6 +424,7 @@
       );
     }
     if (!value) {
+      if (!editable) return null;
       return (
         <span className="sched-card-code"
           onClick={() => setEditing(true)}
@@ -419,9 +436,9 @@
     }
     return (
       <span className="sched-card-code"
-        onClick={() => setEditing(true)}
-        title="Click to edit code"
-        style={{ cursor: 'text' }}>{value}</span>
+        onClick={() => editable && setEditing(true)}
+        title={editable ? 'Click to edit code' : undefined}
+        style={{ cursor: editable ? 'text' : 'default' }}>{value}</span>
     );
   }
 
