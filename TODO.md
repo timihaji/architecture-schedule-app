@@ -1,267 +1,137 @@
-# Architecture Schedule App — Plan & Remaining Work
+# TODO — single source of truth
+
+_Last consolidated 2026-05-01 from old TODO.md, FEATURE REQUESTS.md, design/V2_BACKLOG.md, and CLOUD_SYNC_PLAN.md._
+
+Cloud sync is fully shipped. Library Field System v5 (Phases 1–5), Cost Schedule v2, and Codes refactor (Phases 1–2) are shipped.
 
 ---
 
-# Plan: Shared DataTable across Library + Cost Schedule + Spec
+## Now / Near-term
 
-## Why
+### Project Spec (IV)
+- [ ] **Dedupe warning when re-adding** — picking a material that's already in the spec should offer Replace / Add second row / Cancel instead of silently duplicating.
+- [ ] **Tag chip input on rows** — inline editor per row, with `STARTER_TAGS` autocomplete. Filter pills exist; the attaching UI doesn't.
+- [ ] **Click row → Library item overlay** — read-only side panel showing the full Library record (spec, lead time, finish, linked paint).
+- [ ] **Cost Schedule bridge** — top-bar "Send all to Cost Schedule" + per-row "Promote to Cost Schedule" menu item.
+- [ ] **Drag-reorder trade sections + rows within a section** — reuse `CostScheduleDnD` if compatible.
+- [ ] **Brunswick seed fix** — current seed looks items up by code fragments that don't match real library codes; pick real ids from `data.jsx`.
+- [ ] **Supplier roll-up / export** — group rows by supplier; copy-to-clipboard or CSV.
 
-The Library Table is the most considered view in the app — sticky header, reorderable/resizable/toggleable columns, keyboard nav (j/k/o/e/x/g/G/Esc/?/⌘K), bulk-select with shift-range, inline cell editing, side panel, command palette, cheatsheet, density toggle. We want Cost Schedule and Spec to get all of that, without forking the code.
+### Library Tags (Phase 4 — partial)
+- [ ] **Tag chip input in Library editor** — inline chip input with `STARTER_TAGS` autocomplete.
+- [ ] **Tag filter bar in Library top chrome** — `STARTER_TAGS` defined but not yet wired as a filter control.
 
-Currently all that logic lives directly inside `LibraryTable`, `LibraryTableChrome`, `LibraryTableRows`, and `LibraryTableOverlays`, hardwired to the Library domain:
+### Cost Schedule — Table mode polish
+- [ ] **Saved views as tabs** — Library has them; Schedule Table doesn't.
+- [ ] **Bulk action: Delete rows** — missing from bulk bar.
+- [ ] **Grouped mode: empty cells click-to-pick** — verify it opens the picker.
+- [ ] **Grouped mode: long material labels** — needs ellipsis + tooltip with full name on hover.
 
-- Columns are a module-level constant `LT_COLUMNS` (materials-only fields).
-- Filter/sort/selection state lives in `LibraryTable`.
-- `onSaveCell` writes to `window.saveMaterialCell`.
-- Row click opens `LTSidePanel`, which is material-specific.
-- Cell renderers read fields directly off a material record.
-- Filters, kind tabs, library sidebar, and bulk bar all assume materials.
+### DnD polish (Cost Schedule v2)
+- [ ] **Fix grip cursor** — I-beam bleeds over drag handle in some browsers.
+- [ ] **Pickup micro-animation** when grip is pressed (small scale-down or pop).
+- [ ] **Ghost rotation + growing shadow** as drag moves further from origin.
 
-To host a Cost Schedule or Spec table we need to pull the table *mechanics* out from the Library *domain knowledge*.
-
----
-
-## Shape of the Refactor
-
-Rename the mechanics `DataTable` and pass the domain in as props/config. One shared component powers three views.
-
-### New file: `src/DataTable.jsx`
-
-```
-<DataTable
-  rows={...}               // array of row records (any shape)
-  getRowId={r => r.id}
-
-  columns={[...]}           // full column catalogue — see below
-  colStorageKey="lt-columns"// where to persist visible/order/widths
-  defaultVisible={[...]}    // column ids to show if no saved pref
-  defaultOrder={[...]}      // column ids in initial order
-
-  query={q}                 // controlled from parent so search stays in topbar
-  setQuery={setQ}
-  filters={...} setFilters={...}
-  sort={...} setSort={...}
-  selected={...} setSelected={...}   // Set of row ids
-  cursorId={...} setCursorId={...}
-  openId={...} setOpenId={...}
-  editingCell={...} setEditingCell={...}
-  density="regular"
-
-  onSaveCell={(id, field, value) => ...}
-  onOpenRow={id => ...}     // keyboard 'o' / Enter
-  onEditRow={id => ...}     // keyboard 'e'
-  onAdd={() => ...}         // keyboard 'c'
-
-  // slots — domain-specific chrome lives in the host, not the table
-  topBar={<...>}
-  kindTabs={<...>}          // optional
-  filtersBar={<...>}        // optional
-  bulkBar={<...>}           // rendered only when selected.size > 0
-  sidePanel={<...>}         // rendered to the right when openId !== null
-/>
-```
-
-### Column Definition
-
-```js
-{
-  id: 'supplier',
-  label: 'Supplier',
-  width: 140, minWidth: 90,
-  align: 'left',             // 'left' | 'right' | 'center'
-  mono: false, serif: false, // typography hint for the generic renderer
-  sortable: true,            // default true
-  editable: true,            // enables inline edit
-  get:  (r) => r.supplier,   // value used for sort/filter/inline edit
-  render: (r, ctx) => <span>…</span>,   // optional custom render
-  searchText: (r) => r.supplier,        // optional, for query matching
-}
-```
-
-Keep the existing `LT_COLUMNS` definitions but move render logic into per-column `render` fns so the generic renderer doesn't need to know about swatches, paint inheritance, etc.
-
-### Keyboard + Selection
-
-Move the full keyboard handler and selection logic from `LibraryTable` into `DataTable`. The parent provides `onOpenRow` / `onEditRow` / `onAdd` — `DataTable` doesn't care what those do. Shift-click range select (already in `LibraryTable.selectRange`) extracts into `DataTable` so every host gets it automatically.
-
-### Column Prefs
-
-Generalize `loadColPref` / `saveColPref` to take a storage key prop. Storage keys per host: `aml-lt-cols`, `aml-cs-cols`, `aml-spec-cols`.
-
-### Side Panel Slot
-
-`LTSidePanel` is material-specific — keep it as-is but move its mounting to the host. `DataTable` just renders the slot and controls the open/close state it's given.
-
----
-
-## Wiring Each Host
-
-### I · Library (current)
-
-`Library.jsx` / `LibraryTable.jsx` becomes a thin wrapper that:
-- Defines the material column catalogue (existing `LT_COLUMNS` with `render` fns lifted from `LibraryTableRows`).
-- Renders its existing `LTTopBar`, `LTKindTabs`, `LTFiltersBar`, `LTBulkBar`, `LTSidePanel` as slot children.
-- Passes `onSaveCell={window.saveMaterialCell}`.
-- Storage key `aml-lt-cols`.
-
-No visible change. Test: open Library, verify everything still works.
-
-### III · Cost Schedule — new table mode
-
-Add a gallery/table toggle to the Schedule header, mirroring Library's.
-
-Flat layout (one row per component × option):
-
-| Component | Trade | Option | Material | Code | Supplier | Qty | Unit | Unit cost | Line total | Status |
-
-Columns: component, trade, option · swatch, label, code, supplier, finish · qty, unit, unitCost, lineTotal · kind, category, leadTime · notes
-
-Default visible: component, option, label, qty, unit, lineTotal.
-
-`onSaveCell`: qty/notes writes to schedule's cells map; supplier/finish/cost edits live in the side panel (writes back to Library material, would affect other projects).
-
-Bulk bar: "Duplicate to option…" / "Move to option…" / "Clear assignment" / "Set common qty" / "Copy as supplier list".
-
-Side panel: reuse Library's material panel with a small row-scoped header (qty, notes, which option/trade).
-
-Note: both flat and grouped layouts are available (togglable inside Table mode). Flat is default; Grouped (row per component, options as columns) is alt.
-
-Storage key `aml-cs-cols`.
-
-### IV · Spec — new table mode
-
-Add the same toggle to Spec header. Spec is already 1D so the table maps cleanly:
-
-| Swatch | Trade | Material | Code | Supplier | Note | Qty | Unit | Unit cost | Line total | Tags |
-
-Default visible: Swatch · Trade · Material · Supplier · Note · Qty · Unit · Line total · Tags. Code, unit cost, lead time, kind, finish are toggleable.
-
-`onSaveCell` updates `spec.rows[id]`.
-
-Bulk bar: "Move to trade…" / "Add tag" / "Remove from spec" / "Promote to Cost Schedule" / "Copy as supplier list".
-
-Storage key `aml-spec-cols`.
-
----
-
-## Migration Plan (Ordered Commits)
-
-1. **Extract** — rename `LibraryTable.jsx` internals to a generic `DataTable.jsx`. Keep `LibraryTable.jsx` as a wrapper composing `DataTable` with material columns + existing slots. Verify Library still works.
-2. **Columns-as-render-fns** — move per-cell rendering out of `LTRow` into column `render` fns. Delete the big switch in `LibraryTableRows`. Verify.
-3. **Cost Schedule table mode** — add gallery/table toggle to Schedule header. Build the materials-on-schedule column catalogue. Wire `onSaveCell`. Ship behind the v2 toggle. Verify.
-4. **Spec table mode** — same pattern for Spec. Verify.
-
-Each step is independently shippable and keeps the Library table working.
-
----
-
----
-
-# Remaining Work
-
-_Last updated by Claude after P5 first pass landed._
-
-## P5 · Project Spec (IV) — in progress
-
-The skeleton shipped (nav item, header + project switcher, trade sections, row renderer, right-side drawer picker, empty state, subtotals + grand total). Remaining:
-
-- [ ] **Dedupe warn dialog** — when picking a material already in the spec, offer *Replace existing row / Add a second row / Cancel* instead of silently adding a duplicate.
-- [ ] **Tags on rows** — inline editor (chip input) per row, using `STARTER_TAGS` for suggestions. Filter pills at top are wired but there's no UI to attach tags yet.
-- [ ] **Row click → Library item overlay** — open a read-only side panel showing the full Library record (spec, lead time, finish, linked paint, etc.) so you don't have to leave Spec to check details.
-- [ ] **CS bridge**
-  - Top-bar bulk action: "Send all to Cost Schedule" (creates one Option with every row as a component).
-  - Per-row "Promote to Cost Schedule" menu item.
-- [ ] **Drag-reorder trade sections** and rows within a section (reuse `CostScheduleDnD` if compatible).
-- [ ] **Seed fix for p-brunswick** — current seed looks items up by code fragment (`TIM`, `VEN`, etc.) but those don't match the actual library codes, so it falls back to empty. Pick real ids from `data.jsx` so new Brunswick sessions ship with a populated spec.
-- [ ] **Supplier roll-up / export** — group rows by supplier for a "send this list to each trade" view; copy-to-clipboard or CSV export.
-
-## P4 · Tags (Library) — partial
-
-- [ ] **Tag chip input in Library editor** — inline chip input with `STARTER_TAGS` autocomplete suggestions when editing an item.
-- [ ] **Tag filter bar in Library top chrome** — `STARTER_TAGS` is defined but not yet wired as a filter control.
-
-## P2 · Kinds & Subtypes — optional polish
-
+### Kinds & Subtypes (Phase 2 polish)
 - [ ] **KindPicker shows subtype tiles** after a kind is chosen (step 2 of new-item creation).
 - [ ] **Editor exposes a subtype picker** so users can change subtype post-creation.
 
-## DnD Polish (Cost Schedule v2)
-
-- [ ] **Fix grip cursor** — I-beam bleeds over drag handle in some browsers.
-- [ ] **Pickup micro-animation** when the grip is pressed (small scale-down or pop).
-- [ ] **Ghost rotation + growing shadow** as the drag moves further from origin.
-
-## III · Cost Schedule Table Mode
-
-### Already shipped
-- Gallery/Table toggle in Schedule header (persisted)
-- Flat mode — one row per (component × option): Component, Trade, Option, Swatch, Material, Code, Supplier, #, Size, Unit, Unit cost, Line total
-- Grouped mode — one row per component; each option becomes a column with inline swatch + material label
-- Row-shape toggle (Flat / Grouped) in table top bar, persisted separately from Library's
-- Inline editing for Count / Size / Unit
-- Click material cell → opens material picker
-- Search, sort, column show/hide/reorder/resize (from shared DataTable)
-- Bulk bar: Duplicate to option, Move to option, Set size, Copy as supplier list, Clear assignment
-
-### Must-have to ship Table mode as equal footing with Gallery
-- [x] **Add a component** — "+ Add component" button in table top bar, prompts for trade/category.
-- [x] **Delete a component** — "Delete rows" in bulk bar removes components and all their assignments.
-- [x] **Totals in Grouped mode** — per-option subtotals footer with lowest highlighted and deltas.
-- [x] **Add an option** — already worked via ToolbarV2 (always rendered above table).
-- [x] **Reorder components** — ↑↓ buttons in reorder column (grouped mode).
-- [x] **Schedule-wide actions accessible from Table mode** — Header + ToolbarV2 always render in both modes.
-
-### Quality-of-life next
-- [x] **Row side panel** — click a row to see full material details / edit component in a side drawer (mirrors Library Table).
-- [x] **Row actions menu (⋯ on hover)** — delete, duplicate, move-to-option, change-category as single-row affordances.
-- [x] **Option rename** — no UI in Table mode.
-- [x] **Option reorder** — no UI in Table mode.
-- [x] **Per-trade subtotals** — group rows under collapsible Trade headers with subtotals.
-- [x] **Change component category/trade** — category is read-only in Table mode.
-
-### Nice-to-have
-- [x] **Filter chips** — Library Table has "+ Add filter"; Schedule Table doesn't.
-- [ ] **Saved views as tabs** — Library has them; Schedule Table doesn't.
-- [ ] **Bulk action: Delete rows** — missing from bulk bar.
-- [x] **Supplier list format audit** — fixed: now grouped by supplier → material → per-component usages with qty × size.
-- [x] **Duplicate a single component** — Shift+D keyboard shortcut; row actions menu also has it.
-
-### Grouped mode specifics
-- [ ] **"Assign…" empty cells** — empty option cells should be click-to-open-picker (may already work; needs verification).
-- [ ] **Material label truncation** — long names are harsh in Grouped mode; needs tooltip or ellipsis with full name on hover.
-
-### Keyboard shortcuts (inherit from DataTable — need validation in CS context)
-- [x] Validate J/K navigation, E (edit), D (delete), ⌘-click row select all work correctly in CS table.
+### Cloud / storage
+- [ ] **Move swatch photos and spec PDFs to Supabase Storage** — currently embedded as base64 in JSONB blobs; moving them out shrinks records and unlocks CDN delivery.
 
 ---
 
-## Supabase Migration
+## Bigger features (need planning)
 
-localStorage is prototype-only. Project data (materials, schedules, specs) is vulnerable to browser wipes, unavailable across devices, and has no audit trail. The synchronous save + indicator fix is a band-aid for now — not the real fix.
+### PDF export of the Schedule
+For sending to clients/contractors. Requirements:
+- A4 / A3, portrait / landscape
+- Customisable: choose what info shows
+- **Version control** — store revisions; show what's changed between versions on the schedule.
 
-### Now (band-aid)
-- [ ] **Synchronous save + save indicator** — reduces the race window so data isn't lost while iterating on the UI.
+### Default SVG icons for prefilled defaults
+e.g. each appliance category has a representative icon.
 
-### Next milestone — migrate to Supabase
+### Auto-rename / format codes
+Already partially shipped (Renumber buttons in Cost III + Schedule IV per Codes refactor Phase 2). What's left:
+- Configurable code format in Settings — pick `TM01` vs `TM-01` vs `TIM-01` vs custom.
+- Per-library override of the format (see V2 backlog item below).
 
-Schema:
+### Custom categories + good defaults
+Already shipped via Field Manager (Settings → Library fields). What's left to round out:
+- Better default seed list of categories (sensible starting taxonomy).
+- A way to import/export taxonomies between projects.
 
-| Table | What it stores |
-|---|---|
-| `materials` | library entries (currently `aml-materials`) |
-| `libraries` | library definitions + membership |
-| `projects` | project records |
-| `cost_schedules` | one row per (project, option, component) — currently `aml-schedule-*` |
-| `spec_rows` | project spec line items — currently `aml-spec-*` |
-| `label_templates` | per-studio label format config |
+### Studio / firm details
+- Add the architect or firm's name in header and footer (driven from Settings).
+- Later: upload a logo image.
 
-Auth via Supabase Auth (`users` + `studios` + `memberships`). Swatch photos and spec PDFs go to Supabase Storage. UI keeps a TanStack Query cache so it still feels instant.
+---
 
-- [ ] **Schema design** — define all tables, relationships, RLS policies.
-- [ ] **Auth flow** — wire up Supabase Auth (users, studios, memberships).
-- [ ] **Data migration** — migrate existing localStorage data into Supabase on first login.
-- [ ] **Replace localStorage reads/writes** — swap every `useState` / `useEffect(setItem)` pair with TanStack Query + mutations for: `materials`, `libraries`, `projects`, `cost_schedules`, `spec_rows`, `label_templates`.
-- [ ] **Supabase Storage** — swatch photos and spec PDFs.
+## V2 backlog (parked from v1)
 
-### Keep in localStorage forever (UI prefs only)
-`aml-settings`, `aml-view`, `aml-library-mode`, `aml-cs-mode`, `aml-cs-rowshape`, all column pref keys, `aml-active-library`, `aml-active-project`.
+### Types / Assemblies UI surface
+Data layer ships in v1; UI hidden behind `window.SHOW_TYPES`. To turn on:
+1. Flip the flag (or move to `appState.settings.featureFlags.types`).
+2. Reintroduce Library tabs (Products + Types).
+3. Rebuild the Assembly Editor on top of v1 atoms — pick a layout from `design/handoff/designs/Assembly Editor Options.html` (dense ledger recommended).
+4. Build a Stack visualisation atom — horizontal coloured bands proportioned to each slot's `thicknessMm`.
+5. Light up sage selection states on Library row selection, picker Types pill, code badge.
+
+### Library Switcher: palette swatches
+Show each library with a 4–5-swatch palette strip as visual identity.
+- `getLibraryPalette(libraryId, products)` helper, derived on save (cached).
+- Optional: pin specific tones per library.
+
+### Add Product ingestion modes
+The editor currently has a 5-tab strip; only Manual + Duplicate active. To wire up:
+- **URL** — fetch product page, parse Open Graph / structured data / title; needs server-side proxy or Supabase Edge Function (CORS).
+- **PDF** — drop a supplier PDF, extract fields. Claude API in extract mode is a good fit.
+- **CSV** — bulk import; per-row preview before commit.
+
+### Per-library code-style override
+v1 ships Mono Clean globally. Allow per-library setting: `mono | serif-italic | pill | box | stamp`.
+
+### Per-library masthead variant
+v1 ships Inline-disclosure. Other variants (Plate / Rule / Meta-line switch) live in design and could be per-library.
+
+### Schedule entry modes
+v1 ships per-row entry. Other modes:
+- **Per-room canvas** — pick a room, click element tiles to add. Faster for typical rooms.
+- **Spreadsheet-style** — paste rows from a spreadsheet for bulk import.
+
+### Misc V2 polish
+- Density auto-detection by viewport.
+- Sage accent in selection states.
+- Per-library hide of type-corner badge on Library cards.
+- `Cmd+\` rebind to open Library Switcher.
+- Draggable / resizable action bar + side panel.
+
+---
+
+## Tiny / unsorted
+
+These came from old `FEATURE REQUESTS.md` and aren't fully scoped:
+
+- **No gradients in materials** — confirm and remove if any remain.
+- **Sort the "assign to component" picker** — make it sortable.
+- **Entry title should be the full rendered name.**
+- **Replace dropdown with expandable, sortable, categorised picker** — context unclear; revisit.
+- **Settings polish:**
+  - Sans-serif title option.
+  - Custom user-defined stages.
+  - One more stage between studio and full width.
+  - "What does IV mean on the settings button?" → revisit; roman numerals were already removed elsewhere.
+  - Settings icon looks like a sun, should be a gear.
+
+---
+
+## Recently shipped (for reference)
+
+- Cloud sync — all 6 phases of `CLOUD_SYNC_PLAN.md`. Materials, projects, libraries, schedules, specs, settings, taxonomies all live in Supabase.
+- Library Field System v5 — schema-driven categories, fields, group-by axis, full Field Manager in Settings.
+- Cost Schedule v2 — Gallery + Table modes, grouped + flat row shapes, side panel, row actions, keyboard nav, supplier roll-up, filter chips.
+- Codes refactor — Phases 1 & 2 (Cost III + Schedule IV both read/write `row.code`; picker preview + Renumber buttons).
+- Library Register as default view; column picker expanded.
+- Configurable theme toggle.
+- Custom Group-by dropdown on every Library view + Cost Schedule.
