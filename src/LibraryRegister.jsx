@@ -14,7 +14,7 @@ const REG_COL_STORAGE = 'aml-register-cols';
 // the look matches the mockup.
 const REGISTER_COLS = [
   { id: 'check',    label: 'Select',    width: '36px',  locked: true,  defaultOn: true },
-  { id: 'thumb',    label: 'Thumbnail', width: '36px',  locked: true,  defaultOn: true },
+  { id: 'thumb',    label: 'Thumbnail', width: '36px',                 defaultOn: true },
   { id: 'code',     label: 'Code',      width: '90px',  locked: true,  defaultOn: true,  align: 'center' },
   { id: 'name',     label: 'Name',      width: '1fr',   locked: true,  defaultOn: true },
   { id: 'category', label: 'Category',  width: '110px',                defaultOn: true },
@@ -33,6 +33,7 @@ const REG_FIELD_SKIP = new Set([
 ]);
 const REG_LOCKED_COLS = REGISTER_COLS.filter(c => c.locked);
 const REG_DEFAULT_SUPPLEMENT = REGISTER_COLS.filter(c => !c.locked);
+const REG_CHOOSER_HIDDEN_COL_IDS = new Set(['check', 'name', 'actions']);
 const REG_FIELD_TO_COL_ID = {
   unit_cost: 'unitCost',
   lead_time: 'leadTime',
@@ -41,7 +42,7 @@ const REG_COL_ID_TO_FIELD = {
   unitCost: 'unit_cost',
   leadTime: 'lead_time',
 };
-const REG_RECOMMENDED_COL_IDS = ['category', 'supplier', 'unitCost', 'leadTime', 'finish', 'productType'];
+const REG_RECOMMENDED_COL_IDS = ['thumb', 'category', 'supplier', 'unitCost', 'leadTime', 'finish', 'productType'];
 const REG_COMMON_FIELD_IDS = ['supplier', 'country_of_origin', 'unit', 'unit_cost', 'lead_time'];
 const REG_OTHER_POPULATED_LIMIT = 12;
 // Fields that default ON when their category is selected.
@@ -195,6 +196,10 @@ function saveRegisterCols(set) {
   try { localStorage.setItem(REG_COL_STORAGE, JSON.stringify(Array.from(normaliseRegisterColSet(Array.from(set))))); } catch {}
 }
 
+function chooserVisibleRegisterCols(cols) {
+  return (cols || []).filter(c => c && !REG_CHOOSER_HIDDEN_COL_IDS.has(c.id));
+}
+
 function LibraryRegister({
   materials, libraries,
   labelTemplates,
@@ -310,12 +315,20 @@ function LibraryRegister({
     else if (onAdd) onAdd();
   }
 
+  const officeMode = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
+  const chooserAvailableCols = React.useMemo(() => {
+    const cols = officeMode ? availableCols : availableCols.filter(c => c.id !== 'code');
+    return chooserVisibleRegisterCols(cols);
+  }, [availableCols, officeMode]);
+  const chooserVisibleCount = chooserAvailableCols.filter(c => visibleCols.has(c.id)).length;
+
   const pickerSections = React.useMemo(() => {
-    const isOffice = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
-    const filterCode = cols => isOffice ? cols : cols.filter(c => c.id !== 'code');
+    const filterChooserCols = cols => chooserVisibleRegisterCols(officeMode ? cols : cols.filter(c => c.id !== 'code'));
     const q = colSearch.trim().toLowerCase();
-    if (!q) return columnModel.sections.map(sec => ({ ...sec, cols: filterCode(sec.cols) }));
-    const matches = filterCode(availableCols).filter(c => {
+    if (!q) return columnModel.sections
+      .map(sec => ({ ...sec, cols: filterChooserCols(sec.cols) }))
+      .filter(sec => sec.cols.length > 0);
+    const matches = chooserAvailableCols.filter(c => {
       const hay = [
         c.label, c.id, c.fieldId, c.scopeLabel,
         fieldIdForRegCol(c),
@@ -323,7 +336,7 @@ function LibraryRegister({
       return hay.includes(q);
     });
     return [{ title: 'Search results', cols: matches }];
-  }, [colSearch, columnModel.sections, availableCols]);
+  }, [colSearch, columnModel.sections, officeMode, chooserAvailableCols]);
 
   function setSuggestedCols() {
     setVisibleCols(new Set(columnModel.suggestedIds));
@@ -349,7 +362,7 @@ function LibraryRegister({
       <div ref={colsBtnRef} style={{ position: 'relative' }}>
         <button type="button" className="btn-ghost"
           onClick={() => setColsOpen(o => !o)}>
-          Cols ({visibleCols.size})
+          Cols ({chooserVisibleCount})
         </button>
         {colsOpen && (
           <div className={'reg-col-popover' + (colsAlignLeft ? ' is-left' : '')}>
@@ -405,10 +418,9 @@ function LibraryRegister({
       </div>
     );
     return () => setColumnsButton(null);
-  }, [colsOpen, colsAlignLeft, visibleCols, colSearch, pickerSections, columnModel.suggestedIds, setColumnsButton]);
+  }, [colsOpen, colsAlignLeft, visibleCols, chooserVisibleCount, colSearch, pickerSections, columnModel.suggestedIds, setColumnsButton]);
 
   // Render
-  const officeMode = !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy));
   const visibleColDefs = availableCols.filter(c => visibleCols.has(c.id) && (c.id !== 'code' || officeMode));
   const gridTemplate = visibleColDefs.map(c => c.width).join(' ');
 

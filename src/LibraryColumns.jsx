@@ -400,17 +400,17 @@ function genericEditable(field) {
 
 const LIBRARY_COLUMNS = [
   // Design row, in spec order:
-  { id: 'drag',     label: '', width: 24, minWidth: 24, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false,
+  { id: 'drag',     label: '', width: 24, minWidth: 24, fixed: true, locked: true, hiddenFromChooser: true, defaultOn: true, align: 'center', sortable: false,
     render: DragCell },
-  { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false },
-  { id: 'swatch',   label: '', width: 44, minWidth: 44, fixed: true, locked: true, defaultOn: true, align: 'center', sortable: false,
+  { id: 'select',   label: '', width: 32, minWidth: 32, fixed: true, locked: true, hiddenFromChooser: true, defaultOn: true, align: 'center', sortable: false },
+  { id: 'swatch',   label: 'Thumbnail', width: 44, minWidth: 44, fixed: true, defaultOn: true, align: 'center', sortable: false,
     render: SwatchCell },
   { id: 'code',     label: 'Code', width: 96, minWidth: 64, defaultOn: false,
     visible: () => !!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)),
     render: CodeCell,
     searchText: (m) => m.code,
   },
-  { id: 'label',    label: 'Material', width: 320, minWidth: 180, locked: true, defaultOn: true,
+  { id: 'label',    label: 'Material', width: 320, minWidth: 180, locked: true, hiddenFromChooser: true, defaultOn: true,
     render: LabelCell,
     sortValue: (m) => window.formatLabel(m, window._labelTemplatesCache || {}).toLowerCase(),
     searchText: (m) => (m.name || '') + ' ' + (m.customName || ''),
@@ -439,7 +439,7 @@ const LIBRARY_COLUMNS = [
   { id: 'unitCost', label: 'Price', width: 100, minWidth: 70, mono: true, editable: true, align: 'right', defaultOn: true,
     render: UnitCostCell,
     sortValue: (m) => (window.getFieldValue ? Number(window.getFieldValue(m, 'unit_cost')) : m.unitCost) || 0 },
-  { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, locked: true, defaultOn: true, align: 'right', sortable: false,
+  { id: 'actions',  label: '', width: 130, minWidth: 130, fixed: true, locked: true, hiddenFromChooser: true, defaultOn: true, align: 'right', sortable: false,
     render: ActionsCell },
 
   // Optional columns (off by default; available via column chooser):

@@ -32,7 +32,7 @@
 
 const DT_DENSITY_ROW_H = { compact: 26, regular: 32, comfortable: 40 };
 
-function loadDtColPref(storageKey, defaultVisible, defaultOrder) {
+function loadDtColPref(storageKey, defaultVisible, defaultOrder, requiredVisible = []) {
   let pref;
   try {
     const raw = localStorage.getItem(storageKey);
@@ -49,6 +49,9 @@ function loadDtColPref(storageKey, defaultVisible, defaultOrder) {
   const missing = defaultOrder.filter(id => !existing.has(id));
   if (missing.length) pref.order = [...(pref.order || []), ...missing];
   pref.visible = pref.visible || defaultVisible.slice();
+  requiredVisible.forEach(id => {
+    if (!pref.visible.includes(id)) pref.visible.push(id);
+  });
   pref.widths  = pref.widths  || {};
   return pref;
 }
@@ -114,17 +117,31 @@ function DataTable({
   rightPanelWidth = 440,
   minHeight = 600,
 }) {
+  const requiredVisible = React.useMemo(
+    () => (columns || []).filter(c => c.locked).map(c => c.id),
+    [columns]
+  );
+
   // ───── column preferences
   const [colPref, setColPrefState] = React.useState(
-    () => loadDtColPref(colStorageKey, defaultVisible, defaultOrder)
+    () => loadDtColPref(colStorageKey, defaultVisible, defaultOrder, requiredVisible)
   );
   function setColPref(updater) {
     setColPrefState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveDtColPref(colStorageKey, next);
-      return next;
+      const visible = next.visible ? next.visible.slice() : defaultVisible.slice();
+      requiredVisible.forEach(id => {
+        if (!visible.includes(id)) visible.push(id);
+      });
+      const healed = { ...next, visible };
+      saveDtColPref(colStorageKey, healed);
+      return healed;
     });
   }
+
+  React.useEffect(() => {
+    setColPref(prev => prev);
+  }, [requiredVisible]);
 
   const rowH = DT_DENSITY_ROW_H[density] || DT_DENSITY_ROW_H.regular;
 

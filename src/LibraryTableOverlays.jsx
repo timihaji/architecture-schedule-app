@@ -178,7 +178,9 @@ function PanelKVField({ field, value }) {
 function LTColumnPicker({ colPref, setColPref, onClose }) {
   const [dragId, setDragId] = React.useState(null);
   const [overId, setOverId] = React.useState(null);
-  const COLUMNS = (window.LIBRARY_COLUMNS || []).filter(c => !c.visible || c.visible());
+  const COLUMNS = (window.LIBRARY_COLUMNS || [])
+    .filter(c => !c.hiddenFromChooser)
+    .filter(c => !c.visible || c.visible());
   const DEFAULT_VISIBLE = window.LIBRARY_DEFAULT_VISIBLE || [];
   const DEFAULT_ORDER = window.LIBRARY_DEFAULT_ORDER || COLUMNS.map(c => c.id);
 
