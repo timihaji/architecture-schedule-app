@@ -111,7 +111,7 @@
       cells: {}, rows: [],
     }), []);
     const sched = window.useProjectSchedule
-      ? window.useProjectSchedule(projectId, fallback, x => x)
+      ? window.useProjectSchedule(projectId, () => fallback, x => x)
       : { data: fallback, set: () => {}, status: 'ready' };
     const blob = sched.data || fallback;
     const rows = Array.isArray(blob.rows) ? blob.rows : [];
@@ -464,9 +464,6 @@
     // Project header derived bits.
     const projectMeta = project && (project.code || project.client || project.stage);
 
-    // Empty-state trade picker (used when the project has 0 schedule rows).
-    const TRADES = window.TRADES || ['Plumbing', 'Carpentry', 'Joinery', 'Electrical', 'Tiling', 'FFE'];
-
     if (!project) {
       return (
         <div className="sched-empty" style={{ padding: '120px 0' }}>
@@ -575,7 +572,10 @@
             </div>
           </div>
         ) : rows.length === 0 ? (
-          <EmptySchedule trades={TRADES} onPickTrade={(trade) => addEmptyRow({ trade })} />
+          <div className="sched-empty">
+            <div className="sched-empty-eyebrow">Empty schedule</div>
+            <div className="sched-empty-msg">Use &ldquo;+ Add row&rdquo; above to get started</div>
+          </div>
         ) : filteredOut ? (
           <div className="sched-no-match">
             <div className="sched-no-match-msg">No items match</div>
@@ -658,24 +658,6 @@
           />
         )}
       </>
-    );
-  }
-
-  function EmptySchedule({ trades, onPickTrade }) {
-    return (
-      <div className="sched-empty">
-        <div className="sched-empty-eyebrow">Empty schedule</div>
-        <div className="sched-empty-msg">Start by picking a trade</div>
-        <div className="sched-empty-trades">
-          {trades.slice(0, 8).map(t => (
-            <button key={t} type="button" className="sched-empty-trade"
-              onClick={() => onPickTrade(t)}>
-              <span>{t}</span>
-              <span className="sched-empty-trade-arrow">→</span>
-            </button>
-          ))}
-        </div>
-      </div>
     );
   }
 
