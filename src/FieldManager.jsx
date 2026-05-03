@@ -166,8 +166,31 @@
   // CATEGORIES TAB
   // ───────────────────────────────────────────────────────────────────────────
   function CategoriesTab({ tax, patch, materials, projects, onEditField, onCreateField }) {
-    const [openGroup, setOpenGroup] = useState(() => (tax.groups[0] && tax.groups[0].id) || null);
-    const [selection, setSelection] = useState(null); // {type:'group'|'category', id}
+    const cs = window.useCloudState ? window.useCloudState() : null;
+    // Deep-link target from the editor footer link (PFB_ReorderFieldsLink).
+    // Read once on mount and clear so it doesn't keep re-selecting on every
+    // unrelated UI change.
+    const deepLinkCat = cs && cs.ui && cs.ui.fieldManagerCategory;
+    const initial = React.useMemo(() => {
+      if (deepLinkCat) {
+        const cat = (tax.categories || []).find(c => c.id === deepLinkCat);
+        if (cat) return { groupId: cat.groupId, selection: { type: 'category', id: cat.id } };
+      }
+      return null;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const [openGroup, setOpenGroup] = useState(() =>
+      (initial && initial.groupId) || (tax.groups[0] && tax.groups[0].id) || null);
+    const [selection, setSelection] = useState(initial ? initial.selection : null); // {type:'group'|'category', id}
+
+    // Clear the deep-link key after we've consumed it so a later visit to
+    // Library fields doesn't re-jump to the same category.
+    React.useEffect(() => {
+      if (deepLinkCat && cs && cs.setUi) {
+        cs.setUi({ fieldManagerCategory: null });
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const groups = useMemo(() =>
       (tax.groups || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)),
@@ -938,6 +961,7 @@
       if (!out.unit) delete out.unit;
       if (!out.helpText) delete out.helpText;
       if (!out.sectionId) delete out.sectionId;
+      if (!out.subSection) delete out.subSection;
       if (!out.defaultValue && out.defaultValue !== false && out.defaultValue !== 0) delete out.defaultValue;
       onSave(out, isNew ? scope : null);
     }
@@ -1030,6 +1054,15 @@
               <input type="text" value={draft.helpText || ''}
                 onChange={e => set('helpText', e.target.value)}
                 style={fieldStyle()} />
+            </Row>
+            <Row label="Specs sub-section" hint="which sub-heading in the Specs section this field shows under. Leave on (auto) to use the default rule.">
+              <select value={draft.subSection || ''}
+                onChange={e => set('subSection', e.target.value)}
+                style={fieldStyle()}>
+                <option value="">(auto)</option>
+                {(window.SPEC_SUB_SECTIONS || []).map(s =>
+                  <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
             </Row>
             <Row label="Section" hint="optional grouping in the editor">
               <input type="text" value={draft.sectionId || ''}

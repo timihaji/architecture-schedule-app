@@ -99,6 +99,63 @@
     return ((s.tagAxes || {})[axis] || []).filter(t => !t.hidden);
   }
 
+  // ─── Specs sub-grouping (Phase 3) ──────────────────────────────────────────
+  // Buckets the Specs section into purpose-based sub-headings so the most
+  // defining fields lead and related fields cluster.
+  //
+  // Each field def may set `subSection: 'dimensions' | 'performance' |
+  // 'materials_finish' | 'other'` to opt into a specific bucket. When unset,
+  // we fall back to the rule table below — id-pattern + type/unit. Overrides
+  // win, then explicit id sets, then unit-based, then regex.
+  const SUB_SECTIONS = [
+    { id: 'dimensions',       label: 'Dimensions' },
+    { id: 'performance',      label: 'Performance' },
+    { id: 'materials_finish', label: 'Materials & Finish' },
+    { id: 'other',            label: 'Other' },
+  ];
+  // Geometric size units only — 'L', 'kg', 'm³' are capacity-ish and route to
+  // Performance via the /capacity/ regex instead.
+  const _DIMENSION_UNITS = new Set(['mm', 'cm', 'm', 'm²']);
+  const _DIMENSION_IDS = new Set([
+    'size', 'dimensions', 'format_text', 'slab_size', 'plank_size', 'gauge',
+    'pour_thickness'
+  ]);
+  // Common-field ids we always treat as Other (avoid them grabbing dimensions
+  // bucket via the unit rule, or a regex hit on shared word stems).
+  const _OTHER_IDS = new Set([
+    'libraries', 'tags_area',
+  ]);
+  const _PERFORMANCE_RX = /(rating|approval|frl|janka|lrv|coverage|capacity|power|wear|slip|sealing|acoustic|certification|smoke|weatherproof|tags_performance|fire_)/i;
+  // `_type$` and `_format$` catch category-type pickers (appliance_type,
+  // vinyl_type, linoleum_format, paste_type, …) so they land in Materials &
+  // Finish rather than Other.
+  const _MATERIALS_FINISH_RX = /(finish|colou?r|species|stain|decor|sheen|sealer|profile|pattern|texture|aggregate|swatch|substrate|tags_material_family|paint_system|_type$|_format$)/i;
+
+  function subSectionFor(field) {
+    if (!field) return 'other';
+    if (field.subSection) return field.subSection;
+    const id = field.id || '';
+    if (_OTHER_IDS.has(id)) return 'other';
+    if (_DIMENSION_IDS.has(id)) return 'dimensions';
+    if (field.type === 'number' && _DIMENSION_UNITS.has(field.unit)) return 'dimensions';
+    if (_PERFORMANCE_RX.test(id)) return 'performance';
+    if (id === 'material' || id.endsWith('_ref') || _MATERIALS_FINISH_RX.test(id)) {
+      return 'materials_finish';
+    }
+    return 'other';
+  }
+
+  // Returns [{ id, label, fields: [...] }] in canonical render order. Buckets
+  // with no fields are omitted by the consumer.
+  function bucketFieldsBySubSection(fields) {
+    const buckets = { dimensions: [], performance: [], materials_finish: [], other: [] };
+    (fields || []).forEach(f => {
+      const id = subSectionFor(f);
+      (buckets[id] || buckets.other).push(f);
+    });
+    return SUB_SECTIONS.map(s => ({ id: s.id, label: s.label, fields: buckets[s.id] || [] }));
+  }
+
   // Deterministic Trade default per category. Uses category's group as the
   // primary signal. Migration v5 also calls this. User can always override
   // (sticky via _touched.trade).
@@ -491,6 +548,9 @@
   window.categoriesInGroup = categoriesInGroup;
   window.fieldsForCategory = fieldsForCategory;
   window.tagsForAxis = tagsForAxis;
+  window.subSectionFor = subSectionFor;
+  window.bucketFieldsBySubSection = bucketFieldsBySubSection;
+  window.SPEC_SUB_SECTIONS = SUB_SECTIONS;
   window.defaultTradeForCategory = defaultTradeForCategory;
   window.searchCategories = searchCategories;
   window.searchItems = searchItems;

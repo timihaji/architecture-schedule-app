@@ -104,6 +104,12 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
   const idFields = pickFields(fields, IDENTITY_IDS)
     .filter(f => f.id !== 'code' && f.id !== 'name' && f.id !== 'supplier');
 
+  // Group (read-only derivation) and Trade (auto-derived from category) are
+  // rarely edited — collapse them behind a chevron. If the user has manually
+  // touched Trade, keep it expanded by default so they can see their override.
+  const tradeTouched = !!(draft._touched && draft._touched.trade);
+  const [showAdvanced, setShowAdvanced] = React.useState(tradeTouched);
+
   return (
     <PFB_Section num="02" label="Identity">
       {/* Row 1 — Code (office mode only) + Name */}
@@ -133,16 +139,9 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
         </div>
       </div>
 
-      {/* Row 2 — Group (read-only display) + Category picker */}
+      {/* Row 2 — Category + Supplier (Group dropped here; lives behind the
+           chevron now since it's a read-only derivation of Category). */}
       <div className="row-2" style={{ marginBottom: 10 }}>
-        <div>
-          <label className="lbl-d">Group</label>
-          <div className="sel-d"
-            style={{ cursor: 'default', color: 'var(--ink-2)', backgroundImage: 'none', paddingRight: 10 }}
-            title="Group is derived from the chosen category.">
-            {grpDef ? grpDef.label : '—'}
-          </div>
-        </div>
         <div>
           <label className="lbl-d">Category</label>
           <select
@@ -162,10 +161,6 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
             ))}
           </select>
         </div>
-      </div>
-
-      {/* Row 3 — Supplier + Trade (Trade kept bespoke for the datalist + _touched flag) */}
-      <div className="row-2" style={{ marginBottom: 10 }}>
         <div>
           <label className="lbl-d">Supplier</label>
           <input
@@ -173,22 +168,6 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
             value={(window.getFieldValue ? window.getFieldValue(draft, 'supplier') : draft.supplier) || ''}
             onChange={e => window.setFieldOnDraft(set, 'supplier', e.target.value, draft)}
           />
-        </div>
-        <div>
-          <label className="lbl-d">Trade</label>
-          <input
-            className="inp-d"
-            list="aml-trades"
-            value={tradeValue}
-            onChange={e => {
-              window.setFieldOnDraft(set, 'trade', e.target.value, draft);
-              set('_touched', Object.assign({}, draft._touched || {}, { trade: true }));
-            }}
-            placeholder="auto from category — override if needed"
-          />
-          <datalist id="aml-trades">
-            {(window.TRADES || []).map(t => <option key={t} value={t} />)}
-          </datalist>
         </div>
       </div>
 
@@ -207,6 +186,54 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
           ))}
         </div>
       )}
+
+      {/* Advanced: Group (read-only derivation) + Trade (auto from category).
+           Hidden by default to keep Identity uncluttered. */}
+      {showAdvanced && (
+        <div className="row-2" style={{ marginBottom: 10 }}>
+          <div>
+            <label className="lbl-d">Group</label>
+            <div className="sel-d"
+              style={{ cursor: 'default', color: 'var(--ink-2)', backgroundImage: 'none', paddingRight: 10 }}
+              title="Group is derived from the chosen category.">
+              {grpDef ? grpDef.label : '—'}
+            </div>
+          </div>
+          <div>
+            <label className="lbl-d">Trade</label>
+            <input
+              className="inp-d"
+              list="aml-trades"
+              value={tradeValue}
+              onChange={e => {
+                window.setFieldOnDraft(set, 'trade', e.target.value, draft);
+                set('_touched', Object.assign({}, draft._touched || {}, { trade: true }));
+              }}
+              placeholder="auto from category — override if needed"
+            />
+            <datalist id="aml-trades">
+              {(window.TRADES || []).map(t => <option key={t} value={t} />)}
+            </datalist>
+          </div>
+        </div>
+      )}
+
+      <button type="button"
+        onClick={() => setShowAdvanced(v => !v)}
+        style={{
+          marginTop: 2,
+          padding: '4px 10px',
+          fontSize: 11,
+          fontFamily: 'var(--font-sans)',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          border: '1px dashed var(--rule-2)',
+          background: 'transparent',
+          color: 'var(--ink-3)',
+          cursor: 'pointer',
+        }}>
+        {showAdvanced ? '▴ Hide group & trade' : '▾ + Group & Trade'}
+      </button>
     </PFB_Section>
   );
 }
@@ -320,30 +347,56 @@ function PFB_Specs({ draft, set, materials = [] }) {
     }
   }, [linkedPaint && linkedPaint.swatch && linkedPaint.swatch.tone, draft.inheritPaintTone]);
 
-  const filled = specsFields.filter(f => !isFieldEmpty(draft, f.id));
-  const empty  = specsFields.filter(f =>  isFieldEmpty(draft, f.id));
   const [showAll, setShowAll] = React.useState(false);
 
-  const filledRows = packIntoRows(filled);
-  const emptyRows  = packIntoRows(empty);
+  // Bucket fields into purpose-based sub-sections. Each bucket renders its
+  // own sub-heading and packs filled-first / empty-behind-chevron.
+  const buckets = window.bucketFieldsBySubSection
+    ? window.bucketFieldsBySubSection(specsFields)
+    : [{ id: 'all', label: '', fields: specsFields }];
+
+  const totalEmpty = specsFields.filter(f => isFieldEmpty(draft, f.id)).length;
 
   return (
     <PFB_Section num="03" label="Specs">
-      {filledRows.map((row, i) => (
-        <div key={`f-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
-          {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
-        </div>
-      ))}
-      {showAll && emptyRows.map((row, i) => (
-        <div key={`e-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
-          {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
-        </div>
-      ))}
-      {empty.length > 0 && (
+      {buckets.map(bucket => {
+        const filled = bucket.fields.filter(f => !isFieldEmpty(draft, f.id));
+        const empty  = bucket.fields.filter(f =>  isFieldEmpty(draft, f.id));
+        const renderEmpty = showAll ? empty : [];
+        if (filled.length === 0 && renderEmpty.length === 0) return null;
+        const filledRows = packIntoRows(filled);
+        const emptyRows  = packIntoRows(renderEmpty);
+        return (
+          <div key={bucket.id} style={{ marginBottom: 14 }}>
+            {bucket.label && (
+              <div style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 9, letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--ink-3)',
+                margin: '4px 0 8px',
+                paddingBottom: 4,
+                borderBottom: '1px dotted var(--rule-2)',
+              }}>{bucket.label}</div>
+            )}
+            {filledRows.map((row, i) => (
+              <div key={`f-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
+                {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
+              </div>
+            ))}
+            {emptyRows.map((row, i) => (
+              <div key={`e-${i}`} className={row.length === 2 ? 'row-2' : ''} style={{ marginBottom: 10 }}>
+                {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} materials={materials} />)}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      {totalEmpty > 0 && (
         <button type="button"
           onClick={() => setShowAll(v => !v)}
           style={{
-            marginTop: filled.length > 0 ? 6 : 0,
+            marginTop: 6,
             padding: '4px 10px',
             fontSize: 11,
             fontFamily: 'var(--font-sans)',
@@ -355,11 +408,46 @@ function PFB_Specs({ draft, set, materials = [] }) {
             cursor: 'pointer',
           }}>
           {showAll
-            ? `▴ Hide ${empty.length} empty field${empty.length === 1 ? '' : 's'}`
-            : `▾ + ${empty.length} more field${empty.length === 1 ? '' : 's'}`}
+            ? `▴ Hide ${totalEmpty} empty field${totalEmpty === 1 ? '' : 's'}`
+            : `▾ + ${totalEmpty} more field${totalEmpty === 1 ? '' : 's'}`}
         </button>
       )}
+
+      <PFB_ReorderFieldsLink catId={cat} />
     </PFB_Section>
+  );
+}
+
+// Footer link that deep-links from the editor's Specs section into
+// Settings → Library fields, jumping straight to the right category. Hidden
+// when cloud state isn't ready (defensive; the hook is always available in
+// production).
+function PFB_ReorderFieldsLink({ catId }) {
+  const cs = window.useCloudState ? window.useCloudState() : null;
+  if (!cs || !cs.setUi) return null;
+  const onClick = () => {
+    cs.setUi({
+      view: 'settings',
+      settingsSection: 'libraryFields',
+      fieldManagerCategory: catId,
+    });
+  };
+  return (
+    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dotted var(--rule-2)' }}>
+      <button type="button"
+        onClick={onClick}
+        style={{
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11,
+          letterSpacing: '0.04em',
+          color: 'var(--ink-3)',
+          textDecoration: 'underline',
+          textDecorationStyle: 'dotted',
+        }}>
+        ⚙ Reorder fields for this category →
+      </button>
+    </div>
   );
 }
 
