@@ -20,6 +20,8 @@
 (function () {
   const { useState, useMemo, useEffect, useRef } = React;
 
+  const LS_KEY = 'picker-drawer:selected-libs';
+
   function PickerDrawer({
     open,
     eyebrow,
@@ -31,6 +33,7 @@
     selectionMode = 'single',
     initialSelected = [],
     showTypes,            // override; defaults to window.SHOW_TYPES
+    libraries = [],       // [{id, name}] — if empty, derived from materials.libraryIds
     onPick,               // (idOrIds) => void
     onClose,
     onAddNewProduct,      // optional — footer "Add Product" button
@@ -42,11 +45,20 @@
   }) {
     const [q, setQ] = useState('');
     const [sel, setSel] = useState(() => new Set(initialSelected));
+    const [selectedLibs, setSelectedLibs] = useState(() => {
+      try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')); }
+      catch { return new Set(); }
+    });
     const searchRef = useRef(null);
 
     const typesEnabled = (showTypes != null) ? showTypes : !!window.SHOW_TYPES;
 
-    // Reset on open and focus search.
+    // Persist library filter selection.
+    useEffect(() => {
+      try { localStorage.setItem(LS_KEY, JSON.stringify([...selectedLibs])); } catch {}
+    }, [selectedLibs]);
+
+    // Reset query + selection on open; do NOT reset selectedLibs (persistent).
     useEffect(() => {
       if (!open) return;
       setQ('');
@@ -62,6 +74,20 @@
       document.addEventListener('keydown', onKey);
       return () => document.removeEventListener('keydown', onKey);
     }, [open, onClose]);
+
+    // Derive available library buttons from prop or from materials.
+    const availableLibs = useMemo(() => {
+      if (libraries && libraries.length) return libraries;
+      const ids = new Set((materials || []).flatMap(m => m.libraryIds || []));
+      return [...ids].map(id => ({ id, name: id }));
+    }, [libraries, materials]);
+
+    // Library-filtered materials (applied before query filter).
+    const libFiltered = useMemo(() => {
+      if (selectedLibs.size === 0) return materials;
+      return (materials || []).filter(m =>
+        (m.libraryIds || []).some(id => selectedLibs.has(id)));
+    }, [materials, selectedLibs]);
 
     // Filter sources.
     const matchingTypes = useMemo(() => {
@@ -80,13 +106,13 @@
 
     const matchingProducts = useMemo(() => {
       const lc = q.trim().toLowerCase();
-      if (!lc) return materials;
-      return materials.filter(m =>
+      if (!lc) return libFiltered;
+      return libFiltered.filter(m =>
         (m.name || '').toLowerCase().includes(lc) ||
         (m.code || '').toLowerCase().includes(lc) ||
         (m.brand || '').toLowerCase().includes(lc) ||
         (m.supplier || '').toLowerCase().includes(lc));
-    }, [materials, q]);
+    }, [libFiltered, q]);
 
     if (!open) return null;
 
@@ -132,6 +158,30 @@
               </div>
               <button type="button" className="pdrw-close" onClick={onClose} aria-label="Close">×</button>
             </div>
+            {availableLibs.length >= 2 && (
+              <div className="pdrw-filter-strip">
+                <button
+                  type="button"
+                  className={`pdrw-filter-btn${selectedLibs.size === 0 ? ' active' : ''}`}
+                  onClick={() => setSelectedLibs(new Set())}>
+                  All
+                </button>
+                {availableLibs.map(lib => {
+                  const active = selectedLibs.has(lib.id);
+                  return (
+                    <button key={lib.id} type="button"
+                      className={`pdrw-filter-btn${active ? ' active' : ''}`}
+                      onClick={() => setSelectedLibs(prev => {
+                        const next = new Set(prev);
+                        if (next.has(lib.id)) next.delete(lib.id); else next.add(lib.id);
+                        return next;
+                      })}>
+                      {lib.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="pdrw-search">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                 style={{ color: 'var(--ink-4)', flexShrink: 0 }}>

@@ -696,6 +696,7 @@
                   return (r && r.specRef && r.specRef.id) ? [r.specRef.id] : [];
                 })()
               : []}
+            libraries={(libraries || []).map(l => ({ id: l.id, name: l.name }))}
             onPick={onPickerConfirm}
             onClose={() => setPicker(null)}
             codePreviewFor={codePreviewFor}
