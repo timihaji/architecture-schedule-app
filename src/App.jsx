@@ -660,6 +660,7 @@ function App() {
           <window.SchedulePage
             materials={materials}
             projects={projects}
+            libraries={libraries}
             activeProjectId={activeProjectId}
             setActiveProjectId={setActiveProjectId}
             density={settings.density}
@@ -1207,11 +1208,11 @@ function DuplicatePicker({ products = [], onPick }) {
 }
 
 function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelBuilder, onClose, onSave, onSaveAndAddAnother, requireCodeOnSave, showLibraryCode = false }) {
-  // Phase 1B (commit 4): normalise tradeDiscounts/currency on existing rows
-  // that pre-date these fields so Commercial doesn't crash on undefined.
+  // Normalise currency on existing rows that pre-date the field so the
+  // Commercial section doesn't crash on undefined. (tradeDiscounts removed —
+  // legacy values stay on disk but are no longer surfaced.)
   const [draft, setDraft] = React.useState(() => ({
     ...material,
-    tradeDiscounts: Array.isArray(material.tradeDiscounts) ? material.tradeDiscounts : [],
     currency: material.currency || 'AUD',
   }));
   const [codeError, setCodeError] = React.useState(false);
@@ -1289,19 +1290,19 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
                 labelTemplates={labelTemplates}
                 onOpenLabelBuilder={onOpenLabelBuilder} />
 
-              <window.ProductFieldBlocks.Identity
-                draft={draft} set={set} codeError={codeError} showCode={showLibraryCode} />
-
               <window.ProductFieldBlocks.Visual
                 draft={draft} set={set} setSwatch={setSwatch} materials={materials} />
+
+              <window.ProductFieldBlocks.Identity
+                draft={draft} set={set} codeError={codeError} showCode={showLibraryCode} />
 
               <window.ProductFieldBlocks.Specs
                 draft={draft} set={set} materials={materials} />
 
-              <window.ProductFieldBlocks.Commercial
+              <window.ProductFieldBlocks.Notes
                 draft={draft} set={set} />
 
-              <window.ProductFieldBlocks.Notes
+              <window.ProductFieldBlocks.Commercial
                 draft={draft} set={set} />
             </>
           )}
@@ -1319,7 +1320,6 @@ function MaterialEditor({ material, materials = [], labelTemplates, onOpenLabelB
                   ...prefill,
                   id: 'm-' + Date.now(),
                   code: newCode,
-                  tradeDiscounts: Array.isArray(prefill.tradeDiscounts) ? prefill.tradeDiscounts : [],
                   currency: prefill.currency || 'AUD',
                   _isNew: true,
                 });

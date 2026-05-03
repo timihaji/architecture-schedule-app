@@ -97,7 +97,7 @@
     };
   }
 
-  function SchedulePage({ materials, projects, activeProjectId, setActiveProjectId, density }) {
+  function SchedulePage({ materials, projects, libraries, activeProjectId, setActiveProjectId, density }) {
     const project = projects.find(p => p.id === activeProjectId) || projects[0] || null;
     const projectId = project ? project.id : null;
 
@@ -652,7 +652,7 @@
                   return row && row.specRef && row.specRef.id ? [row.specRef.id] : [];
                 })()
               : []}
-            libraries={(window.LIBRARIES || []).map(l => ({ id: l.id, name: l.name }))}
+            libraries={(libraries || []).map(l => ({ id: l.id, name: l.name }))}
             onPick={onPickerConfirm}
             onClose={() => setPicker(null)}
             codePreviewFor={codePreviewFor}
