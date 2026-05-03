@@ -30,6 +30,11 @@
     country_of_origin: 'origin',
     image_ref: 'image',
     paintedWith: 'paintedWithId',
+    // Submittal fields: old shape used top-level camelCase keys.
+    install_notes: 'installNotes',
+    manufacturer:  'mfr',
+    product_url:   'url',
+    // warranty, contact, supplier_code kept the same key — no alias needed.
     // tags is structurally different (object-by-axis vs flat array) — handled
     // explicitly in getFieldValue.
   };

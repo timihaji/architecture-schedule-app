@@ -71,6 +71,13 @@
   fSwatch('swatch', 'Swatch');
   fUrl('image_ref', 'Image reference');
   fLong('notes', 'Notes');
+  // Submittal / procurement fields — universal across all categories:
+  fText('supplier_code', 'Supplier code');
+  fText('manufacturer', 'Manufacturer', { helpText: 'If different from supplier' });
+  fText('contact', 'Contact', { helpText: 'Name · phone / email' });
+  fUrl('product_url', 'Product URL');
+  fText('warranty', 'Warranty');
+  fLong('install_notes', 'Installation notes');
   // tags is a special composite — implemented as three multi-selects, one per axis:
   fTag('tags_performance', 'Performance', 'performance');
   fTag('tags_area', 'Area', 'area');
@@ -78,9 +85,10 @@
   fMSel('libraries', 'Libraries', []); // options resolved at runtime
 
   const COMMON_FIELD_IDS = [
-    'code', 'name', 'supplier', 'lead_time',
-    'unit', 'unit_cost', 'swatch', 'notes',
-    'libraries'
+    'code', 'name', 'supplier', 'supplier_code', 'country_of_origin',
+    'lead_time', 'unit', 'unit_cost', 'swatch', 'notes',
+    'manufacturer', 'contact', 'product_url', 'warranty', 'install_notes',
+    'libraries',
   ];
 
   // ─── Tag axes ──────────────────────────────────────────────────────────────
@@ -1629,7 +1637,7 @@
   // snapshot with a fresh clone if they differ.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
-    _reseedVersion: 4,
+    _reseedVersion: 5,
     groups: GROUPS,
     categories: CATEGORIES,
     fields: Object.values(FIELDS),

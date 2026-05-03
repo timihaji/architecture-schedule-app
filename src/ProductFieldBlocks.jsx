@@ -67,8 +67,12 @@ function omitFields(fields, ids) {
 // Field id buckets for the 5 sections. Anything not in another bucket lands
 // in Specs by default.
 const IDENTITY_IDS    = ['code', 'name', 'supplier', 'brand', 'range', 'model'];
-const COMMERCIAL_IDS  = ['unit', 'unit_cost', 'lead_time', 'supplier_code', 'country_of_origin'];
-const NOTES_IDS       = ['notes', 'image_ref'];
+const COMMERCIAL_IDS  = [
+  'unit', 'unit_cost', 'lead_time',
+  'supplier_code', 'country_of_origin',
+  'manufacturer', 'contact', 'product_url', 'warranty',
+];
+const NOTES_IDS       = ['notes', 'image_ref', 'install_notes'];
 const VISUAL_IDS      = ['swatch']; // SwatchEditor handles this directly
 const SPECS_EXCLUDE   = new Set([].concat(IDENTITY_IDS, COMMERCIAL_IDS, NOTES_IDS, VISUAL_IDS));
 
@@ -101,7 +105,7 @@ function PFB_Identity({ draft, set, codeError = false, showCode = false }) {
     .filter(f => f.id !== 'code' && f.id !== 'name' && f.id !== 'supplier');
 
   return (
-    <PFB_Section num="01" label="Identity">
+    <PFB_Section num="02" label="Identity">
       {/* Row 1 — Code (office mode only) + Name */}
       <div style={{
         display: 'grid',
@@ -220,7 +224,7 @@ function PFB_Visual({ draft, set, setSwatch, materials = [] }) {
   const hex = (draft.swatch && draft.swatch.tone) || (isPaint ? '#e5e2d8' : '#b8aa94');
 
   return (
-    <PFB_Section num="02" label="Visual">
+    <PFB_Section num="01" label="Visual">
       {window.SwatchEditor && (
         <window.SwatchEditor
           swatch={draft.swatch}
@@ -364,14 +368,12 @@ function PFB_Commercial({ draft, set }) {
   const fields = window.fieldsForCategory ? window.fieldsForCategory(cat) : [];
   const cFields = pickFields(fields, COMMERCIAL_IDS);
 
-  const tradeDiscounts = Array.isArray(draft.tradeDiscounts) ? draft.tradeDiscounts : [];
-
   // Pair fields into rows of 2.
   const rows = [];
   for (let i = 0; i < cFields.length; i += 2) rows.push(cFields.slice(i, i + 2));
 
   return (
-    <PFB_Section num="04" label="Commercial">
+    <PFB_Section num="05" label="Commercial">
       {rows.map((row, i) => (
         <div key={i} className="row-2" style={{ marginBottom: 10 }}>
           {row.map(f => <PFB_Field key={f.id} field={f} draft={draft} set={set} />)}
@@ -390,50 +392,6 @@ function PFB_Commercial({ draft, set }) {
           </select>
         </div>
       </div>
-
-      <div style={{ marginTop: 10, padding: '12px 0 4px',
-        borderTop: '1px dotted var(--rule-2)' }}>
-        <label className="lbl-d">Trade discounts</label>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {tradeDiscounts.map((d, i) => (
-            <span key={`${d}-${i}`} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '4px 6px 4px 10px',
-              fontSize: 11,
-              fontFamily: 'var(--font-sans)',
-              border: '1px solid var(--rule-2)',
-              background: 'var(--paper)',
-              color: 'var(--ink-2)',
-            }}>
-              {d}
-              <button type="button"
-                onClick={() => set('tradeDiscounts',
-                  tradeDiscounts.filter((_, j) => j !== i))}
-                style={{
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                  fontSize: 14, color: 'var(--ink-4)', lineHeight: 1,
-                }}
-                aria-label={`Remove ${d}`}>×</button>
-            </span>
-          ))}
-          <button type="button"
-            onClick={() => {
-              const v = window.prompt('Trade discount (e.g. "GC 10%")');
-              if (v && v.trim()) {
-                set('tradeDiscounts', [...tradeDiscounts, v.trim()]);
-              }
-            }}
-            style={{
-              padding: '4px 10px',
-              fontSize: 11,
-              fontFamily: 'var(--font-sans)',
-              border: '1px dashed var(--rule-2)',
-              background: 'transparent',
-              color: 'var(--ink-3)',
-              cursor: 'pointer',
-            }}>+ Add</button>
-        </div>
-      </div>
     </PFB_Section>
   );
 }
@@ -444,68 +402,12 @@ function PFB_Notes({ draft, set }) {
   const notesFields = pickFields(fields, NOTES_IDS);
 
   return (
-    <PFB_Section num="05" label="Notes">
+    <PFB_Section num="04" label="Notes">
       {notesFields.map(f => (
         <div key={f.id} style={{ marginBottom: 14 }}>
           <PFB_Field field={f} draft={draft} set={set} />
         </div>
       ))}
-
-      <div style={{ marginTop: 10, padding: '12px 0 4px',
-        borderTop: '1px dotted var(--rule-2)' }}>
-        <div style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 8.5, letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          color: 'var(--ink-3)',
-          marginBottom: 10,
-        }}>Submittal details</div>
-
-        <div className="row-2" style={{ marginBottom: 10 }}>
-          <div>
-            <label className="lbl-d">Manufacturer</label>
-            <input className="inp-d"
-              value={draft.mfr || ''}
-              onChange={e => set('mfr', e.target.value)}
-              placeholder="If different from supplier" />
-          </div>
-          <div>
-            <label className="lbl-d">Contact</label>
-            <input className="inp-d"
-              value={draft.contact || ''}
-              onChange={e => set('contact', e.target.value)}
-              placeholder="Name · phone / email" />
-          </div>
-        </div>
-
-        <div className="row-2" style={{ marginBottom: 10 }}>
-          <div>
-            <label className="lbl-d">Product URL</label>
-            <input className="inp-d mono"
-              value={draft.url || ''}
-              onChange={e => set('url', e.target.value)}
-              placeholder="supplier.com/product" />
-          </div>
-          <div>
-            <label className="lbl-d">Warranty</label>
-            <input className="inp-d"
-              value={draft.warranty || ''}
-              onChange={e => set('warranty', e.target.value)}
-              placeholder="e.g. 25yr structural / 5yr finish" />
-          </div>
-        </div>
-
-        <div>
-          <label className="lbl-d">Installation notes</label>
-          <textarea
-            className="tarea-d"
-            rows={3}
-            value={draft.installNotes || ''}
-            onChange={e => set('installNotes', e.target.value)}
-            placeholder="Adhesive, fixings, expansion gaps, sequence…"
-          />
-        </div>
-      </div>
     </PFB_Section>
   );
 }
