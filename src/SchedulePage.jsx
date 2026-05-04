@@ -25,6 +25,7 @@
     { id: 'none',     label: 'None' },
   ];
   const FIELD_CHOOSER_SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'longText']);
+  const DEFAULT_SCHEDULE_HIDDEN_FIELDS = ['unit', 'libraries'];
 
   function categoryLabel(catId) {
     if (!catId) return 'Uncategorised';
@@ -123,7 +124,9 @@
       });
     };
 
-    const scheduleHiddenFields = Array.isArray(blob.scheduleHiddenFields) ? blob.scheduleHiddenFields : [];
+    const scheduleHiddenFields = Array.isArray(blob.scheduleHiddenFields)
+      ? blob.scheduleHiddenFields
+      : DEFAULT_SCHEDULE_HIDDEN_FIELDS;
     const setScheduleHiddenFields = (updater) => {
       sched.set(prev => {
         const base = prev || fallback;
