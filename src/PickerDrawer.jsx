@@ -114,6 +114,11 @@
         (m.supplier || '').toLowerCase().includes(lc));
     }, [libFiltered, q]);
 
+    const allVisibleIds = useMemo(() => [
+      ...(typesEnabled ? matchingTypes.map(t => t.id) : []),
+      ...matchingProducts.map(m => m.id),
+    ], [typesEnabled, matchingTypes, matchingProducts]);
+
     if (!open) return null;
 
     function toggle(id) {
@@ -195,6 +200,34 @@
                   onClick={() => setQ('')} aria-label="Clear search">×</button>
               )}
             </div>
+            {selectionMode === 'multi' && allVisibleIds.length > 0 && (() => {
+              const allSelected = allVisibleIds.every(id => sel.has(id));
+              return (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 16px 8px',
+                }}>
+                  <button type="button"
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      fontFamily: 'var(--font-sans)', fontSize: 11.5,
+                      color: 'var(--accent)', cursor: 'pointer',
+                      textDecoration: 'underline', textUnderlineOffset: 2,
+                    }}
+                    onClick={() => setSel(allSelected ? new Set() : new Set(allVisibleIds))}>
+                    {allSelected ? 'Clear all' : `Select all (${allVisibleIds.length})`}
+                  </button>
+                  {sel.size > 0 && (
+                    <span style={{
+                      fontFamily: 'var(--font-sans)', fontSize: 11.5,
+                      color: 'var(--ink-3)',
+                    }}>
+                      {sel.size} selected
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Body */}

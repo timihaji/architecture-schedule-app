@@ -280,7 +280,6 @@
         code: null,
       };
       setRows(prev => [...prev, next]);
-      setEditingId(next.id);
     }
 
     function updateRow(id, patch) {
@@ -505,7 +504,7 @@
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name || p.code}</option>)}
               </select>
             )}
-            <button type="button" className="sched-add-btn" onClick={() => addEmptyRow()}>
+            <button type="button" className="sched-add-btn" onClick={() => openPickerForBulkAdd({}, 'All items')}>
               + Add row
             </button>
           </div>
@@ -613,7 +612,7 @@
                   onSave={() => setEditingId(null)}
                 />
               ))}
-              <div className="sched-add-row" style={{ display: 'flex', gap: 16 }}>
+              <div className="sched-add-row">
                 <button type="button" onClick={() => {
                   const seed = grouping === 'category'
                     ? { category: g.groupValue }
@@ -622,17 +621,7 @@
                     : {};
                   openPickerForBulkAdd(seed, g.title);
                 }}>
-                  + Add from Library to {g.title}
-                </button>
-                <button type="button" onClick={() => {
-                  const seed = grouping === 'category'
-                    ? { category: g.groupValue }
-                    : grouping === 'section'
-                    ? { element: g.groupValue || elements.find(e => e.label === g.title)?.id }
-                    : {};
-                  addEmptyRow(seed);
-                }}>
-                  + Add empty row
+                  + Add to {g.title}
                 </button>
               </div>
             </div>
