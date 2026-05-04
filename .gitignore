@@ -2,6 +2,7 @@
 .claude/settings.local.json
 .claude/launch.json
 .claude/serve.py
+.claude/worktrees/
 
 # OS junk
 .DS_Store
