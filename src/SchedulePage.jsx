@@ -136,6 +136,15 @@
       });
     };
 
+    // One-shot purge: rows with no specRef.id have no UI path to fix them.
+    useEffect(() => {
+      if (!blob.rows || !sched.set) return;
+      const cleaned = blob.rows.filter(r => r.specRef && r.specRef.id);
+      if (cleaned.length !== blob.rows.length) {
+        sched.set(prev => ({ ...(prev || fallback), rows: cleaned }));
+      }
+    }, [projectId, blob.rows, sched.set]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Local UI state.
     const [grouping, setGrouping] = useState('section');
     const [view, setView] = useState('schedule');   // 'schedule' | 'specification'
@@ -190,6 +199,16 @@
       () => rows.map(r => resolveCardFromRow(r, { materials, locations, elementsById })),
       [rows, materials, locations, elementsById]
     );
+
+    const usedProductCounts = useMemo(() => {
+      const counts = new Map();
+      for (const r of rows) {
+        if (r.specRef && r.specRef.kind === 'product' && r.specRef.id) {
+          counts.set(r.specRef.id, (counts.get(r.specRef.id) || 0) + 1);
+        }
+      }
+      return counts;
+    }, [rows]);
 
     const categoriesPresent = useMemo(() => {
       const seen = new Set();

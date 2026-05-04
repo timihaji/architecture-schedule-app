@@ -1102,7 +1102,9 @@ function migrateComponents(components) {
 // Phase 4: per-component migration extracted as a pure transform. Used by
 // useProjectSchedule on whatever data loads (cloud row, localStorage-migrated
 // row, seed fallback). Keeps cloud + display in sync — first save after load
-// rewrites the row in the migrated shape.
+// rewrites the row in the migrated shape. Note: Cost Schedule (III) and
+// Schedule (IV) both read schedule.rows directly — the legacy components/cells
+// matrix here is preserved for migration only, not read by either view.
 function transformScheduleV2(sched) {
   if (!sched) return null;
   return {
