@@ -418,60 +418,6 @@ function ModeTabStrip({ mode, setMode, items, style = {} }) {
   );
 }
 
-// ─── Plate ──────────────────────────────────────────────────────────────────
-// Reserved for v2 — Library Switcher overlay rows. Defined so v2 imports
-// against a stable surface; not rendered anywhere in v1.
-// Models the .dd-row pattern from Library Switcher Options.html.
-function Plate({ code, name, count, active = false, onClick, actions, style = {} }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '9px 12px',
-        borderBottom: '1px solid var(--rule)',
-        cursor: onClick ? 'pointer' : 'default',
-        background: active ? 'rgba(20,20,20,0.03)' : 'transparent',
-        ...style,
-      }}
-    >
-      <div style={{
-        width: 5,
-        height: 5,
-        borderRadius: '50%',
-        background: active ? 'var(--ink)' : 'var(--rule-2)',
-        flexShrink: 0,
-      }} />
-      {code != null && (
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          color: 'var(--ink-4)',
-          letterSpacing: '0.05em',
-        }}>{code}</span>
-      )}
-      <span style={{
-        fontFamily: 'var(--font-serif)',
-        fontSize: 13,
-        color: 'var(--ink)',
-        flex: 1,
-        fontWeight: active ? 500 : 400,
-      }}>{name}</span>
-      {count != null && (
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 9,
-          color: 'var(--ink-4)',
-          letterSpacing: '0.05em',
-        }}>{count}</span>
-      )}
-      {actions && <div style={{ display: 'flex', gap: 3 }}>{actions}</div>}
-    </div>
-  );
-}
-
 // ─── Modal ──────────────────────────────────────────────────────────────────
 // Adopt design's modal frame (Add Product.html .modal-bg / .modal-panel),
 // stripped of shadow per A1 directive (design is square + no shadow).
@@ -694,7 +640,6 @@ Object.assign(window, {
   Tab,
   SegmentedToggle,
   ModeTabStrip,
-  Plate,
   Modal,
   Toolbar,
   Chip,
