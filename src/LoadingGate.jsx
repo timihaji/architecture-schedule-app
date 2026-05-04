@@ -233,7 +233,9 @@
       setMaterials, setProjects, setLibraries,
       // Phase 5: degraded-mode flag — read-only when cloud is unreachable.
       cloudReadOnly: degraded,
-      // Diagnostic / Phase 5+ access
+      // _appState is for diagnostics only. Never spread it — undefined until populated,
+      // so { ...cs._appState } = {} silently wipes every singleton key. Use window.appState
+      // or cs.setSettings / cs.setUi / cs.setTaxonomies to mutate.
       _appState: appState,
     }), [
       appState, materials, projects, libraries, degraded,

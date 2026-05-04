@@ -1268,10 +1268,9 @@
     ['size']);
 
   // ─── Build the schema object ───────────────────────────────────────────────
-  // _reseedVersion: bump when DEFAULT_SCHEMA_V5 changes in a way that should
-  // overwrite existing workspace taxonomies snapshots. LoadingGate compares
-  // appState.taxonomies._reseedVersion to this value at boot and replaces the
-  // snapshot with a fresh clone if they differ.
+  // _reseedVersion: schemaActive() returns the saved workspace snapshot, not DEFAULT_SCHEMA_V5.
+  // Bump to force LoadingGate step 5d to reseed via cloneDefaultSchemaV5(). Bump for structural
+  // changes only (remove field-def, restructure group fieldIds, delete category); skip for additive/cosmetic.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
     _reseedVersion: 6,
