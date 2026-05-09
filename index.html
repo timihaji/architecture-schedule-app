@@ -30,15 +30,15 @@
     --ink: #141414;
     --ink-2: #3a3630;
     --ink-3: #6b6559;
-    --ink-4: #9a9385;
+    --ink-4: #716a5b;
     --rule: #d8d3c6;
     --rule-2: #c6bfae;
     --tint: rgba(20,20,20,0.03);
     --tint-2: rgba(20,20,20,0.06);
     --stripe: rgba(20,20,20,0.025);
-    --accent: #b85c3a;
+    --accent: #a85133;
     --accent-ink: #8a4028;
-    --accent-soft: rgba(184,92,58,0.1);
+    --accent-soft: rgba(168,81,51,0.1);
     --good: #6d9c7f;
     --good-ink: #4a6a54;
     --good-soft: rgba(109,156,127,0.1);
@@ -125,10 +125,13 @@
   .reg-section-title { font-family: var(--font-serif); font-size: 16px; font-weight: 400; color: var(--ink-2); font-style: italic; flex-shrink: 0; }
   .reg-section-rule { flex: 1; height: 1px; background: var(--rule); }
   .reg-section-count { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0; }
+  /* .cb — 14px visual checkbox; the parent row is the 44px touch target.
+     For standalone usage, .cb-hit wraps it in a transparent 44×44 hit area. */
   .cb { width: 14px; height: 14px; border: 1px solid var(--rule-2); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.1s; background: var(--paper); }
   .cb.checked { background: var(--ink); border-color: var(--ink); }
   .cb.indeterminate { background: var(--ink-3); border-color: var(--ink-3); }
   .cb svg { display: block; }
+  .cb-hit { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 15px; margin: -15px; cursor: pointer; background: none; border: none; }
   .edit-foot { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
   .edit-save { background: var(--ink); color: var(--paper); border: none; padding: 6px 14px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
   .edit-cancel { background: transparent; border: 1px solid var(--rule-2); color: var(--ink-3); padding: 5px 12px; cursor: pointer; font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -413,6 +416,16 @@
   .sched-card.editing { background: rgba(20,20,20,0.012); }
   .sched-card:hover:not(.editing) { background: var(--tint); }
   .sched-card-swatch { width: 178px; border-right: 1px solid var(--rule); cursor: pointer; }
+  /* Mobile/narrow: stack swatch above the body so item names get full width
+     instead of wrapping one word per line in a tight 178px-shrunk column. */
+  @media (max-width: 600px) {
+    .sched-card { grid-template-columns: 1fr; }
+    .sched-card-swatch { width: 100%; border-right: none; border-bottom: 1px solid var(--rule); aspect-ratio: 16 / 9; }
+    .sched-card-swatch.empty { aspect-ratio: 16 / 6; }
+    .sched-card-swatch.type { padding: 18px 0; }
+    .sched-card-body { padding: 14px 18px; }
+    .fgrid-d { grid-template-columns: repeat(2, 1fr); }
+  }
   .sched-card-swatch.product { display: flex; align-items: flex-end; padding: 10px 12px; }
   .sched-card-swatch.type { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 24px 0; background: rgba(107,142,78,0.10); border-top: 1px solid var(--good); border-bottom: 1px solid var(--good); }
   .sched-card-swatch.empty { display: flex; align-items: center; justify-content: center; background: var(--paper-2); }
@@ -424,7 +437,7 @@
   .sched-card-eyebrow.empty { color: var(--ink-4); }
   .sched-card-name { font-family: var(--font-serif); font-size: 18px; color: var(--ink); line-height: 1.25; display: block; }
   .sched-card-name.empty { color: var(--ink-4); font-style: italic; }
-  .sched-card-code { font-family: var(--font-mono); font-size: 11px; color: var(--good-ink); font-weight: 500; margin-left: 10px; letter-spacing: 0.02em; vertical-align: middle; }
+  .sched-card-code { font-family: var(--font-mono); font-size: 11px; color: var(--good-ink); font-weight: 500; margin-left: 10px; letter-spacing: 0.02em; vertical-align: middle; white-space: nowrap; }
   .sched-card-meta { display: flex; gap: 10px; align-items: baseline; margin-top: 3px; flex-wrap: wrap; }
   .sched-card-sku { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-4); }
   .sched-card-supplier { font-family: var(--font-sans); font-size: 11.5px; color: var(--ink-3); }
@@ -646,15 +659,30 @@
   .st-progress.err { background: rgba(197,74,59,0.08); border-color: rgba(197,74,59,0.3); }
 
   /* NAV + CHROME (D5) — top bar, nav links, settings gear, save status, toasts, auth gate */
-  .sched-nav { border-bottom: 1px solid var(--ink); padding: 20px 56px 18px; display: flex; justify-content: space-between; align-items: baseline; background: var(--paper); position: sticky; top: 0; z-index: 50; }
-  .sched-nav-brand { display: flex; align-items: baseline; gap: 18px; }
-  .sched-nav-right { display: flex; align-items: center; gap: 18px; }
-  .sched-nav-links { display: flex; gap: 32px; }
+  .sched-nav { border-bottom: 1px solid var(--ink); padding: 20px 56px 18px; display: flex; justify-content: space-between; align-items: baseline; background: var(--paper); position: sticky; top: 0; z-index: 50; gap: 18px; }
+  .sched-nav-brand { display: flex; align-items: baseline; gap: 18px; min-width: 0; }
+  .sched-nav-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .sched-nav-links { display: flex; gap: 32px; flex-wrap: wrap; }
   .sched-nav-sep { width: 1px; align-self: stretch; background: var(--rule); margin: 2px 0; }
-  .sched-nav-btn { background: none; border: none; cursor: pointer; padding: 4px 0; font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; border-bottom: 1px solid transparent; display: flex; align-items: baseline; gap: 8px; }
+  /* Tab buttons keep their compact visual but get a 44px min-height hit area
+     via vertical padding so touch targets pass WCAG 2.5.5 (was ~17px). */
+  .sched-nav-btn { background: none; border: none; cursor: pointer; padding: 14px 0; min-height: 44px; font-family: var(--font-sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); font-weight: 400; border-bottom: 1px solid transparent; display: flex; align-items: baseline; gap: 8px; }
   .sched-nav-btn.active { color: var(--ink); font-weight: 500; border-bottom-color: var(--ink); }
   .sched-nav-num { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }
   .sched-nav-btn.active .sched-nav-num { color: var(--ink-3); }
+  /* Tablet: tighten the horizontal padding so the nav fits without bleeding off-edge. */
+  @media (max-width: 900px) {
+    .sched-nav { padding: 16px 24px 14px; flex-wrap: wrap; }
+    .sched-nav-links { gap: 22px; }
+  }
+  /* Mobile: stack brand above the tabs and shrink rhythm to keep touch targets generous. */
+  @media (max-width: 600px) {
+    .sched-nav { padding: 14px 18px; flex-direction: column; align-items: stretch; gap: 10px; }
+    .sched-nav-brand { gap: 12px; }
+    .sched-nav-right { width: 100%; justify-content: space-between; gap: 12px; }
+    .sched-nav-links { gap: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; flex-wrap: nowrap; }
+    .sched-nav-btn { padding: 12px 0; min-height: 44px; white-space: nowrap; }
+  }
   .theme-toggle { width: 32px; height: 32px; position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--rule-2); background: transparent; color: var(--ink-3); cursor: pointer; transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease; }
   .theme-toggle:hover { border-color: var(--ink); background: var(--tint); color: var(--ink); }
   .theme-toggle:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
