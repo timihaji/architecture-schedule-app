@@ -10,19 +10,19 @@ const SETTINGS_THEMES = [
     description: 'Warm paper — the studio default.',
     vars: {
       '--paper':   '#f3efe7', '--paper-2': '#eae5d9',
-      '--ink':     '#141414', '--ink-2': '#3a3630', '--ink-3': '#6b6559', '--ink-4': '#9a9385',
+      '--ink':     '#141414', '--ink-2': '#3a3630', '--ink-3': '#6b6559', '--ink-4': '#716a5b',
       '--rule':    '#d8d3c6', '--rule-2': '#c6bfae',
       '--tint':    'rgba(20,20,20,0.03)', '--tint-2': 'rgba(20,20,20,0.06)',
       '--stripe':  'rgba(20,20,20,0.025)',
       '--shadow':  '0 16px 40px rgba(20,20,20,0.08)',
     },
-    preview: { paper: '#f3efe7', ink: '#141414', accent: '#b85c3a' },
+    preview: { paper: '#f3efe7', ink: '#141414', accent: '#a85133' },
   },
   { key: 'daylight', label: 'Daylight',
     description: 'Cool neutral white — crisp, unsaturated.',
     vars: {
       '--paper':   '#fafaf7', '--paper-2': '#eef0ee',
-      '--ink':     '#0f1012', '--ink-2': '#2d3036', '--ink-3': '#5a5e66', '--ink-4': '#8f9299',
+      '--ink':     '#0f1012', '--ink-2': '#2d3036', '--ink-3': '#5a5e66', '--ink-4': '#6c6f79',
       '--rule':    '#d8dadd', '--rule-2': '#c0c3c9',
       '--tint':    'rgba(15,16,18,0.03)', '--tint-2': 'rgba(15,16,18,0.06)',
       '--stripe':  'rgba(15,16,18,0.022)',
@@ -34,7 +34,7 @@ const SETTINGS_THEMES = [
     description: 'Deep warm tan — aged paper, low contrast.',
     vars: {
       '--paper':   '#ece1cc', '--paper-2': '#ddcfae',
-      '--ink':     '#2a1e10', '--ink-2': '#4d3a25', '--ink-3': '#7a6848', '--ink-4': '#a89670',
+      '--ink':     '#2a1e10', '--ink-2': '#4d3a25', '--ink-3': '#7a6848', '--ink-4': '#856e4d',
       '--rule':    '#c7b690', '--rule-2': '#b2a078',
       '--tint':    'rgba(42,30,16,0.04)', '--tint-2': 'rgba(42,30,16,0.08)',
       '--stripe':  'rgba(42,30,16,0.03)',
@@ -46,7 +46,7 @@ const SETTINGS_THEMES = [
     description: 'Charcoal paper, warm off-white type — on-brand dark.',
     vars: {
       '--paper':   '#1d1c1a', '--paper-2': '#272522',
-      '--ink':     '#efe9dc', '--ink-2': '#cfc6b3', '--ink-3': '#938b7c', '--ink-4': '#5f5a52',
+      '--ink':     '#efe9dc', '--ink-2': '#cfc6b3', '--ink-3': '#938b7c', '--ink-4': '#898379',
       '--rule':    '#3a3732', '--rule-2': '#4a463f',
       '--tint':    'rgba(239,233,220,0.04)', '--tint-2': 'rgba(239,233,220,0.08)',
       '--stripe':  'rgba(239,233,220,0.028)',
@@ -59,7 +59,7 @@ const SETTINGS_THEMES = [
     description: 'True dark — neutral charcoal, cool whites.',
     vars: {
       '--paper':   '#121316', '--paper-2': '#1c1d22',
-      '--ink':     '#f2f3f5', '--ink-2': '#c9cbcf', '--ink-3': '#8a8c92', '--ink-4': '#5a5c62',
+      '--ink':     '#f2f3f5', '--ink-2': '#c9cbcf', '--ink-3': '#8a8c92', '--ink-4': '#878890',
       '--rule':    '#2d2f34', '--rule-2': '#3d4046',
       '--tint':    'rgba(242,243,245,0.04)', '--tint-2': 'rgba(242,243,245,0.08)',
       '--stripe':  'rgba(242,243,245,0.028)',
@@ -86,7 +86,7 @@ const SETTINGS_THEMES = [
 // shift shade so contrast holds in dark themes.
 const SETTINGS_ACCENTS = [
   { key: 'umber', label: 'Umber',
-    light: { accent: '#b85c3a', ink: '#8a4028' },
+    light: { accent: '#a85133', ink: '#8a4028' },
     dark:  { accent: '#d97757', ink: '#e89372' } },
   { key: 'slate', label: 'Slate',
     light: { accent: '#3a4a5c', ink: '#27323f' },

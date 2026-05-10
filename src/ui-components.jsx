@@ -40,6 +40,7 @@ function CodeChip({ children, size = 'register', tone = 'product', variant = 'mo
         fontWeight: 500,
         letterSpacing: '0.04em',
         color,
+        whiteSpace: 'nowrap',
         ...style,
       }}
       {...rest}
