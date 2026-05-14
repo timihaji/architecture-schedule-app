@@ -68,13 +68,16 @@ function LibraryLayoutC({
     : null;
   const paintedWith = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
 
-  // Resolve effective swatch (paintable inheritTone path)
-  const effSwatch = active ? (() => {
-    if (!isPaint && active.swatch?.inheritTone && paintedWith) {
-      return { ...active.swatch, tone: paintedWith.swatch?.tone };
-    }
-    return active.swatch;
-  })() : null;
+  // Resolve effective swatch (paintable inheritTone path).
+  // Phase 6: defers to window.effectiveSwatch (src/app-helpers.jsx). For
+  // paint rows we skip inheritance — a paint inheriting from itself wouldn't
+  // make sense — falling back to the row's own swatch.
+  const effSwatch = active
+    ? (isPaint ? active.swatch
+        : (window.effectiveSwatch
+            ? window.effectiveSwatch(active, materials)
+            : active.swatch))
+    : null;
 
   // Pick a small set of detail fields (similar to side panel / gallery detail).
   const allDetailFields = active && window.fieldsForCategory

@@ -36,13 +36,13 @@ function categoryDisplayLabel(m) {
 }
 
 // Effective swatch — paintable products inherit the linked paint's tone.
+// Phase 6: canonical impl lives in src/app-helpers.jsx → window.effectiveSwatch.
+// Cell renderers below call it as a bare identifier; this thin wrapper
+// dispatches to the window helper so there's a single source of truth.
 function effectiveSwatch(m, allMaterials) {
-  const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
-  if (m.swatch?.inheritTone && paintedWithId) {
-    const linked = (allMaterials || []).find(x => x.id === paintedWithId);
-    if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
-  }
-  return m.swatch;
+  return window.effectiveSwatch
+    ? window.effectiveSwatch(m, allMaterials)
+    : (m && m.swatch);
 }
 
 // ─── Cell renderers ────────────────────────────────────────────────────────
