@@ -1,0 +1,944 @@
+// Library — dense editorial spec-book list. Phase B1: inline-disclosure
+// masthead owns the page header + library selection; LibrarySwitcher overlay
+// holds the libraries list and CRUD that used to live in the sidebar.
+
+function Library({
+  materials, libraries,
+  labelTemplates, setLabelTemplates, onOpenLabelBuilder,
+  mode = 'register', setMode,
+  activeLibraryId, setActiveLibraryId,
+  onEdit, onAdd, onAddInCategory, onDelete,
+  onAddLibrary, onRenameLibrary, onDeleteLibrary,
+  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
+  onFindDupes,
+  compareIds, toggleCompare, showImagery, density,
+}) {
+  // Lifted to survive layout switches (Register ↔ Gallery ↔ Split). B6.
+  const [selected, setSelected] = React.useState(new Set());
+
+  // Phase 2 — lifted toolbar state. Single LibraryToolbar mount drives
+  // every mode, so query/sort/group/filterCategory persist across switches.
+  // Phase 4 — `groupBy` is an axis id (or '' for none). Defaults to '_category'
+  // so the existing UX (group by Category) is preserved.
+  // Toolbar redesign — group-by axis is now per-category-filter: switching
+  // filterCategory restores whatever axis the user last picked for that
+  // category (session-only memory). Recent-axes list drives the "Recent"
+  // section in the Group by dropdown.
+  const [query, setQuery] = React.useState('');
+  const [sort, setSort] = React.useState('name');           // code|name|cost|lead
+  const [filterCategory, setFilterCategory] = React.useState('All');
+  const DEFAULT_GROUP_BY = '_category';
+  const [groupByByCat, setGroupByByCat] = React.useState({});
+  const [recentGroupByAxes, setRecentGroupByAxes] = React.useState([]);
+  const groupBy = (groupByByCat[filterCategory] != null)
+    ? groupByByCat[filterCategory]
+    : DEFAULT_GROUP_BY;
+  const setGroupBy = React.useCallback((axis) => {
+    setGroupByByCat(prev => ({ ...prev, [filterCategory]: axis }));
+    if (axis && axis !== DEFAULT_GROUP_BY && !axis.startsWith('_')) {
+      setRecentGroupByAxes(prev => {
+        const next = [axis].concat(prev.filter(a => a !== axis));
+        return next.slice(0, 3);
+      });
+    }
+  }, [filterCategory]);
+  const group = !!groupBy;                                   // back-compat for old code
+
+  // Library-scoped row set (used by toolbar derivations + every mode).
+  const libraryScoped = React.useMemo(() => {
+    if (activeLibraryId === 'all') return materials;
+    return materials.filter(m => (m.libraryIds || []).includes(activeLibraryId));
+  }, [materials, activeLibraryId]);
+
+  const categories = React.useMemo(() => {
+    const set = new Set();
+    libraryScoped.forEach(m => { if (m.category) set.add(m.category); });
+    return Array.from(set).sort();
+  }, [libraryScoped]);
+
+  // Apply category + query the same way every mode would. Sort/group are
+  // mode-scoped (Table & DataTable do their own; Split + Register render
+  // groups differently) — we still pre-filter for the toolbar count.
+  const toolbarFiltered = React.useMemo(() => {
+    let list = libraryScoped;
+    if (filterCategory !== 'All') {
+      list = list.filter(m => m.category === filterCategory);
+    }
+    const q = query.trim().toLowerCase();
+    if (q) {
+      const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
+      list = list.filter(m => {
+        const display = window.formatLabel ? window.formatLabel(m, labelTemplates) : (m.name || '');
+        const catDef = m.category && window.categoryDef && window.categoryDef(m.category);
+        const catLabel = (catDef && catDef.label) || m.category || '';
+        const aliases = (catDef && catDef.aliases && catDef.aliases.join(' ')) || '';
+        return (display + ' ' + (m.name || '') + ' ' + (m.code || '') + ' ' +
+                catLabel + ' ' + aliases + ' ' + (fv(m, 'supplier') || '') + ' ' +
+                (fv(m, 'brand') || '') + ' ' + (fv(m, 'species') || '') + ' ' +
+                (fv(m, 'finish') || '')).toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [libraryScoped, filterCategory, query, labelTemplates]);
+
+  const tabCount = libraryScoped.length;
+
+  // Mode-gated columns slot — Register and Table render their own popover-
+  // backed button via this ref. Gallery + Split leave it null. Each mode's
+  // useEffect cleanup nulls the slot on unmount, so we don't need a parent
+  // reset (which would race-clobber the new mode's setter on mode change).
+  const [columnsButton, setColumnsButton] = React.useState(null);
+
+  const toolbarState = {
+    query, setQuery,
+    sort, setSort,
+    group, setGroup: (v) => setGroupBy(v ? '_category' : ''),
+    groupBy, setGroupBy,
+    filterCategory, setFilterCategory,
+    categories,
+    libraryScoped,
+    toolbarFiltered,
+  };
+
+  return (
+    <>
+      <window.LibraryMasthead
+        libraries={libraries}
+        materials={materials}
+        activeLibraryId={activeLibraryId}
+        setActiveLibraryId={setActiveLibraryId}
+        onAdd={onAdd}
+        onAddLibrary={onAddLibrary}
+        onRenameLibrary={onRenameLibrary}
+        onDeleteLibrary={onDeleteLibrary}
+        mode={mode}
+        setMode={setMode}
+      />
+      <div className="lib-tabs">
+        <button type="button" className="lib-tab active">
+          Products <span className="ct">{tabCount}</span>
+        </button>
+      </div>
+      <window.LibraryToolbar
+        query={query} setQuery={setQuery}
+        sort={sort} setSort={setSort}
+        filterCategory={filterCategory} setFilterCategory={setFilterCategory}
+        categories={categories}
+        group={group} setGroup={(v) => setGroupBy(v ? '_category' : '')}
+        groupBy={groupBy} setGroupBy={setGroupBy}
+        groupableItems={libraryScoped}
+        recentGroupByAxes={recentGroupByAxes}
+        count={toolbarFiltered.length}
+        total={libraryScoped.length}
+        onFindDupes={onFindDupes}
+        columnsButton={(mode === 'register' || mode === 'table') ? columnsButton : null}
+      />
+      {mode === 'table' ? (
+        <LibraryTable
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          setLabelTemplates={setLabelTemplates}
+          onOpenLabelBuilder={onOpenLabelBuilder}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          setActiveLibraryId={setActiveLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          onToggleMaterialInLibrary={onToggleMaterialInLibrary}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onFindDupes={onFindDupes}
+          selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
+          setColumnsButton={setColumnsButton}
+        />
+      ) : mode === 'split' ? (
+        <window.LibraryLayoutC
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          activeLibraryId={activeLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
+        />
+      ) : mode === 'register' ? (
+        <window.LibraryRegister
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          activeLibraryId={activeLibraryId}
+          onEdit={onEdit} onAdd={onAdd}
+          onAddInCategory={onAddInCategory}
+          onDelete={onDelete}
+          selected={selected} setSelected={setSelected}
+          toolbarState={toolbarState}
+          setColumnsButton={setColumnsButton}
+        />
+      ) : (
+        <LibraryGallery
+          materials={materials}
+          libraries={libraries}
+          labelTemplates={labelTemplates}
+          setLabelTemplates={setLabelTemplates}
+          onOpenLabelBuilder={onOpenLabelBuilder}
+          mode={mode} setMode={setMode}
+          activeLibraryId={activeLibraryId}
+          setActiveLibraryId={setActiveLibraryId}
+          onEdit={onEdit} onAdd={onAdd} onDelete={onDelete}
+          onToggleMaterialInLibrary={onToggleMaterialInLibrary}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onFindDupes={onFindDupes}
+          compareIds={compareIds} toggleCompare={toggleCompare}
+          showImagery={showImagery} density={density}
+          toolbarState={toolbarState}
+        />
+      )}
+      {/* Bulk action bar (B7). Mount/unmount on selection so barUp animates
+          the slide-in fresh each time. */}
+      {selected.size > 0 && (
+        <window.LTBulkBar
+          selected={selected}
+          clear={() => setSelected(new Set())}
+          libraries={libraries}
+          onMoveMaterial={onMoveMaterial}
+          onDuplicateMaterial={onDuplicateMaterial}
+          onDuplicate={onDuplicate}
+          onDelete={(ids) => { ids.forEach(id => onDelete(id, true)); setSelected(new Set()); }}
+        />
+      )}
+    </>
+  );
+}
+
+// LibraryGallery — 4-column card grid (Phase B3 design integration). Each
+// card: 1.3-aspect swatch + type-corner badge + mono code + serif name +
+// sans brand. Row click expands MaterialDetail across the full grid width
+// after the row's last card. Density (--row-pad) drives meta padding.
+const GALLERY_COLS = 4;
+
+function LibraryGallery({
+  materials, libraries,
+  labelTemplates, setLabelTemplates, onOpenLabelBuilder,
+  mode, setMode,
+  activeLibraryId, setActiveLibraryId,
+  onEdit, onAdd, onDelete,
+  onToggleMaterialInLibrary, onMoveMaterial, onDuplicateMaterial, onDuplicate,
+  onFindDupes,
+  compareIds, toggleCompare, showImagery, density,
+  toolbarState,
+}) {
+  const { query, setQuery, sort, group, groupBy, filterCategory, libraryScoped, toolbarFiltered } = toolbarState;
+  const [openId, setOpenId] = React.useState(null);
+  const [menuForId, setMenuForId] = React.useState(null);
+  const [flashId, setFlashId] = React.useState(null);
+
+  // Clean jump to a material by id — clears filters, switches library scope if needed,
+  // opens the target row, scrolls to it and flashes it briefly.
+  function navigateToMaterial(targetId) {
+    const target = materials.find(x => x.id === targetId);
+    if (!target) return;
+    setQuery('');
+    if (activeLibraryId !== 'all' && !target.libraryIds.includes(activeLibraryId)) {
+      setActiveLibraryId('all');
+    }
+    setOpenId(targetId);
+    setFlashId(targetId);
+    // wait a tick for DOM to reflect new filters/open state
+    setTimeout(() => {
+      const el = document.getElementById('mat-row-' + targetId);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const targetY = rect.top + window.scrollY - (window.innerHeight / 2) + (rect.height / 2);
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      setTimeout(() => setFlashId(null), 1600);
+    }, 50);
+  }
+
+  // Apply lifted sort to the toolbar-filtered list (which already applied
+  // the lifted query + filterCategory).
+  const filtered = React.useMemo(() => {
+    const list = toolbarFiltered.slice();
+    list.sort((a, b) => {
+      if (sort === 'code') return (a.code || '').localeCompare(b.code || '');
+      if (sort === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sort === 'cost') return (a.unitCost || 0) - (b.unitCost || 0);
+      if (sort === 'lead') return (a.leadTime || '').localeCompare(b.leadTime || '');
+      return 0;
+    });
+    return list;
+  }, [toolbarFiltered, sort]);
+
+  const grouped = React.useMemo(() => {
+    if (!groupBy) return [['All', filtered]];
+    return window.bucketItems
+      ? window.bucketItems(filtered, groupBy)
+      : [['All', filtered]];
+  }, [filtered, groupBy]);
+
+  // Publish the current visible (filtered + sorted) item-id list to a
+  // window-level slot so the v7 drawer can use it for prev/next navigation
+  // without prop-drilling through every onEdit call site. Cheap — runs once
+  // per filter/sort change.
+  React.useEffect(() => {
+    window.__librarySiblings = filtered.map(m => m.id);
+  }, [filtered]);
+
+  return (
+    <div className="lib-gallery">
+        {compareIds.length >= 2 && (
+          <CompareStrip
+            ids={compareIds}
+            materials={materials}
+            labelTemplates={labelTemplates}
+            onClose={() => compareIds.forEach(toggleCompare)}
+          />
+        )}
+
+        {grouped.length === 0 && (
+          <div className="lib-empty">
+            <Mono size={12} color="var(--ink-4)" style={{ display: 'block', marginBottom: 14 }}>
+              {query ? 'No materials match your search' : 'This library is empty'}
+            </Mono>
+            <TextButton onClick={onAdd} accent>＋ Add the first material</TextButton>
+          </div>
+        )}
+
+        {grouped.map(([key, items]) => {
+          // Place the inline expand panel at the end of the row containing the
+          // open card so it splits the grid cleanly across the full width.
+          const openIdx = items.findIndex(m => m.id === openId);
+          const detailAfterIdx = openIdx >= 0
+            ? Math.min(Math.floor(openIdx / GALLERY_COLS) * GALLERY_COLS + (GALLERY_COLS - 1), items.length - 1)
+            : -1;
+          const openMaterial = openIdx >= 0 ? items[openIdx] : null;
+          return (
+            <section key={key} className="lib-section">
+              {group && (
+                <div className="lib-section-head">
+                  <Serif size={22} style={{ fontStyle: 'italic', color: 'var(--ink)' }}>{key}</Serif>
+                  <div className="lib-section-rule" />
+                  <Mono size={11} color="var(--ink-4)">
+                    {items.length} {items.length === 1 ? 'item' : 'items'}
+                  </Mono>
+                </div>
+              )}
+
+              {/* Cards draw their own borderRight + borderBottom so the
+                  inter-card rules are real card borders, not bleed-through
+                  from a coloured grid bg — that lets short rows end cleanly
+                  without phantom empty cells. Container provides the top +
+                  left edges; the detail panel spans gridColumn 1/-1. */}
+              <div className="lib-grid">
+                {items.map((m, idx) => (
+                  <React.Fragment key={m.id}>
+                    <GalleryCard
+                      material={m}
+                      materials={materials}
+                      libraries={libraries}
+                      labelTemplates={labelTemplates}
+                      open={openId === m.id}
+                      flash={flashId === m.id}
+                      onNavigateTo={navigateToMaterial}
+                      menuOpen={menuForId === m.id}
+                      onToggle={() => setOpenId(openId === m.id ? null : m.id)}
+                      onOpenMenu={() => setMenuForId(menuForId === m.id ? null : m.id)}
+                      onCloseMenu={() => setMenuForId(null)}
+                      onEdit={() => onEdit(m)}
+                      onDelete={() => onDelete(m.id)}
+                      inCompare={compareIds.includes(m.id)}
+                      toggleCompare={() => toggleCompare(m.id)}
+                      onToggleLib={(libId) => onToggleMaterialInLibrary(m.id, libId)}
+                      onMoveLib={(libId) => { onMoveMaterial(m.id, libId); setMenuForId(null); }}
+                      onDuplicateLib={(libId) => { onDuplicateMaterial(m.id, libId); setMenuForId(null); }}
+                      onDuplicate={() => { onDuplicate && onDuplicate(m.id); setMenuForId(null); }}
+                    />
+                    {idx === detailAfterIdx && openMaterial && (
+                      <div className="lib-expand-wrap">
+                        <MaterialDetail
+                          material={openMaterial}
+                          materials={materials}
+                          libraries={libraries}
+                          labelTemplates={labelTemplates}
+                          onEdit={() => onEdit(openMaterial)}
+                          onDelete={() => onDelete(openMaterial.id)}
+                          onNavigateTo={navigateToMaterial}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+    </div>
+  );
+}
+
+// (Sidebar / sidebar rail / library item code removed — see src/LibrarySwitcher.jsx)
+// (GroupChip removed Phase 2 — gallery + split now consume the shared
+// LibraryToolbar's boolean group toggle; axis chips are gone.)
+
+// One gallery card — swatch with type-corner badge + meta block (code, name,
+// brand). Hover-reveal compare checkbox, ⋯ menu, chevron toggle preserved
+// from the v0 row layout. Click anywhere on the card toggles the inline
+// expand panel (rendered by the parent grid as a full-width row).
+function GalleryCard({
+  material, materials, libraries, labelTemplates,
+  open, flash,
+  menuOpen,
+  onToggle, onOpenMenu, onCloseMenu,
+  inCompare, toggleCompare,
+  onToggleLib, onMoveLib, onDuplicateLib, onDuplicate,
+}) {
+  const [hov, setHov] = React.useState(false);
+  const m = material;
+
+  const displayName = window.formatLabel(m, labelTemplates);
+  const brand = (window.getFieldValue && window.getFieldValue(m, 'brand'))
+    || (window.getFieldValue && window.getFieldValue(m, 'supplier'))
+    || m.supplier;
+
+  const cardCatDef = m.category && window.categoryDef && window.categoryDef(m.category);
+
+  // Type-corner badge: now sourced from the v5 category label rather than the
+  // legacy productType id.
+  const ptLabel = cardCatDef ? cardCatDef.label.toLowerCase() : null;
+
+  // Paintables inherit the linked paint's tone for visual continuity.
+  const effSwatch = (() => {
+    const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+    if (m.category !== 'paint' && m.swatch?.inheritTone && paintedWithId) {
+      const linked = materials.find(x => x.id === paintedWithId);
+      if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
+    }
+    return m.swatch;
+  })();
+
+  const cardBg = flash
+    ? 'rgba(184,92,58,0.12)'
+    : (hov ? 'var(--paper-2)' : 'transparent');
+
+  return (
+    <div
+      id={'mat-row-' + m.id}
+      onClick={onToggle}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: 'relative',
+        cursor: 'pointer',
+        background: cardBg,
+        transition: 'background 0.18s',
+        boxShadow: flash ? 'inset 3px 0 0 var(--accent)' : 'none',
+        borderRight: '1px solid var(--rule)',
+        borderBottom: '1px solid var(--rule)',
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+      }}
+    >
+      {/* Swatch — 1.3 aspect, fills full card width */}
+      <div style={{
+        position: 'relative',
+        aspectRatio: '1.3 / 1',
+        overflow: 'hidden',
+      }}>
+        <Swatch
+          swatch={effSwatch}
+          size="md"
+          seed={parseInt(m.id.slice(2)) || 1}
+          glyph={null}
+          style={{ width: '100%', height: '100%' }}
+        />
+        {/* Type-corner badge (top-right) */}
+        {ptLabel && (
+          <span style={{
+            position: 'absolute',
+            top: 8, right: 8,
+            padding: '3px 6px',
+            background: 'rgba(243,239,231,0.9)',
+            border: '1px solid var(--rule-2)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 9,
+            color: 'var(--ink-3)',
+            letterSpacing: '0.06em',
+            textTransform: 'lowercase',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}>{ptLabel}</span>
+        )}
+        {/* Compare checkbox (top-left, hover-reveal) */}
+        <label
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 8, left: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '3px 6px',
+            background: 'rgba(243,239,231,0.9)',
+            border: '1px solid var(--rule-2)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: inCompare ? 'var(--accent-ink)' : 'var(--ink-4)',
+            opacity: hov || inCompare ? 1 : 0,
+            transition: 'opacity 0.12s',
+            fontWeight: 500,
+          }}
+        >
+          <input type="checkbox" checked={inCompare} onChange={toggleCompare}
+            style={{ accentColor: 'var(--accent)', margin: 0, width: 11, height: 11 }} />
+          cmp
+        </label>
+      </div>
+
+      {/* Meta block — padding scales with --row-pad density token */}
+      <div style={{
+        padding: 'calc(var(--row-pad) + 4px) 14px var(--row-pad)',
+        position: 'relative',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+      }}>
+        {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+          <div style={{ marginBottom: 4 }}>
+            <window.CodeChip size="gallery">{m.code}</window.CodeChip>
+          </div>
+        )}
+        <Serif size={15} style={{
+          display: 'block',
+          lineHeight: 1.2,
+          color: 'var(--ink)',
+          textDecorationLine: hov ? 'underline' : 'none',
+          textDecorationColor: 'var(--ink-3)',
+          textUnderlineOffset: '3px',
+          // Avoid pushing the action cluster off the card on long names
+          paddingRight: 36,
+        }}>
+          {displayName}
+        </Serif>
+        {brand && (
+          <div style={{
+            marginTop: 4,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 11,
+            color: 'var(--ink-4)',
+          }}>{brand}</div>
+        )}
+
+        {/* Hover-reveal action cluster — bottom-right of meta */}
+        <div style={{
+          position: 'absolute',
+          bottom: 6, right: 8,
+          display: 'flex', gap: 4, alignItems: 'center',
+        }}>
+          <button type="button"
+            onClick={e => { e.stopPropagation(); onOpenMenu(); }}
+            title="Library actions"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+              fontFamily: 'var(--font-sans)', fontSize: 14,
+              color: menuOpen ? 'var(--ink)' : 'var(--ink-4)',
+              opacity: (hov || menuOpen) ? 1 : 0,
+              transition: 'opacity 0.12s',
+              lineHeight: 1,
+            }}
+          >⋯</button>
+          <span style={{
+            ...ui.mono, fontSize: 14, color: 'var(--ink-4)',
+            transition: 'transform 0.18s',
+            transform: open ? 'rotate(90deg)' : 'none',
+            display: 'inline-block', width: 10, textAlign: 'center',
+          }}>›</span>
+
+          {menuOpen && (
+            <LibraryActionMenu
+              material={m}
+              libraries={libraries}
+              onClose={onCloseMenu}
+              onToggleLib={onToggleLib}
+              onMoveLib={onMoveLib}
+              onDuplicateLib={onDuplicateLib}
+              onDuplicate={onDuplicate}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LibraryActionMenu({ material, libraries, onClose, onToggleLib, onMoveLib, onDuplicateLib, onDuplicate }) {
+  const ref = React.useRef();
+  React.useEffect(() => {
+    function onDoc(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div ref={ref}
+      onClick={e => { e.stopPropagation(); }}
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 4px)',
+        right: 0,
+        zIndex: 40,
+        background: 'var(--paper)',
+        border: '1px solid var(--ink)',
+        boxShadow: '0 8px 24px rgba(20,20,20,0.14)',
+        width: 260,
+        padding: '12px 0',
+        maxHeight: 'calc(100vh - 160px)',
+        overflowY: 'auto',
+      }}>
+      {onDuplicate && (
+        <div style={{ padding: '0 14px 8px', borderBottom: '1px dotted var(--rule-2)' }}>
+          <button type="button" onClick={onDuplicate}
+            style={{
+              width: '100%', background: 'none', border: '1px solid var(--rule-2)',
+              cursor: 'pointer', padding: '6px 10px', textAlign: 'left',
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 12, color: 'var(--ink)',
+            }}>
+            Duplicate (keep libraries)
+          </button>
+        </div>
+      )}
+      <div style={{ padding: '0 14px 8px', borderBottom: '1px dotted var(--rule-2)', marginTop: onDuplicate ? 8 : 0 }}>
+        <Eyebrow>Appears in</Eyebrow>
+      </div>
+      <div style={{ padding: '6px 0' }}>
+        {libraries.map(lib => {
+          const isIn = material.libraryIds.includes(lib.id);
+          return (
+            <label key={lib.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '16px 1fr auto',
+                gap: 8, alignItems: 'center',
+                padding: '6px 14px',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--tint)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <input type="checkbox" checked={isIn}
+                onChange={() => onToggleLib(lib.id)}
+                style={{ accentColor: 'var(--ink)', margin: 0 }} />
+              <span style={{ ...ui.serif, fontSize: 14 }}>{lib.name}</span>
+              <Mono size={10} color="var(--ink-4)">
+                {isIn ? 'in' : '—'}
+              </Mono>
+            </label>
+          );
+        })}
+      </div>
+      <div style={{ padding: '8px 14px 4px', borderTop: '1px dotted var(--rule-2)' }}>
+        <Eyebrow>Move to (replaces)</Eyebrow>
+      </div>
+      <select defaultValue=""
+        onChange={e => { if (e.target.value) onMoveLib(e.target.value); }}
+        style={{
+          width: 'calc(100% - 28px)', margin: '4px 14px 10px',
+          background: 'transparent',
+          border: '1px solid var(--rule-2)',
+          padding: '5px 8px',
+          fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 12,
+          color: 'var(--ink)',
+          outline: 'none',
+        }}>
+        <option value="">Choose library…</option>
+        {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
+      </select>
+      <div style={{ padding: '4px 14px 0', borderTop: '1px dotted var(--rule-2)' }}>
+        <Eyebrow style={{ paddingTop: 8 }}>Duplicate into…</Eyebrow>
+      </div>
+      <select defaultValue=""
+        onChange={e => { if (e.target.value) onDuplicateLib(e.target.value); }}
+        style={{
+          width: 'calc(100% - 28px)', margin: '4px 14px 10px',
+          background: 'transparent',
+          border: '1px solid var(--rule-2)',
+          padding: '5px 8px',
+          fontFamily: "'Inter Tight', sans-serif",
+          fontSize: 12,
+          color: 'var(--ink)',
+          outline: 'none',
+        }}>
+        <option value="">Choose library…</option>
+        {libraries.map(lib => <option key={lib.id} value={lib.id}>{lib.name}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function MaterialDetail({ material: m, materials = [], libraries, labelTemplates, onEdit, onDelete, onNavigateTo }) {
+  const projectNames = (m.projects || []).map(pid => (window.PROJECTS.find(p => p.id === pid) || {}).name).filter(Boolean);
+  const libs = (m.libraryIds || []).map(lid => libraries.find(l => l.id === lid)).filter(Boolean);
+  const catId = m.category || 'other';
+  const isPaint = catId === 'paint';
+  const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
+  const paintedWith = paintedWithId ? materials.find(x => x.id === paintedWithId) : null;
+  // Pick up to 6 fields to show in the detail grid (skip common ids that are
+  // surfaced separately and tags/notes/long fields).
+  const allFields = window.fieldsForCategory ? window.fieldsForCategory(catId) : [];
+  const SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'notes',
+    'tags_performance', 'tags_area', 'tags_material_family', 'libraries']);
+  const detailFields = allFields.filter(f =>
+    !SKIP.has(f.id) && !f.tagAxis && f.type !== 'longText' && f.type !== 'itemRef'
+  ).slice(0, 8);
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '260px 1fr', gap: 36,
+      padding: '28px 0 36px', borderBottom: '1px solid var(--rule)',
+      background: 'var(--tint)',
+      paddingLeft: 24, paddingRight: 24,
+      marginLeft: -24, marginRight: -24,
+    }} className="lib-material-detail">
+      <div>
+        <Swatch
+          swatch={(() => {
+            if (!isPaint && m.swatch?.inheritTone && paintedWith) {
+              return { ...m.swatch, tone: paintedWith.swatch?.tone };
+            }
+            return m.swatch;
+          })()}
+          size="xl"
+          seed={parseInt(m.id.slice(2)) || 1}
+          glyph={null}
+          style={{ width: '100%', height: 180 }} />
+        <div style={{ marginTop: 10, ...ui.mono, fontSize: 10, color: 'var(--ink-4)', letterSpacing: '0.06em' }}>
+          {isPaint ? 'PAINT CHIP · INDICATIVE' : 'SWATCH · INDICATIVE'}
+        </div>
+      </div>
+      <div>
+        <div style={{ marginBottom: 22, paddingBottom: 14, borderBottom: '1px dotted var(--rule-2)' }}>
+          <Eyebrow style={{ marginBottom: 4 }}>
+            {m.customName ? 'Custom label' : 'Display label'}
+          </Eyebrow>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ ...ui.serif, fontSize: 22, lineHeight: 1.2, color: 'var(--ink)' }}>
+              {window.formatLabel(m, labelTemplates)}
+            </span>
+            {m.customName && (
+              <Tag tone="accent">Custom</Tag>
+            )}
+          </div>
+          {m.customName && m.name !== window.formatLabel(m, labelTemplates) && (
+            <div style={{ ...ui.serif, fontStyle: 'italic', fontSize: 12.5,
+              color: 'var(--ink-4)', marginTop: 4 }}>
+              Primary name: {m.name}
+            </div>
+          )}
+        </div>
+        <div className="lib-mat-detail-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 24 }}>
+          {detailFields.map(f => {
+            const v = window.getFieldValue ? window.getFieldValue(m, f.id) : m[f.id];
+            return (
+              <div key={f.id}>
+                <Eyebrow style={{ marginBottom: 4 }}>{f.unit ? `${f.label} (${f.unit})` : f.label}</Eyebrow>
+                {window.FieldRenderer
+                  ? <window.FieldRenderer field={f} value={v} mode="read" onChange={() => {}} materials={materials} />
+                  : <span style={{ fontSize: 13, color: 'var(--ink)' }}>{v || '—'}</span>}
+              </div>
+            );
+          })}
+        </div>
+        <Eyebrow style={{ marginBottom: 8 }}>Specification</Eyebrow>
+        <p style={{
+          ...ui.serif, fontSize: 15, lineHeight: 1.55,
+          color: 'var(--ink)', margin: 0, maxWidth: '62ch', textWrap: 'pretty',
+        }}>
+          {(window.getFieldValue ? window.getFieldValue(m, 'notes') : null) || m.spec || ''}
+        </p>
+
+        {!isPaint && m.paintable && (
+          <div style={{ marginTop: 22, padding: '14px 16px',
+            background: 'var(--paper)', borderLeft: '2px solid var(--accent)',
+            display: 'flex', alignItems: 'center', gap: 14 }}>
+            <Eyebrow>Painted with</Eyebrow>
+            {paintedWith ? (
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); onNavigateTo && onNavigateTo(paintedWith.id); }}
+                style={{
+                  background: 'none', border: 'none', padding: 0, margin: 0,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  cursor: onNavigateTo ? 'pointer' : 'default',
+                  textAlign: 'left',
+                  borderRadius: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.querySelector('[data-arrow]').style.color = 'var(--accent-ink)'; e.currentTarget.querySelector('[data-arrow]').style.transform = 'translateX(2px)'; }}
+                onMouseLeave={e => { e.currentTarget.querySelector('[data-arrow]').style.color = 'var(--ink-4)'; e.currentTarget.querySelector('[data-arrow]').style.transform = 'translateX(0)'; }}
+                title="Go to paint entry"
+              >
+                <div style={{ width: 28, height: 28, flexShrink: 0,
+                  background: paintedWith.swatch?.tone || '#ddd',
+                  outline: '1px solid rgba(20,20,20,0.15)' }} />
+                <div>
+                  <Mono size={10} color="var(--ink-4)">{paintedWith.code}</Mono>
+                  <div style={{ ...ui.serif, fontSize: 14 }}>
+                    {paintedWith.brand} {paintedWith.colourName} · <span style={{ fontStyle: 'italic', color: 'var(--ink-3)' }}>{paintedWith.sheen}</span>
+                  </div>
+                </div>
+                <span data-arrow style={{
+                  ...ui.mono, fontSize: 10, color: 'var(--ink-4)',
+                  letterSpacing: '0.08em', marginLeft: 4,
+                  transition: 'color 0.15s, transform 0.15s',
+                }}>OPEN ENTRY →</span>
+              </button>
+            ) : (
+              <Mono size={12} color="var(--ink-4)">Paintable — finish unspecified</Mono>
+            )}
+          </div>
+        )}
+
+        <div style={{ marginTop: 26 }}>
+          <Eyebrow style={{ marginBottom: 8 }}>Libraries</Eyebrow>
+          {libs.length ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {libs.map(l => <Tag key={l.id} tone="neutral">{l.name}</Tag>)}
+            </div>
+          ) : (
+            <Mono size={12} color="var(--ink-4)">Not in any library</Mono>
+          )}
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <Eyebrow style={{ marginBottom: 8 }}>Used in</Eyebrow>
+          {projectNames.length ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {projectNames.map(n => <Tag key={n} tone="soft">{n}</Tag>)}
+            </div>
+          ) : (
+            <Mono size={12} color="var(--ink-4)">Not yet specified on a project</Mono>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 20, marginTop: 28 }}>
+          <TextButton onClick={onEdit}>Edit entry</TextButton>
+          <TextButton onClick={onDelete} accent>Delete</TextButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value, mono }) {
+  return (
+    <div>
+      <Eyebrow style={{ marginBottom: 4 }}>{label}</Eyebrow>
+      {mono
+        ? <Mono size={13} color="var(--ink)">{value}</Mono>
+        : <span style={{ fontSize: 13, color: 'var(--ink)' }}>{value}</span>}
+    </div>
+  );
+}
+
+function CompareStrip({ ids, materials, labelTemplates, onClose }) {
+  const items = ids.map(id => materials.find(m => m.id === id)).filter(Boolean);
+  const fv = window.getFieldValue || ((m, k) => (m.fields && m.fields[k]) ?? m[k]);
+  const rows = [
+    { label: 'Category',   get: m => { const d = m.category && window.categoryDef && window.categoryDef(m.category); return (d && d.label) || m.category; } },
+    { label: 'Supplier',   get: m => fv(m, 'supplier') },
+    { label: 'Origin',     get: m => fv(m, 'country_of_origin') },
+    { label: 'Finish',     get: m => fv(m, 'finish') },
+    { label: 'Thickness',  get: m => fv(m, 'thickness'), mono: true },
+    { label: 'Lead time',  get: m => fv(m, 'lead_time'), mono: true },
+    { label: 'Unit cost',  get: m => fmtCurrency(fv(m, 'unit_cost')) + ' / ' + (fv(m, 'unit') || 'u'), mono: true, heavy: true },
+  ];
+  return (
+    <div style={{
+      border: '1px solid var(--ink)',
+      background: 'var(--paper-2)',
+      padding: '24px 24px 20px',
+      marginBottom: 36,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <Eyebrow>Comparison</Eyebrow>
+          <Mono size={11} color="var(--ink-3)">{items.length} materials side-by-side</Mono>
+        </div>
+        <TextButton onClick={onClose}>Close ×</TextButton>
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `110px repeat(${items.length}, 1fr)`,
+        columnGap: 18,
+      }}>
+        <div />
+        {items.map(m => (
+          <div key={m.id} style={{ paddingBottom: 10, borderBottom: '1px solid var(--ink)' }}>
+            <Swatch swatch={m.swatch} size="md" seed={parseInt(m.id.slice(2)) || 1}
+              style={{ width: '100%', height: 64 }} />
+            <div style={{ marginTop: 8 }}>
+              {!!(window.isOfficeMode && window.isOfficeMode(window.appState?.settings?.dupePolicy)) && (
+                <Mono size={10} color="var(--ink-4)">{m.code}</Mono>
+              )}
+              <Serif size={15} style={{ display: 'block', lineHeight: 1.15, marginTop: 2 }}>
+                {window.formatLabel(m, labelTemplates)}
+              </Serif>
+            </div>
+          </div>
+        ))}
+        {rows.map(r => (
+          <React.Fragment key={r.label}>
+            <div style={{ ...ui.label, paddingTop: 12, paddingBottom: 12, borderBottom: '1px dotted var(--rule-2)' }}>
+              {r.label}
+            </div>
+            {items.map(m => (
+              <div key={m.id + r.label} style={{
+                paddingTop: 12, paddingBottom: 12,
+                borderBottom: '1px dotted var(--rule-2)',
+                fontSize: r.heavy ? 14 : 12.5,
+                color: r.heavy ? 'var(--ink)' : 'var(--ink-2)',
+                fontFamily: r.mono ? "'JetBrains Mono', monospace" : "'Inter Tight', sans-serif",
+                fontWeight: r.heavy ? 500 : 400,
+              }}>
+                {r.get(m)}
+              </div>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Library });
+
+// ───────── Library mode toggle ─────────
+// Wraps the shared SegmentedToggle atom. Defaults to Register / Gallery / Table / Split;
+// ProjectSpec and CostScheduleV2 pass their own `modes` array via the same
+// signature.
+function ModeToggle({ mode, setMode, modes }) {
+  const items = modes || [
+    { id: 'register', label: 'Register', icon: '☰' },
+    { id: 'gallery',  label: 'Gallery',  icon: '▦' },
+    { id: 'table',    label: 'Table',    icon: '≡' },
+    { id: 'split',    label: 'Split',    icon: '◫' },
+  ];
+  return (
+    <window.SegmentedToggle
+      items={items.map(m => ({ ...m, title: m.label + ' mode' }))}
+      active={mode}
+      onChange={setMode}
+      inactiveColor="var(--ink-3)"
+    />
+  );
+}
+Object.assign(window, { ModeToggle });
