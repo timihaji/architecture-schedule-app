@@ -280,6 +280,14 @@ function LibraryGallery({
       : [['All', filtered]];
   }, [filtered, groupBy]);
 
+  // Publish the current visible (filtered + sorted) item-id list to a
+  // window-level slot so the v7 drawer can use it for prev/next navigation
+  // without prop-drilling through every onEdit call site. Cheap — runs once
+  // per filter/sort change.
+  React.useEffect(() => {
+    window.__librarySiblings = filtered.map(m => m.id);
+  }, [filtered]);
+
   return (
     <div className="lib-gallery">
         {compareIds.length >= 2 && (

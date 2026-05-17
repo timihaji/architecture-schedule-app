@@ -725,6 +725,12 @@ function App() {
           labelTemplates={labelTemplates}
           onOpenLabelBuilder={(tab) => { setLabelBuilderTab(tab || 'Global'); setLabelBuilderOpen(true); }}
           onClose={() => setEditingMaterial(null)}
+          siblings={window.__librarySiblings || []}
+          onNavigate={(id) => {
+            const m = materials.find(x => x.id === id);
+            if (m) setEditingMaterial(m);
+          }}
+          onDelete={(id) => { deleteMaterial(id); setEditingMaterial(null); }}
           onSave={saveMaterial}
           // Phase C2 — Save & add another: persist current draft, then re-init
           // editor with a fresh template of the same kind so the drawer stays
