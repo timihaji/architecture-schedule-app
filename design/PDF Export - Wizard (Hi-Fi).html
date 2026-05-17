@@ -1,0 +1,1100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PDF Export — Wizard (Hi-Fi)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3efe7;
+    --paper-2: #eae5d9;
+    --paper-3: #e1dccd;
+    --ink: #1a1815;
+    --ink-2: #2c2924;
+    --ink-3: #6a665d;
+    --ink-4: #9a958a;
+    --rule: #1a1815;
+    --rule-2: #c8c2b3;
+    --rule-3: #d8d3c4;
+    --accent: #8a3020; /* umber */
+    --accent-soft: #b85c3a;
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ───────── Background app shell (faded behind drawer) ───────── */
+  .app {
+    min-height: 100vh;
+    padding: 0 0 80px;
+  }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 56px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 12px; }
+  .nav-logo { width: 22px; height: 22px; background: var(--ink); }
+  .nav-title {
+    font-family: var(--font-serif);
+    font-size: 19px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .nav-links .active {
+    color: var(--ink);
+    font-weight: 500;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 2px;
+  }
+  .nav-links span:first-child { font-feature-settings: "tnum"; }
+
+  main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 42px 56px 80px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+  .page-title {
+    font-family: var(--font-serif);
+    font-size: 56px;
+    font-weight: 500;
+    letter-spacing: -0.012em;
+    line-height: 1.05;
+    margin: 0 0 6px;
+  }
+  .page-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+  }
+  .page-rule {
+    height: 1px;
+    background: var(--rule);
+    margin: 28px 0 18px;
+  }
+  .page-instr {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-3);
+    margin-bottom: 24px;
+  }
+
+  /* fake table preview */
+  .schedule {
+    border: 1px solid var(--rule-2);
+    background: rgba(255,255,255,0.35);
+  }
+  .sched-head {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1.2fr 80px 80px 100px 100px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .sched-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1.2fr 80px 80px 100px 100px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--rule-3);
+    font-size: 13px;
+    align-items: center;
+  }
+  .sched-row:last-child { border-bottom: none; }
+  .sched-row .swatch {
+    width: 22px; height: 22px;
+    background: #b8aa94;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
+  }
+  .sched-row .code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.05em;
+  }
+  .sched-row .name { font-weight: 500; }
+  .sched-row .num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-align: right;
+  }
+
+  /* ───────── Drawer ───────── */
+  .drw-bg {
+    position: fixed; inset: 0;
+    background: rgba(20, 18, 14, 0.32);
+    backdrop-filter: blur(2px);
+    z-index: 100;
+    animation: fade-in 200ms ease;
+  }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .drw-panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 560px;
+    background: var(--paper);
+    border-left: 1px solid var(--rule);
+    box-shadow: -16px 0 48px -16px rgba(20,18,14,0.28);
+    z-index: 101;
+    display: flex;
+    flex-direction: column;
+    animation: slide-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes slide-in {
+    from { transform: translateX(40px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+
+  .drw-head {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .drw-head-row {
+    display: block;
+  }
+  .drw-title {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 4px 0 0;
+    padding-right: 44px;
+  }
+  .drw-close {
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    background: var(--paper);
+    border: 1px solid var(--rule-2);
+    width: 30px; height: 30px;
+    cursor: pointer;
+    color: var(--ink-2);
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 120ms;
+  }
+  .drw-close:hover { border-color: var(--ink); background: var(--paper-2); }
+  .drw-sub {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink-3);
+    margin-top: 6px;
+  }
+
+  /* Stepper */
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 22px;
+    border-top: 1px solid var(--rule-3);
+    padding-top: 18px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    cursor: pointer;
+    user-select: none;
+  }
+  .step-num {
+    width: 26px; height: 26px;
+    border: 1px solid var(--rule-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    transition: all 160ms;
+  }
+  .step-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    transition: color 160ms;
+  }
+  .step.active .step-num { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .step.active .step-label { color: var(--ink); font-weight: 500; }
+  .step.done .step-num { background: var(--paper-2); border-color: var(--ink-3); color: var(--ink-2); }
+  .step.done .step-label { color: var(--ink-2); }
+  .step-rule {
+    flex: 0 0 24px;
+    height: 1px;
+    background: var(--rule-2);
+  }
+
+  /* Body */
+  .drw-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px 24px;
+  }
+  .drw-body::-webkit-scrollbar { width: 8px; }
+  .drw-body::-webkit-scrollbar-thumb { background: var(--rule-2); }
+
+  .pane { display: none; }
+  .pane.active { display: block; animation: fade-in 200ms ease; }
+
+  .section-eye {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+  .section-h {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 4px;
+  }
+  .section-d {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-3);
+    margin-bottom: 22px;
+  }
+
+  /* Layout cards (Step 1) */
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .layout-card {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 18px;
+    padding: 14px;
+    border: 1px solid var(--rule-2);
+    background: var(--paper);
+    cursor: pointer;
+    transition: all 140ms;
+    position: relative;
+  }
+  .layout-card:hover { border-color: var(--ink-3); }
+  .layout-card.selected {
+    border-color: var(--ink);
+    background: var(--paper-2);
+  }
+  .layout-card.selected::before {
+    content: "✓";
+    position: absolute;
+    top: 8px; right: 10px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .layout-thumb {
+    aspect-ratio: 0.707;
+    background: #fcfaf3;
+    border: 1px solid var(--rule-3);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .layout-thumb .t-line {
+    height: 2px;
+    background: var(--ink-4);
+  }
+  .layout-thumb .t-line.short { width: 50%; }
+  .layout-thumb .t-line.title { background: var(--ink-2); height: 3px; width: 60%; margin-bottom: 3px; }
+  .layout-thumb .t-card {
+    border: 1px solid var(--rule-3);
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    margin-bottom: 3px;
+  }
+  .layout-thumb .t-swatch {
+    width: 10px; height: 10px; background: var(--ink-4);
+    flex-shrink: 0;
+  }
+  .layout-thumb .t-stack { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .layout-thumb .t-stack .t-line { height: 1.5px; }
+  .layout-thumb .t-row {
+    display: flex; gap: 3px; align-items: center;
+    border-bottom: 0.5px solid var(--rule-3);
+    padding-bottom: 2px;
+  }
+  .layout-thumb .t-row .t-line { height: 1.5px; flex: 1; }
+  .layout-thumb .t-cover {
+    height: 24px;
+    background: linear-gradient(135deg, var(--ink-3) 0%, var(--ink-4) 100%);
+    margin-bottom: 4px;
+  }
+  .layout-thumb .t-group-h {
+    font-family: var(--font-mono);
+    font-size: 5px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .layout-info-eye {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+  .layout-info-h {
+    font-family: var(--font-serif);
+    font-size: 19px;
+    font-weight: 500;
+    margin: 0 0 6px;
+    line-height: 1.15;
+  }
+  .layout-info-d {
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.45;
+    margin-bottom: 10px;
+  }
+  .layout-info-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-4);
+    text-transform: uppercase;
+  }
+
+  /* Toggles (Step 2) */
+  .field-group {
+    margin-bottom: 22px;
+  }
+  .field-group-h {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule-3);
+  }
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--rule-3);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-text { flex: 1; }
+  .toggle-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .toggle-desc {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .switch {
+    width: 38px; height: 22px;
+    background: var(--paper-3);
+    border: 1px solid var(--rule-2);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: all 160ms;
+    flex-shrink: 0;
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: var(--paper);
+    border-radius: 50%;
+    transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 1px 2px rgba(20,18,14,0.18);
+  }
+  .switch.on { background: var(--ink); border-color: var(--ink); }
+  .switch.on::after { transform: translateX(16px); background: var(--paper); }
+
+  /* Step 3 — settings */
+  .row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .field { flex: 1; }
+  .field-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .input, .select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--rule-2);
+    background: var(--paper);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--ink);
+    border-radius: 0;
+    transition: border 120ms;
+  }
+  .input:focus, .select:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  .input.mono { font-family: var(--font-mono); }
+  .seg {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 2), 1fr);
+    border: 1px solid var(--rule-2);
+  }
+  .seg button {
+    background: none;
+    border: none;
+    padding: 9px 10px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-right: 1px solid var(--rule-2);
+    transition: all 120ms;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.on {
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 500;
+  }
+  .seg button:hover:not(.on) { background: var(--paper-2); }
+
+  /* Summary card on Step 3 */
+  .summary {
+    border: 1px solid var(--rule-2);
+    background: var(--paper-2);
+    padding: 16px;
+    margin-top: 22px;
+  }
+  .summary-h {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .summary-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--rule-3);
+    font-size: 13px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    align-self: center;
+  }
+  .summary-row .v { color: var(--ink); font-weight: 500; }
+
+  /* Footer */
+  .drw-foot {
+    border-top: 1px solid var(--rule);
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: var(--paper);
+  }
+  .drw-foot-step {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--ink-3);
+  }
+  .drw-foot-step .cur { color: var(--ink); font-weight: 500; }
+  .drw-foot-actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 10px 18px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--rule-2);
+    background: var(--paper);
+    color: var(--ink-2);
+    transition: all 140ms;
+    letter-spacing: 0.01em;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--ink); color: var(--ink); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-pri {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .btn-pri:hover:not(:disabled) {
+    background: var(--ink-2);
+    border-color: var(--ink-2);
+    color: var(--paper);
+  }
+  .btn-arrow {
+    display: inline-block;
+    margin-left: 6px;
+    transition: transform 200ms;
+  }
+  .btn-pri:hover .btn-arrow { transform: translateX(2px); }
+
+  /* Generating state */
+  .generating {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 32px;
+  }
+  .generating.active { display: flex; }
+  .spin {
+    width: 44px; height: 44px;
+    border: 1px solid var(--rule-2);
+    border-top-color: var(--ink);
+    border-radius: 50%;
+    animation: spin 800ms linear infinite;
+    margin-bottom: 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .gen-h {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .gen-d {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-3);
+  }
+
+  /* Footer of page */
+  .app-foot {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 56px;
+    border-top: 1px solid var(--rule);
+    margin-top: 60px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo"></div>
+      <div class="nav-title">Hollis &amp; Arne — Studio Archive</div>
+    </div>
+    <div class="nav-links">
+      <span>i&nbsp;&nbsp;Library</span>
+      <span>ii&nbsp;&nbsp;Projects</span>
+      <span class="active">iii&nbsp;&nbsp;Cost Schedule</span>
+      <span>iv&nbsp;&nbsp;Spec</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="eyebrow">Volume III · Cost Schedule · v2</div>
+    <h1 class="page-title">Materials Cost Schedule</h1>
+    <div class="page-meta">23·14 · Brunswick Residence · Ng / Park</div>
+    <div class="page-rule"></div>
+    <div class="page-instr">Hover between rows to insert. Leave <em style="font-family: var(--font-mono); font-style: normal; font-size: 12px;">Count</em> blank for single items.</div>
+
+    <div class="schedule" aria-hidden="true">
+      <div class="sched-head">
+        <span>Code</span><span>Component</span><span>Option</span><span>Material</span>
+        <span style="text-align:right;">#</span><span style="text-align:right;">Size</span><span style="text-align:right;">Rate</span><span style="text-align:right;">Total</span>
+      </div>
+      <div class="sched-row">
+        <span class="code">FN·021</span>
+        <span class="name"><span class="swatch" style="background:#8a6a48;"></span>Spotted gum</span>
+        <span>Boards 130×19</span>
+        <span>Living floor</span>
+        <span class="num">—</span><span class="num">42.0</span>
+        <span class="num">$148</span><span class="num">$6,216</span>
+      </div>
+      <div class="sched-row">
+        <span class="code">PT·004</span>
+        <span class="name"><span class="swatch" style="background:#e8e3d4;"></span>Dulux · Natural White</span>
+        <span>Low sheen</span>
+        <span>Walls — bedrooms</span>
+        <span class="num">—</span><span class="num">86.0</span>
+        <span class="num">$22</span><span class="num">$1,892</span>
+      </div>
+      <div class="sched-row">
+        <span class="code">FT·112</span>
+        <span class="name"><span class="swatch" style="background:#aaa298;"></span>Astra Walker · Icon</span>
+        <span>Brushed nickel</span>
+        <span>Bath mixer · ensuite</span>
+        <span class="num">2</span><span class="num">—</span>
+        <span class="num">$489</span><span class="num">$978</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Drawer -->
+<div class="drw-bg"></div>
+<div class="drw-panel" role="dialog" aria-label="Export to PDF">
+  <div class="drw-head">
+    <div class="eyebrow" style="margin-bottom:0;">III · Cost Schedule / Export</div>
+    <div class="drw-head-row">
+      <h2 class="drw-title">Export to PDF</h2>
+      <button class="drw-close" aria-label="Close">×</button>
+    </div>
+    <div class="drw-sub">A printable record of <strong style="font-style:normal;">Brunswick Residence</strong> — 28 rows, $9,086 grand total.</div>
+
+    <div class="stepper">
+      <div class="step active" data-step="1">
+        <div class="step-num">1</div>
+        <div class="step-label">Layout</div>
+      </div>
+      <div class="step-rule"></div>
+      <div class="step" data-step="2">
+        <div class="step-num">2</div>
+        <div class="step-label">Content</div>
+      </div>
+      <div class="step-rule"></div>
+      <div class="step" data-step="3">
+        <div class="step-num">3</div>
+        <div class="step-label">Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="drw-body">
+
+    <!-- Step 1 — Layout -->
+    <div class="pane active" data-pane="1">
+      <div class="section-eye">Step 01 / Choose a layout</div>
+      <h3 class="section-h">How should it look on the page?</h3>
+      <p class="section-d">Each layout is built from the same data — pick the one that suits your audience.</p>
+
+      <div class="layout-grid">
+
+        <button type="button" class="layout-card selected" data-layout="cards">
+          <div class="layout-thumb">
+            <div class="t-line title"></div>
+            <div class="t-line short" style="margin-bottom:4px;"></div>
+            <div class="t-card">
+              <div class="t-swatch"></div>
+              <div class="t-stack"><div class="t-line"></div><div class="t-line short"></div></div>
+            </div>
+            <div class="t-card">
+              <div class="t-swatch" style="background:#8a6a48;"></div>
+              <div class="t-stack"><div class="t-line"></div><div class="t-line short"></div></div>
+            </div>
+            <div class="t-card">
+              <div class="t-swatch" style="background:#aaa298;"></div>
+              <div class="t-stack"><div class="t-line"></div><div class="t-line short"></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="layout-info-eye">A — Recommended</div>
+            <div class="layout-info-h">Schedule cards</div>
+            <p class="layout-info-d">One material per card, with swatch, codes and pricing. Generous spacing for client review.</p>
+            <div class="layout-info-meta">≈ 1 row per page · A4 portrait</div>
+          </div>
+        </button>
+
+        <button type="button" class="layout-card" data-layout="table">
+          <div class="layout-thumb">
+            <div class="t-line title"></div>
+            <div class="t-line short" style="margin-bottom:4px;"></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line"></div><div class="t-line"></div></div>
+          </div>
+          <div>
+            <div class="layout-info-eye">B</div>
+            <div class="layout-info-h">Compact table</div>
+            <p class="layout-info-d">Dense single-row records. Best for builder and quantity surveyor handover.</p>
+            <div class="layout-info-meta">≈ 22 rows per page · A3 landscape</div>
+          </div>
+        </button>
+
+        <button type="button" class="layout-card" data-layout="cover">
+          <div class="layout-thumb">
+            <div class="t-cover"></div>
+            <div class="t-line title"></div>
+            <div class="t-line short" style="margin-bottom:6px;"></div>
+            <div class="t-group-h">Floors</div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line short"></div></div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line short"></div></div>
+            <div class="t-group-h">Walls</div>
+            <div class="t-row"><div class="t-line"></div><div class="t-line short"></div></div>
+          </div>
+          <div>
+            <div class="layout-info-eye">C — Editorial</div>
+            <div class="layout-info-h">Cover &amp; grouped sections</div>
+            <p class="layout-info-d">Project cover sheet, then materials grouped by trade with running subtotals.</p>
+            <div class="layout-info-meta">≈ 8–12 pages · A4 portrait</div>
+          </div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Step 2 — Content -->
+    <div class="pane" data-pane="2">
+      <div class="section-eye">Step 02 / Choose what to include</div>
+      <h3 class="section-h">Trim or expand the document.</h3>
+      <p class="section-d">Toggles only affect this export — your library and schedule are untouched.</p>
+
+      <div class="field-group">
+        <div class="field-group-h">Content blocks</div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Cover sheet</div>
+            <div class="toggle-desc">Project name, address, stage and revision date.</div>
+          </div>
+          <div class="switch on" data-toggle="cover"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Specification notes</div>
+            <div class="toggle-desc">Long-form notes captured against each material.</div>
+          </div>
+          <div class="switch on" data-toggle="notes"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Material imagery</div>
+            <div class="toggle-desc">Swatch tones and product photography where present.</div>
+          </div>
+          <div class="switch on" data-toggle="imagery"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Supplier &amp; lead time</div>
+            <div class="toggle-desc">Brand, supplier reference and weeks-to-deliver.</div>
+          </div>
+          <div class="switch on" data-toggle="supplier"></div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group-h">Pricing</div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Show pricing</div>
+            <div class="toggle-desc">Rates, quantities and totals on each row.</div>
+          </div>
+          <div class="switch on" data-toggle="pricing"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Trade subtotals</div>
+            <div class="toggle-desc">Running totals between trade groupings.</div>
+          </div>
+          <div class="switch on" data-toggle="subtotals"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-text">
+            <div class="toggle-name">Grand total &amp; GST line</div>
+            <div class="toggle-desc">Final summary on the back page.</div>
+          </div>
+          <div class="switch on" data-toggle="grand"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 — Settings -->
+    <div class="pane" data-pane="3">
+      <div class="section-eye">Step 03 / Final touches</div>
+      <h3 class="section-h">Paper, file, and you're done.</h3>
+      <p class="section-d">Defaults match the studio's last export.</p>
+
+      <div class="field-group">
+        <div class="field-group-h">Paper</div>
+        <div class="row">
+          <div class="field">
+            <label class="field-label">Size</label>
+            <div class="seg" style="--cols:3;">
+              <button class="on" data-paper="a4">A4</button>
+              <button data-paper="a3">A3</button>
+              <button data-paper="letter">Letter</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Orientation</label>
+            <div class="seg" style="--cols:2;">
+              <button class="on" data-orient="portrait">Portrait</button>
+              <button data-orient="landscape">Landscape</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-group-h">File</div>
+        <div class="field" style="margin-bottom: 14px;">
+          <label class="field-label">Filename</label>
+          <input type="text" class="input mono" id="filename" value="2314-brunswick-residence_cost-schedule_2024-04-22.pdf" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label class="field-label">Revision tag</label>
+            <input type="text" class="input mono" value="Rev. C — for client" />
+          </div>
+          <div class="field">
+            <label class="field-label">Watermark</label>
+            <div class="seg" style="--cols:3;">
+              <button data-mark="none">None</button>
+              <button class="on" data-mark="draft">Draft</button>
+              <button data-mark="final">Final</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="summary-h">Summary</div>
+        <div class="summary-row"><span class="k">Layout</span><span class="v" id="sum-layout">Schedule cards</span></div>
+        <div class="summary-row"><span class="k">Includes</span><span class="v" id="sum-includes">Cover, notes, imagery, supplier, pricing</span></div>
+        <div class="summary-row"><span class="k">Paper</span><span class="v" id="sum-paper">A4 portrait</span></div>
+        <div class="summary-row"><span class="k">Pages</span><span class="v">~ 32 pages</span></div>
+        <div class="summary-row"><span class="k">Filename</span><span class="v" style="font-family: var(--font-mono); font-size: 11px; word-break: break-all;" id="sum-file">2314-brunswick-residence_cost-schedule_2024-04-22.pdf</span></div>
+      </div>
+    </div>
+
+    <!-- Generating -->
+    <div class="generating" id="generating">
+      <div class="spin"></div>
+      <div class="gen-h">Composing your document</div>
+      <div class="gen-d">Typesetting 28 records into 32 pages…</div>
+    </div>
+
+  </div>
+
+  <div class="drw-foot">
+    <div class="drw-foot-step"><span class="cur" id="cur-step">1</span> / 3</div>
+    <div class="drw-foot-actions">
+      <button class="btn" id="btn-back" disabled>Back</button>
+      <button class="btn-pri btn" id="btn-next">Next<span class="btn-arrow">→</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  let step = 1;
+  const totalSteps = 3;
+  const layouts = {
+    cards: 'Schedule cards',
+    table: 'Compact table',
+    cover: 'Cover & grouped sections',
+  };
+  let chosen = {
+    layout: 'cards',
+    paper: 'a4',
+    orient: 'portrait',
+    mark: 'draft',
+    toggles: {
+      cover: true, notes: true, imagery: true, supplier: true,
+      pricing: true, subtotals: true, grand: true,
+    },
+  };
+
+  const stepEls = document.querySelectorAll('.step');
+  const paneEls = document.querySelectorAll('.pane');
+  const btnBack = document.getElementById('btn-back');
+  const btnNext = document.getElementById('btn-next');
+  const curStep = document.getElementById('cur-step');
+
+  function renderStep() {
+    stepEls.forEach(el => {
+      const s = parseInt(el.dataset.step, 10);
+      el.classList.toggle('active', s === step);
+      el.classList.toggle('done', s < step);
+    });
+    paneEls.forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.pane, 10) === step);
+    });
+    curStep.textContent = step;
+    btnBack.disabled = step === 1;
+    if (step === totalSteps) {
+      btnNext.innerHTML = 'Generate PDF<span class="btn-arrow">↓</span>';
+      updateSummary();
+    } else {
+      btnNext.innerHTML = 'Next<span class="btn-arrow">→</span>';
+    }
+  }
+
+  function updateSummary() {
+    document.getElementById('sum-layout').textContent = layouts[chosen.layout];
+    const includes = Object.entries(chosen.toggles)
+      .filter(([k, v]) => v).map(([k]) => k).join(', ');
+    document.getElementById('sum-includes').textContent =
+      includes.replace(/\b\w/g, c => c.toUpperCase()).replace(/,/g, ',') || 'Nothing — toggles all off';
+    document.getElementById('sum-paper').textContent =
+      chosen.paper.toUpperCase() + ' ' + chosen.orient;
+    document.getElementById('sum-file').textContent =
+      document.getElementById('filename').value;
+  }
+
+  btnNext.addEventListener('click', () => {
+    if (step === totalSteps) {
+      // Trigger generating screen
+      paneEls.forEach(el => el.classList.remove('active'));
+      document.getElementById('generating').classList.add('active');
+      btnNext.disabled = true; btnBack.disabled = true;
+      setTimeout(() => {
+        // reset for demo
+        document.getElementById('generating').classList.remove('active');
+        btnNext.disabled = false;
+        step = 1;
+        renderStep();
+      }, 2400);
+    } else {
+      step++;
+      renderStep();
+    }
+  });
+  btnBack.addEventListener('click', () => {
+    if (step > 1) { step--; renderStep(); }
+  });
+
+  // Allow clicking step pills directly
+  stepEls.forEach(el => {
+    el.addEventListener('click', () => {
+      const s = parseInt(el.dataset.step, 10);
+      if (s <= step + 1) { step = s; renderStep(); }
+    });
+  });
+
+  // Layout selection
+  document.querySelectorAll('.layout-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.layout-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      chosen.layout = card.dataset.layout;
+    });
+  });
+
+  // Toggle switches
+  document.querySelectorAll('.switch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      sw.classList.toggle('on');
+      chosen.toggles[sw.dataset.toggle] = sw.classList.contains('on');
+    });
+  });
+
+  // Segmented controls
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        seg.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        if (b.dataset.paper) chosen.paper = b.dataset.paper;
+        if (b.dataset.orient) chosen.orient = b.dataset.orient;
+        if (b.dataset.mark) chosen.mark = b.dataset.mark;
+      });
+    });
+  });
+
+  // Close (re-opens after demo just resets to step 1)
+  document.querySelector('.drw-close').addEventListener('click', () => {
+    step = 1; renderStep();
+    document.querySelector('.drw-panel').style.transform = 'translateX(40px)';
+    document.querySelector('.drw-panel').style.opacity = '0.4';
+    setTimeout(() => {
+      document.querySelector('.drw-panel').style.transition = 'all 280ms';
+      document.querySelector('.drw-panel').style.transform = 'translateX(0)';
+      document.querySelector('.drw-panel').style.opacity = '1';
+    }, 700);
+  });
+
+  renderStep();
+})();
+</script>
+
+</body>
+</html>

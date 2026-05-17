@@ -150,6 +150,8 @@
     const [view, setView] = useState('schedule');   // 'schedule' | 'specification'
     const [editingId, setEditingId] = useState(null);
     const [fieldsOpen, setFieldsOpen] = useState(false);
+    // Export-to-PDF wizard drawer.
+    const [exportOpen, setExportOpen] = useState(false);
     // PickerDrawer state. mode='single' opens for one row's swatch click;
     // mode='multi' opens for "+ Add to Section" bulk-add.
     // null when closed. { mode, rowId?, element, eyebrow, title, subtitle, seed? }
@@ -523,6 +525,12 @@
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name || p.code}</option>)}
               </select>
             )}
+            <button type="button" className="sched-add-btn"
+              title="Export this schedule as a PDF"
+              onClick={() => setExportOpen(true)}
+              style={{ background: 'transparent', color: 'var(--ink-3)' }}>
+              Export to PDF
+            </button>
             <button type="button" className="sched-add-btn" onClick={() => openPickerForBulkAdd({}, 'All items')}>
               + Add row
             </button>
@@ -645,6 +653,16 @@
               </div>
             </div>
           ))
+        )}
+
+        {window.ExportWizardDrawer && window.SCHEDULE_EXPORT_PROFILE && (
+          <window.ExportWizardDrawer
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            project={project}
+            data={{ groups, itemCount: cards.length, grouping }}
+            profile={window.SCHEDULE_EXPORT_PROFILE}
+          />
         )}
 
         {picker && window.PickerDrawer && (

@@ -153,6 +153,8 @@
     // Drag state for HTML5 native drag-and-drop reorder.
     const [dragRowId, setDragRowId] = useState(null);
     const [dragOver, setDragOver] = useState(null);  // { rowId, edge: 'top'|'bottom' }
+    // Export-to-PDF wizard drawer.
+    const [exportOpen, setExportOpen] = useState(false);
 
     const rows = (schedule && Array.isArray(schedule.rows)) ? schedule.rows : [];
 
@@ -526,6 +528,12 @@
               </button>
             )}
             <button type="button" className="sched-add-btn"
+              title="Export this cost schedule as a PDF"
+              onClick={() => setExportOpen(true)}
+              style={{ background: 'transparent', color: 'var(--ink-3)' }}>
+              Export to PDF
+            </button>
+            <button type="button" className="sched-add-btn"
               onClick={() => openPickerForGroup((window.EMPTY_BUCKET_LABEL || 'Unspecified'))}>
               + Add component
             </button>
@@ -678,6 +686,16 @@
             <span className="hint">press V to paste, Esc to clear</span>
             <button type="button" onClick={() => setClipboard(null)} title="Clear clipboard">×</button>
           </div>
+        )}
+
+        {window.ExportWizardDrawer && window.COST_EXPORT_PROFILE && (
+          <window.ExportWizardDrawer
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            project={project}
+            data={{ grouped, grandTotal, itemCount: rows.length }}
+            profile={window.COST_EXPORT_PROFILE}
+          />
         )}
 
         {picker && window.PickerDrawer && (

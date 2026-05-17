@@ -1039,6 +1039,9 @@
   .auth-link-btn { background: none; border: none; padding: 0; color: var(--accent-ink); cursor: pointer; font-size: 13px; text-decoration: underline; }
   .auth-err { margin-top: 14px; padding: 10px 12px; font-size: 13px; color: #7a2412; background: rgba(184,92,58,0.12); border: 1px solid rgba(184,92,58,0.3); }
   .auth-ok { margin-top: 14px; padding: 10px 12px; font-size: 13px; color: #1f5a2e; background: rgba(58,138,74,0.12); border: 1px solid rgba(58,138,74,0.3); }
+  .auth-progress { position: relative; width: 100%; height: 2px; margin-top: 18px; background: var(--rule); overflow: hidden; }
+  .auth-progress-bar { position: absolute; top: 0; height: 100%; width: 40%; background: var(--accent); animation: auth-progress-slide 1.4s ease-in-out infinite; }
+  @keyframes auth-progress-slide { 0% { left: -45%; } 100% { left: 105%; } }
 
   /* LABEL FORMAT MODAL (D6) */
   .lf-modal-bg { position: fixed; inset: 0; background: rgba(20,20,20,0.55); z-index: 110; display: flex; align-items: center; justify-content: center; padding: 30px; }
@@ -1441,7 +1444,7 @@
 
 <!-- Cloud layer — must load BEFORE App.jsx since App's render call wraps in <AuthGate>. -->
 <script type="text/babel" src="src/cloud-config.jsx"></script>
-<script type="text/babel" src="src/cloud.jsx"></script>
+<script type="text/babel" src="src/cloud.jsx?v=d2"></script>
 <script type="text/babel" src="src/SaveStatusIndicator.jsx"></script>
 <script type="text/babel" src="src/CloudToasts.jsx"></script>
 <script type="text/babel" src="src/schema.jsx"></script>
@@ -1449,8 +1452,8 @@
 <script type="text/babel" src="src/schema-helpers.jsx"></script>
 <script type="text/babel" src="src/SchemaSections.jsx"></script>
 <script type="text/babel" src="src/migrate-v5.jsx"></script>
-<script type="text/babel" src="src/LoadingGate.jsx"></script>
-<script type="text/babel" src="src/AuthGate.jsx"></script>
+<script type="text/babel" src="src/LoadingGate.jsx?v=d2"></script>
+<script type="text/babel" src="src/AuthGate.jsx?v=d3"></script>
 
 <script type="text/babel" src="src/data.jsx"></script>
 <script type="text/babel" src="src/SeedData.jsx"></script>
@@ -1485,6 +1488,13 @@
 <script type="text/babel" src="src/CostScheduleV2.jsx"></script>
 <script type="text/babel" src="src/CardVariantD.jsx"></script>
 <script type="text/babel" src="src/PickerDrawer.jsx"></script>
+<script type="text/babel" src="src/export-pdf-builder.jsx"></script>
+<script type="text/babel" src="src/export-fonts.jsx"></script>
+<script type="text/babel" src="src/export-themes.jsx"></script>
+<script type="text/babel" src="src/export-theme-thumbs.jsx"></script>
+<script type="text/babel" src="src/ExportWizardDrawer.jsx"></script>
+<script type="text/babel" src="src/export-profile-cost.jsx"></script>
+<script type="text/babel" src="src/export-profile-schedule.jsx"></script>
 <script type="text/babel" src="src/SchedulePage.jsx"></script>
 <script type="text/babel" src="src/SettingsPage.jsx?v=d13"></script>
 <script type="text/babel" src="src/AppearanceSettings.jsx"></script>
