@@ -31,8 +31,10 @@ function LTSidePanel({ material: m, materials, libraries, labelTemplates,
       })
     : [];
 
-  const swatchFor = (m.swatch?.inheritTone && linkedPaint)
-    ? { ...m.swatch, tone: linkedPaint.swatch?.tone } : m.swatch;
+  // Phase 7: defer to window.effectiveSwatch (src/app-helpers.jsx).
+  const swatchFor = window.effectiveSwatch
+    ? window.effectiveSwatch(m, materials)
+    : m.swatch;
 
   // Compose the field list for the KV grid: top common ids first, then
   // category-specific fields, deduped, capped to keep the panel scannable.

@@ -527,14 +527,10 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
     </div>
   );
   if (c.id === 'thumb') {
-    const swatch = (() => {
-      const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
-      if (m.swatch?.inheritTone && paintedWithId) {
-        const linked = allMaterials.find(x => x.id === paintedWithId);
-        if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
-      }
-      return m.swatch;
-    })();
+    // Phase 7: defer to window.effectiveSwatch (src/app-helpers.jsx).
+    const swatch = window.effectiveSwatch
+      ? window.effectiveSwatch(m, allMaterials)
+      : m.swatch;
     return (
       <div key="thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {window.Swatch ? (

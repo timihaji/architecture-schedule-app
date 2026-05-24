@@ -280,13 +280,14 @@ function LTCell({ col, material: m, libraries, allMaterials, labelTemplates,
   }
 
   if (col.id === 'swatch') {
-    const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
-    const mForSwatch = (m.category !== 'paint' && m.swatch?.inheritTone && paintedWithId)
-      ? allMaterials.find(x => x.id === paintedWithId) || m : m;
+    // Phase 7: defer to window.effectiveSwatch; paint skips inheritance.
+    const swatch = m.category === 'paint'
+      ? m.swatch
+      : (window.effectiveSwatch ? window.effectiveSwatch(m, allMaterials) : m.swatch);
     return (
       <div style={{ ...baseStyle, justifyContent: 'center' }}>
         <Swatch
-          swatch={{ ...m.swatch, tone: (m.swatch?.inheritTone && mForSwatch !== m) ? mForSwatch.swatch?.tone : m.swatch?.tone }}
+          swatch={swatch}
           size="xs"
           seed={parseInt(m.id.slice(2)) || 1}
           style={{ width: 20, height: 20, flexShrink: 0 }}

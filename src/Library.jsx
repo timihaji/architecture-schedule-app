@@ -411,14 +411,11 @@ function GalleryCard({
   const ptLabel = cardCatDef ? cardCatDef.label.toLowerCase() : null;
 
   // Paintables inherit the linked paint's tone for visual continuity.
-  const effSwatch = (() => {
-    const paintedWithId = window.getFieldValue ? window.getFieldValue(m, 'paintedWith') : m.paintedWithId;
-    if (m.category !== 'paint' && m.swatch?.inheritTone && paintedWithId) {
-      const linked = materials.find(x => x.id === paintedWithId);
-      if (linked) return { ...m.swatch, tone: linked.swatch?.tone };
-    }
-    return m.swatch;
-  })();
+  // Phase 7: defer to window.effectiveSwatch (src/app-helpers.jsx). Skip
+  // inheritance for paint items — a paint inheriting from itself is nonsense.
+  const effSwatch = m.category === 'paint'
+    ? m.swatch
+    : (window.effectiveSwatch ? window.effectiveSwatch(m, materials) : m.swatch);
 
   const cardBg = flash
     ? 'rgba(184,92,58,0.12)'
@@ -712,12 +709,10 @@ function MaterialDetail({ material: m, materials = [], libraries, labelTemplates
     }}>
       <div>
         <Swatch
-          swatch={(() => {
-            if (!isPaint && m.swatch?.inheritTone && paintedWith) {
-              return { ...m.swatch, tone: paintedWith.swatch?.tone };
-            }
-            return m.swatch;
-          })()}
+          /* Phase 7: defer to window.effectiveSwatch; paint skips inheritance. */
+          swatch={isPaint
+            ? m.swatch
+            : (window.effectiveSwatch ? window.effectiveSwatch(m, materials) : m.swatch)}
           size="xl"
           seed={parseInt(m.id.slice(2)) || 1}
           glyph={null}
