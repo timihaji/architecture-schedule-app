@@ -862,44 +862,14 @@ function DesktopViewToggle() {
   );
 }
 
+// Phase 7: v1 retired. CostScheduleHost mounts CostScheduleV2 directly; the
+// VersionToggle UI and `cs.ui.scheduleVersion` read/write are gone. The
+// `aml-schedule-version` localStorage migration in LoadingGate / CloudSettings
+// is left alone (harmless — the cloud UI key still hydrates if present, but
+// no one reads it now).
 function CostScheduleHost(props) {
-  const cs = window.useCloudState();
-  const version = cs.ui.scheduleVersion || 'v2';
-  function setV(v) {
-    cs.setUi({ scheduleVersion: v });
-  }
-  const Current = version === 'v2' ? window.CostScheduleV2 : window.CostSchedule;
-  return (
-    <div>
-      <div className="ver-toggle-row">
-        <VersionToggle version={version} setVersion={setV} />
-      </div>
-      {Current && <Current {...props} />}
-    </div>
-  );
-}
-
-function VersionToggle({ version, setVersion }) {
-  return (
-    <div className="ver-toggle">
-      <span className="ver-toggle-label">Schedule</span>
-      {[
-        { key: 'v1', label: 'v1 · legacy' },
-        { key: 'v2', label: 'v2 · new' },
-      ].map(opt => {
-        const active = version === opt.key;
-        return (
-          <button key={opt.key} type="button" onClick={() => setVersion(opt.key)}
-            className="ver-toggle-btn"
-            style={{
-              background: active ? 'var(--ink)' : 'transparent',
-              color: active ? 'var(--paper)' : 'var(--ink-3)',
-              fontWeight: active ? 500 : 400,
-            }}>{opt.label}</button>
-        );
-      })}
-    </div>
-  );
+  const Current = window.CostScheduleV2;
+  return Current ? <Current {...props} /> : null;
 }
 
 function RevisionBadge() {
