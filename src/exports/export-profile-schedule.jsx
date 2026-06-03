@@ -40,6 +40,15 @@
   // Mirror FieldRenderer read mode (src/fields/FieldRenderer.jsx:389-438)
   // so the PDF shows each value exactly as the on-screen card does. Returns
   // a plain string, or null when the field is empty / not renderable here.
+  // pdfmake's line-breaker infinite-loops on run-on URL tokens like
+  // "https://…" in some monospace theme fonts (e.g. JetBrainsMono in D2) — even
+  // the bare string "https://" hangs. Inserting a zero-width space (U+200B)
+  // after ':' and '/' gives the breaker a safe break opportunity. It's
+  // invisible and harmless in proportional fonts, and lets long URLs wrap.
+  function softBreakUrls(s) {
+    return (s && s.indexOf('://') !== -1) ? s.replace(/([:/])/g, '$1​') : s;
+  }
+
   function formatFieldValue(field, raw) {
     if (raw == null || raw === '') return null;
     const t = field.type;
@@ -61,14 +70,14 @@
       const opt = (field.options || []).find(o => o.value === raw);
       return vlabel(raw, opt ? (opt.label || opt.value) : raw);
     }
-    if (t === 'url') return String(raw);
+    if (t === 'url') return softBreakUrls(String(raw));
     if (t === 'color' || t === 'swatchRef') {
       const tone = (raw && (raw.tone || raw)) || null;
       return typeof tone === 'string' ? tone : null;
     }
     if (t === 'itemRef') return null; // not resolved in export context
-    // number / date / text
-    return String(raw) + (field.unit ? ' ' + field.unit : '');
+    // number / date / text (text may contain a pasted URL → soft-break it)
+    return softBreakUrls(String(raw) + (field.unit ? ' ' + field.unit : ''));
   }
 
   // Identity / column fields rendered elsewhere — excluded from the spec grid
@@ -96,24 +105,45 @@
       out.push({
         label: field.unit ? (field.label + ' (' + field.unit + ')') : field.label,
         value: value,
-        wide: field.type === 'longText' || field.id === 'notes',
+        // Wide → rendered full-width rather than in the 2-column grid. URLs and
+        // other long single-token values have no break opportunity, so in a
+        // narrow column they overflow and can hang pdfmake's layout; give them
+        // the full page width.
+        wide: field.type === 'longText' || field.type === 'url'
+          || field.id === 'notes' || String(value).length > 30,
         mono: field.type === 'number' || field.type === 'currency' || field.type === 'date',
       });
     });
     return out;
   }
 
+  // Short one-line note for the COMPACT TABLE layout (dims · finish · colour).
+  // The dense table renders this in a narrow cell; a long multi-line value in a
+  // monospace theme (e.g. D2's JetBrainsMono) makes pdfmake's table auto-width
+  // resolution infinite-loop, so the table deliberately stays to a short note.
+  // The full per-item field set lives in the cover-grouped layout (card._specs).
+  function shortNote(card) {
+    const m = card.material;
+    if (!m) return null;
+    const dims   = fv(m, 'dimensions') || fv(m, 'thickness');
+    const sheen  = fv(m, 'sheen_paint');
+    const finish = fv(m, 'finish') || (sheen && window.valueLabel ? window.valueLabel(sheen) : sheen);
+    const colour = fv(m, 'colour_name') || fv(m, 'colour_code');
+    let note = [dims, finish, colour].filter(Boolean).map(String).join('  ·  ');
+    if (note.length > 60) note = note.slice(0, 58).replace(/\s+\S*$/, '') + '…';
+    return note || null;
+  }
+
   // ─── Card enrichment ──────────────────────────────────────────────
-  // Precompute the schema-driven spec list (for the full per-item grid in
-  // cover-grouped) and a one-line spec string (for the compact table) so
-  // themes stay focused on visual identity.
+  // Precompute the schema-driven spec list (card._specs → full per-item grid in
+  // cover-grouped) and a SHORT one-line note (card._specLine → compact table)
+  // so themes stay focused on visual identity.
   function enrichCard(card, content, globalHidden) {
     const specs = (content && content.specNotes) ? cardSpecs(card, globalHidden) : [];
-    const specLine = specs.map(s => s.label + ' ' + s.value).join('  ·  ') || null;
     return {
       ...card,
       _specs:    specs,
-      _specLine: specLine,
+      _specLine: (content && content.specNotes) ? shortNote(card) : null,
     };
   }
 

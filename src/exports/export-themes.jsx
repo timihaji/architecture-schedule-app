@@ -51,45 +51,42 @@
 
   // Shared per-item spec grid for the cover-grouped layout. Renders the
   // schema-driven field list (card._specs, computed in
-  // export-profile-schedule.jsx) as a labelled 2-column grid that mirrors the
+  // export-profile-schedule.jsx) as a labelled 2-column block that mirrors the
   // on-screen schedule card. Themes pass their own label/value style names so
   // each direction keeps its type ramp. Returns null when there are no specs.
+  //
+  // Uses `columns` (deterministic star-width) rather than a nested table: a
+  // nested table's iterative auto/star width resolution can infinite-loop when
+  // an unbreakable value (e.g. a long URL in a monospace theme like D2) is
+  // wider than its column. `columns` assigns star widths directly and never
+  // loops. Long / longText / url values are flagged `wide` upstream so they
+  // render full-width instead of in a narrow half-column.
   function specGridNode(specs, styleTokens) {
     if (!specs || !specs.length) return null;
     const labelStyle = styleTokens.labelStyle;
     const valueStyle = styleTokens.valueStyle;
-    const cols = styleTokens.cols || 2;
-    const grid = specs.filter(s => !s.wide);
-    const wide = specs.filter(s => s.wide);
-
-    const cell = (s) => s ? ({
+    const line = (s) => ({
       stack: [
         { text: String(s.label).toUpperCase(), style: labelStyle, margin: [0, 0, 0, 1] },
         { text: s.value, style: valueStyle },
       ],
       margin: [0, 0, 0, 6],
-    }) : { text: '' };
+    });
+    const grid = specs.filter(s => !s.wide);
+    const wide = specs.filter(s => s.wide);
 
-    const body = [];
-    for (let i = 0; i < grid.length; i += cols) {
-      const row = grid.slice(i, i + cols);
-      while (row.length < cols) row.push(null);
-      body.push(row.map(cell));
-    }
+    // Split the narrow fields into two balanced columns (row-major).
+    const colA = [], colB = [];
+    grid.forEach((s, i) => { (i % 2 === 0 ? colA : colB).push(line(s)); });
 
     const stack = [];
-    if (body.length) {
-      stack.push({ table: { widths: Array(cols).fill('*'), body }, layout: 'noBorders' });
+    if (colA.length || colB.length) {
+      stack.push({ columns: [
+        { width: '*', stack: colA.length ? colA : [{ text: '' }] },
+        { width: '*', stack: colB.length ? colB : [{ text: '' }] },
+      ], columnGap: 18 });
     }
-    wide.forEach(s => {
-      stack.push({
-        stack: [
-          { text: String(s.label).toUpperCase(), style: labelStyle, margin: [0, 0, 0, 1] },
-          { text: s.value, style: valueStyle },
-        ],
-        margin: [0, stack.length ? 4 : 0, 0, 4],
-      });
-    });
+    wide.forEach(s => stack.push({ ...line(s), margin: [0, stack.length ? 2 : 0, 0, 6] }));
     return { stack: stack, margin: [0, 2, 0, 6] };
   }
 
