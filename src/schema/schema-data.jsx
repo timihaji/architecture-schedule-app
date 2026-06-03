@@ -621,8 +621,9 @@
   fNum('cutout_diameter_mm', 'Cutout diameter', 'mm');
   fBool('adjustable', 'Adjustable');
   fText('trim_finish', 'Trim finish');
+  fText('baffle_colour', 'Baffle colour');
   cat('downlight', 'Downlight', 'lighting', 'ea',
-    [...LUMINAIRE_FIELDS, 'beam_angle_deg', 'cutout_diameter_mm', 'adjustable', 'trim_finish']);
+    [...LUMINAIRE_FIELDS, 'beam_angle_deg', 'cutout_diameter_mm', 'adjustable', 'trim_finish', 'baffle_colour']);
 
   fNum('drop_mm', 'Drop', 'mm');
   fNum('cord_length_mm', 'Cord length', 'mm');
@@ -649,7 +650,7 @@
   fNum('head_count', 'Head count');
   fText('track_finish', 'Track finish');
   cat('track_light', 'Track light', 'lighting', 'ea',
-    [...LUMINAIRE_FIELDS, 'track_compat', 'head_count', 'adjustable', 'track_finish']);
+    [...LUMINAIRE_FIELDS, 'track_compat', 'head_count', 'adjustable', 'track_finish', 'baffle_colour']);
 
   fSel('step_light_mount', 'Mount type', ['recessed', 'surface']);
   fSel('step_projection', 'Projection pattern', ['down', 'side', 'full']);
