@@ -42,7 +42,9 @@
   function enrichCard(card, content) {
     const m = card.material;
     const dims   = m ? (fv(m, 'dimensions') || fv(m, 'thickness')) : null;
-    const finish = m ? (fv(m, 'finish') || fv(m, 'sheen_paint'))   : null;
+    // finish is free text; sheen_paint is a controlled list → use its label.
+    const sheen  = m ? fv(m, 'sheen_paint') : null;
+    const finish = m ? (fv(m, 'finish') || (sheen && window.valueLabel ? window.valueLabel(sheen) : sheen)) : null;
     const colour = m ? (fv(m, 'colour_name') || fv(m, 'colour_code')) : null;
     const specNote = [dims, finish, colour].filter(Boolean).join(' · ') || null;
     return {

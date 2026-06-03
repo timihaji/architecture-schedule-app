@@ -100,12 +100,15 @@
     return React.createElement('span', { style: { color: 'var(--ink-4)' } }, '—');
   }
 
-  // Display-only Title Case for controlled-list values. Capitalises plain
-  // lowercase words but leaves anything with an existing capital, a digit, or a
-  // non-letter intact — so acronyms and tokens survive (DALI, Wi-Fi, 0-10V, RF,
-  // IP65, m²). Applied at render time so it works regardless of how the option
-  // value/label is stored (including already-persisted lowercase taxonomies).
-  function smartTitle(str) {
+  // Display label for a controlled-list value. Prefers the curated casing map
+  // (window.valueLabel — each value reviewed individually so acronyms, units,
+  // and brands are correct), falling back to a smart Title-Case heuristic for
+  // anything not in the map (e.g. custom-typed values). `value` is the stored
+  // option value; `label` is its current label (used only as the fallback text).
+  function vlabel(value, label) {
+    if (window.valueLabel) return window.valueLabel(value, label != null ? label : value);
+    // Fallback heuristic if the labels module didn't load.
+    const str = label != null ? label : value;
     if (str == null) return str;
     return String(str).split(/(\s+)/).map(seg => {
       if (/^\s+$/.test(seg) || seg === '') return seg;
@@ -221,7 +224,7 @@
             letterSpacing: '0.05em', textTransform: 'uppercase',
             border: '1px solid var(--rule-2)',
             background: 'var(--paper-2)', color: 'var(--ink-3)',
-          } }, smartTitle(opt ? opt.label : v));
+          } }, vlabel(v, opt ? opt.label : v));
         })
       );
     }
@@ -272,7 +275,7 @@
             color: on ? 'var(--ink)' : 'var(--ink-3)',
             cursor: 'pointer',
           }
-        }, smartTitle(o.label));
+        }, vlabel(o.value, o.label));
       })
     );
 
@@ -364,7 +367,7 @@
     },
       React.createElement('option', { value: '' }, '—'),
       options.map(o =>
-        React.createElement('option', { key: o.value, value: o.value }, smartTitle(o.label || o.value))),
+        React.createElement('option', { key: o.value, value: o.value }, vlabel(o.value, o.label || o.value))),
       allowCustom && React.createElement('option', { key: '__custom__', value: '__custom__' }, 'Other…')
     );
   }
@@ -425,7 +428,7 @@
         if (value == null || value === '') return emDash();
         const opt = (field.options || []).find(o => o.value === value);
         return React.createElement('span', { style: { fontFamily: 'var(--font-serif)', fontSize: 13 } },
-          smartTitle(opt ? (opt.label || opt.value) : value));
+          vlabel(value, opt ? (opt.label || opt.value) : value));
       }
       if (value == null || value === '') return emDash();
       const isMono = t === 'number' || t === 'date';

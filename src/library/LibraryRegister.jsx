@@ -614,11 +614,21 @@ function regCell(c, m, sel, allMaterials, labelTemplates, toggleOne, onEdit, onD
   );
   // Schema-field fallback: any col not handled above is a v5 field id.
   const _fv = window.getFieldValue || ((x, k) => (x.fields && x.fields[k]) ?? x[k]);
-  const _v = _fv(m, fieldIdForRegCol(c));
+  const _fid = fieldIdForRegCol(c);
+  const _v = _fv(m, _fid);
+  const _fdef = window.fieldDef ? window.fieldDef(_fid) : null;
+  // Controlled-list values render with curated Title-Case labels; free text /
+  // numbers pass through unchanged.
+  let _disp = '—';
+  if (Array.isArray(_v) && _v.length) {
+    _disp = _v.map(x => (window.valueLabel ? window.valueLabel(x) : x)).join(', ');
+  } else if (_v != null && _v !== '') {
+    _disp = (_fdef && _fdef.type === 'select' && window.valueLabel) ? window.valueLabel(_v) : String(_v);
+  }
   return (
     <div key={c.id} className={'reg-meta' + (c.mono ? ' reg-meta-mono' : '')}
       style={c.align === 'right' ? { textAlign: 'right' } : {}}>
-      {(_v != null && _v !== '') ? String(_v) : '—'}
+      {_disp}
     </div>
   );
 }
