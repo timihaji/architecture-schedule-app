@@ -33,6 +33,33 @@
     return (cat && cat.label) || catId;
   }
 
+  // Background style for a material's swatch — honours image / pattern / colour
+  // modes the same way VisualPickerV7 renders them, so a custom uploaded image
+  // shows on the schedule card (not just its fallback tone). `fallback` is the
+  // pre-resolved tone used when the swatch has no image/pattern payload.
+  function swatchBgStyle(swatch, fallback) {
+    const sw = window.migrateSwatchToV7 ? window.migrateSwatchToV7(swatch) : (swatch || {});
+    if (sw.mode === 'image' && sw.src) {
+      return { background: '#000', backgroundImage: `url(${sw.src})`,
+               backgroundSize: 'cover', backgroundPosition: 'center' };
+    }
+    if (sw.mode === 'pattern' && sw.patternId && window.PATTERNS_V7) {
+      const pat = window.PATTERNS_V7.find(p => p.id === sw.patternId);
+      if (pat) {
+        const css = pat.img
+          .replace(/var\(--fg\)/g, sw.patternFg || '#1a1a1a')
+          .replace(/var\(--bg\)/g, sw.patternBg || '#f3efe7');
+        const scaled = pat.size.split(' ').map(s => {
+          const n = parseFloat(s); const u = s.replace(/[\d.]+/g, '');
+          return (n * (sw.patternScale || 1)) + u;
+        }).join(' ');
+        return { background: sw.patternBg || '#f3efe7', backgroundImage: css,
+                 backgroundSize: scaled, backgroundPosition: pat.pos || undefined };
+      }
+    }
+    return { background: (sw && sw.tone) || fallback || 'var(--paper-2)' };
+  }
+
   // Room picker for legacy row fields. Kept available for any custom schema
   // fields that still call into the schedule row's locationId path.
   function RoomPicker({ value, options, onChange, onAddLocation }) {
@@ -268,7 +295,7 @@
       }
       return (
         <div className="sched-card-swatch product" onClick={onSwatchClick}
-          style={{ background: card.swatchColor || 'var(--paper-2)', height: 168 }}>
+          style={{ ...swatchBgStyle(resolvedItem && resolvedItem.swatch, card.swatchColor), height: 168 }}>
           {card.swatchBrand && <span className="sched-card-swatch-brand">{card.swatchBrand}</span>}
         </div>
       );

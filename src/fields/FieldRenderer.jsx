@@ -100,6 +100,21 @@
     return React.createElement('span', { style: { color: 'var(--ink-4)' } }, '—');
   }
 
+  // Display-only Title Case for controlled-list values. Capitalises plain
+  // lowercase words but leaves anything with an existing capital, a digit, or a
+  // non-letter intact — so acronyms and tokens survive (DALI, Wi-Fi, 0-10V, RF,
+  // IP65, m²). Applied at render time so it works regardless of how the option
+  // value/label is stored (including already-persisted lowercase taxonomies).
+  function smartTitle(str) {
+    if (str == null) return str;
+    return String(str).split(/(\s+)/).map(seg => {
+      if (/^\s+$/.test(seg) || seg === '') return seg;
+      return seg.split('-').map(part =>
+        /^[a-z]+$/.test(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part
+      ).join('-');
+    }).join('');
+  }
+
   // ─── itemRef picker (uses PickerDrawer) ────────────────────────────────────
   function ItemRefField({ field, value, onChange, materials, mode }) {
     const [open, setOpen] = useState(false);
@@ -206,7 +221,7 @@
             letterSpacing: '0.05em', textTransform: 'uppercase',
             border: '1px solid var(--rule-2)',
             background: 'var(--paper-2)', color: 'var(--ink-3)',
-          } }, opt ? opt.label : v);
+          } }, smartTitle(opt ? opt.label : v));
         })
       );
     }
@@ -257,7 +272,7 @@
             color: on ? 'var(--ink)' : 'var(--ink-3)',
             cursor: 'pointer',
           }
-        }, o.label);
+        }, smartTitle(o.label));
       })
     );
 
@@ -349,7 +364,7 @@
     },
       React.createElement('option', { value: '' }, '—'),
       options.map(o =>
-        React.createElement('option', { key: o.value, value: o.value }, o.label || o.value)),
+        React.createElement('option', { key: o.value, value: o.value }, smartTitle(o.label || o.value))),
       allowCustom && React.createElement('option', { key: '__custom__', value: '__custom__' }, 'Other…')
     );
   }
@@ -403,6 +418,14 @@
           href: String(value), target: '_blank', rel: 'noreferrer',
           style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent-ink)' }
         }, String(value));
+      }
+      if (t === 'select') {
+        // Single-select (multi handled above) — show the option's Title-Cased
+        // label; custom/off-list values pass through smartTitle untouched.
+        if (value == null || value === '') return emDash();
+        const opt = (field.options || []).find(o => o.value === value);
+        return React.createElement('span', { style: { fontFamily: 'var(--font-serif)', fontSize: 13 } },
+          smartTitle(opt ? (opt.label || opt.value) : value));
       }
       if (value == null || value === '') return emDash();
       const isMono = t === 'number' || t === 'date';
