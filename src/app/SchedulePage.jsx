@@ -20,9 +20,10 @@
   const { useState, useMemo, useEffect, useRef } = React;
 
   const GROUP_OPTIONS_BASE = [
-    { id: 'section',  label: 'Section' },
-    { id: 'category', label: 'Category' },
-    { id: 'none',     label: 'None' },
+    { id: 'section',    label: 'Section' },
+    { id: 'discipline', label: 'Discipline' },
+    { id: 'category',   label: 'Category' },
+    { id: 'none',       label: 'None' },
   ];
   const FIELD_CHOOSER_SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'longText']);
   const DEFAULT_SCHEDULE_HIDDEN_FIELDS = ['unit', 'libraries'];
@@ -33,6 +34,15 @@
       ? window.categoryDef(catId)
       : ((window.schemaActive && window.schemaActive().categories) || []).find(c => c.id === catId);
     return (cat && cat.label) || catId;
+  }
+
+  // Resolve a category id → its parent group ("discipline"), as { id, label }.
+  function disciplineForCategory(catId) {
+    const cat = catId && window.categoryDef ? window.categoryDef(catId) : null;
+    const groupId = (cat && cat.groupId) || null;
+    if (!groupId) return { id: null, label: 'Uncategorised' };
+    const g = window.groupDef ? window.groupDef(groupId) : null;
+    return { id: groupId, label: (g && g.label) || groupId };
   }
 
   function fieldLabelForToolbar(field) {
@@ -263,7 +273,12 @@
       for (const c of filteredCards) {
         let key, title;
         let groupValue = null;
-        if (grouping === 'category') {
+        if (grouping === 'discipline') {
+          const disc = disciplineForCategory(c.category);
+          groupValue = disc.id;
+          key = groupValue || 'uncategorised';
+          title = disc.label;
+        } else if (grouping === 'category') {
           groupValue = c.category || null;
           key = groupValue || 'uncategorised';
           title = categoryLabel(groupValue);
