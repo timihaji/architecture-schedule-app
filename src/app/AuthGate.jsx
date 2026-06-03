@@ -39,7 +39,15 @@
 
       // Supabase JS v2 fires INITIAL_SESSION on subscribe, then SIGNED_IN /
       // SIGNED_OUT / PASSWORD_RECOVERY / TOKEN_REFRESHED / USER_UPDATED.
-      const subscription = window.cloud.sb.auth.onAuthStateChange(async (evt, sess) => {
+      // NOTE: this callback must stay synchronous. supabase-js v2 holds an
+      // internal navigator.locks auth-token lock for the lifetime of the
+      // onAuthStateChange handler; if we await another Supabase call here
+      // (isAllowedUser → sb.rpc, which needs that same lock to read the access
+      // token) it deadlocks until the lock-acquire timeout fires. We make the
+      // state decisions synchronously and defer the allowlist RPC to a
+      // setTimeout(0), which lets this handler return and release the lock
+      // before the RPC runs. See supabase/auth-js #936.
+      const subscription = window.cloud.sb.auth.onAuthStateChange((evt, sess) => {
         lastEvent.current = evt;
 
         if (evt === 'PASSWORD_RECOVERY') {
@@ -70,32 +78,35 @@
         }
         checkInFlight.current = sess.user.id;
         setStatus('checking');
-        try {
-          const allowed = await window.cloud.isAllowedUser();
-          if (!allowed) {
-            setStatus('notallowed');
-            return;
+        // Defer out of the auth-lock-holding callback (see note above).
+        setTimeout(async () => {
+          try {
+            const allowed = await window.cloud.isAllowedUser();
+            if (!allowed) {
+              setStatus('notallowed');
+              return;
+            }
+            verifiedUserId.current = sess.user.id;
+            setError(null);
+            setStatus('ready');
+          } catch (err) {
+            // Timeout on a healthy session: don't bounce to sign-in (which is
+            // both confusing and wrong — the user is signed in, just couldn't
+            // reach the allowlist RPC). Stay on 'checking'; the next auth event
+            // (TOKEN_REFRESHED, visibility change, etc.) will retry.
+            if (/timed out/.test(String(err && err.message))) {
+              console.warn('[AuthGate] access check timed out, awaiting next auth event:', err);
+            } else {
+              console.error('[AuthGate] access check failed:', err);
+              setError('Could not reach the workspace. Check your connection.');
+              setStatus('signin');
+            }
+          } finally {
+            if (checkInFlight.current === sess.user.id) {
+              checkInFlight.current = null;
+            }
           }
-          verifiedUserId.current = sess.user.id;
-          setError(null);
-          setStatus('ready');
-        } catch (err) {
-          // Timeout on a healthy session: don't bounce to sign-in (which is
-          // both confusing and wrong — the user is signed in, just couldn't
-          // reach the allowlist RPC). Stay on 'checking'; the next auth event
-          // (TOKEN_REFRESHED, visibility change, etc.) will retry.
-          if (/timed out/.test(String(err && err.message))) {
-            console.warn('[AuthGate] access check timed out, awaiting next auth event:', err);
-          } else {
-            console.error('[AuthGate] access check failed:', err);
-            setError('Could not reach the workspace. Check your connection.');
-            setStatus('signin');
-          }
-        } finally {
-          if (checkInFlight.current === sess.user.id) {
-            checkInFlight.current = null;
-          }
-        }
+        }, 0);
       });
 
       return () => {
