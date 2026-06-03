@@ -589,6 +589,7 @@
   function ImagePanel({ sw, pickImageFromFile }) {
     const fileRef = React.useRef(null);
     const [dragOver, setDragOver] = React.useState(false);
+    const [hovered, setHovered] = React.useState(false);
 
     function onDrop(e) {
       e.preventDefault();
@@ -597,29 +598,59 @@
       if (f) pickImageFromFile(f);
     }
 
+    // Pull the first image off a clipboard payload (paste event or drop).
+    function imageFromClipboard(clip) {
+      const items = (clip && clip.items) || [];
+      for (const it of items) {
+        if (it.kind === 'file' && it.type && it.type.startsWith('image/')) {
+          return it.getAsFile();
+        }
+      }
+      return null;
+    }
+
+    function handlePaste(e) {
+      const f = imageFromClipboard(e.clipboardData);
+      if (f) { e.preventDefault(); pickImageFromFile(f); }
+    }
+
+    // Hovering (or focusing) the drop zone arms a document-level paste listener,
+    // so a screenshot on the clipboard can be dropped in with ⌘V / Ctrl+V without
+    // needing a focused text field. The element's own onPaste covers focus/tab.
+    React.useEffect(() => {
+      if (!hovered) return;
+      const onPaste = (e) => handlePaste(e);
+      document.addEventListener('paste', onPaste);
+      return () => document.removeEventListener('paste', onPaste);
+    }, [hovered]); // eslint-disable-line react-hooks/exhaustive-deps
+
     return (
-      <>
-        <div className={'cf-img-drop' + (dragOver ? ' dragover' : '')}
-          onDragEnter={e => { e.preventDefault(); setDragOver(true); }}
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={e => { e.preventDefault(); setDragOver(false); }}
-          onDrop={onDrop}>
-          <div className="cf-img-drop-inner">
-            <svg className="cf-img-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <div className="cf-img-drop-h">
-              Drop an image, or <button type="button" className="cf-img-browse"
-                onClick={() => fileRef.current && fileRef.current.click()}>browse files</button>
-            </div>
-            <div className="cf-img-drop-meta">JPG · PNG · WEBP · up to 20 MB</div>
-            <input ref={fileRef} type="file" accept="image/*" hidden
-              onChange={e => { if (e.target.files && e.target.files[0]) pickImageFromFile(e.target.files[0]); }} />
+      <div className={'cf-img-drop' + (dragOver ? ' dragover' : '') + (hovered ? ' paste-ready' : '')}
+        tabIndex={0}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
+        onPaste={handlePaste}
+        onDragEnter={e => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={e => { e.preventDefault(); setDragOver(false); }}
+        onDrop={onDrop}>
+        <div className="cf-img-drop-inner">
+          <svg className="cf-img-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          <div className="cf-img-drop-h">
+            Drop an image, <button type="button" className="cf-img-browse"
+              onClick={() => fileRef.current && fileRef.current.click()}>browse files</button>, or paste
           </div>
+          <div className="cf-img-drop-meta">Hover &amp; press ⌘V / Ctrl+V · JPG · PNG · WEBP · up to 20 MB</div>
+          <input ref={fileRef} type="file" accept="image/*" hidden
+            onChange={e => { if (e.target.files && e.target.files[0]) pickImageFromFile(e.target.files[0]); }} />
         </div>
-      </>
+      </div>
     );
   }
 
