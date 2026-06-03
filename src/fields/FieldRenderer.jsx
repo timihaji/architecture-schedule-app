@@ -290,22 +290,33 @@
   }
 
   // ─── Single-select (with optional custom value) ───────────────────────────
-  // For fields flagged `allowCustom`, the dropdown grows an "Other…" entry that
-  // swaps the <select> for a free-text input, so users can record a value the
-  // controlled list doesn't cover (e.g. an RF lighting control). A value that
-  // isn't in the options list reads back as a custom value automatically.
+  // For fields that allow a custom value, the dropdown grows an "Other…" entry
+  // that swaps the <select> for a free-text input, so users can record a value
+  // the controlled list doesn't cover (e.g. an RF lighting control). A value
+  // that isn't in the options list reads back as a custom value automatically.
+  //
+  // A field opts in two ways: the schema flag `allowCustom` (reaches fresh /
+  // default schemas) OR membership in this code-level allowlist (reaches users
+  // whose taxonomies were already persisted before the flag existed, so they
+  // still get the capability without a schema migration).
+  const CUSTOM_VALUE_FIELD_IDS = new Set(['control_protocol', 'lighting_control_proto']);
+  function fieldAllowsCustom(field) {
+    return !!field && (field.allowCustom || CUSTOM_VALUE_FIELD_IDS.has(field.id));
+  }
+
   function SelectField({ field, value, onChange }) {
     const options = field.options || [];
+    const allowCustom = fieldAllowsCustom(field);
     const inList = (v) => v == null || v === '' || options.some(o => o.value === v);
-    const [custom, setCustom] = useState(() => !!field.allowCustom && !inList(value));
+    const [custom, setCustom] = useState(() => allowCustom && !inList(value));
 
     // If the bound value changes to something off-list (e.g. switching items),
     // reflect that as custom mode so the text appears in the input, not lost.
     useEffect(() => {
-      if (field.allowCustom && !inList(value)) setCustom(true);
+      if (allowCustom && !inList(value)) setCustom(true);
     }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (field.allowCustom && custom) {
+    if (allowCustom && custom) {
       return React.createElement('div', { style: { display: 'flex', gap: 6, alignItems: 'stretch' } },
         React.createElement('input', {
           className: 'inp-d',
@@ -339,7 +350,7 @@
       React.createElement('option', { value: '' }, '—'),
       options.map(o =>
         React.createElement('option', { key: o.value, value: o.value }, o.label || o.value)),
-      field.allowCustom && React.createElement('option', { key: '__custom__', value: '__custom__' }, 'Other…')
+      allowCustom && React.createElement('option', { key: '__custom__', value: '__custom__' }, 'Other…')
     );
   }
 
