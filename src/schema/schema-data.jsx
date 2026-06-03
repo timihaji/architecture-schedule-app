@@ -1114,7 +1114,7 @@
   // changes only (remove field-def, restructure group fieldIds, delete category); skip for additive/cosmetic.
   window.DEFAULT_SCHEMA_V5 = {
     schemaVersion: 5,
-    _reseedVersion: 6,
+    _reseedVersion: 7,
     groups: GROUPS,
     categories: CATEGORIES,
     fields: Object.values(FIELDS),

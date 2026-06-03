@@ -73,7 +73,7 @@
   // Submittal / procurement fields — universal across all categories:
   fText('supplier_code', 'Supplier code');
   fText('manufacturer', 'Manufacturer', { helpText: 'If different from supplier' });
-  fText('contact', 'Contact', { helpText: 'Name · phone / email' });
+  f('contact', { label: 'Contact', type: 'contactRef', helpText: 'Linked address-book contact' });
   fUrl('product_url', 'Product URL');
   fText('warranty', 'Warranty');
   fLong('install_notes', 'Installation notes');

@@ -233,6 +233,18 @@ function App() {
   const [findDupesOpen, setFindDupesOpen] = React.useState(false);
   const [renumberState, setRenumberState] = React.useState(null);
   const [importSummary, setImportSummary] = React.useState(null);
+  const [addressBookOpen, setAddressBookOpen] = React.useState(false);
+  const [addressBookFocusId, setAddressBookFocusId] = React.useState(null);
+
+  // Bridge so deep-nested contactRef fields / ContactPicker can open the
+  // Address Book modal (optionally focused on the currently-linked contact).
+  React.useEffect(() => {
+    window.openAddressBook = (id) => {
+      setAddressBookFocusId(id || null);
+      setAddressBookOpen(true);
+    };
+    return () => { delete window.openAddressBook; };
+  }, []);
 
   // Tweaks protocol
   React.useEffect(() => {
@@ -569,7 +581,8 @@ function App() {
       data-density={settings.density}
       className="app-shell"
     >
-      <Nav view={view} setView={setView} settings={settings} setSettings={setSettings} />
+      <Nav view={view} setView={setView} settings={settings} setSettings={setSettings}
+        onOpenAddressBook={() => { setAddressBookFocusId(null); setAddressBookOpen(true); }} />
       {(() => {
         const isTable = view === 'library' && libraryMode === 'table';
         const isSettings = view === 'settings';
@@ -819,6 +832,14 @@ function App() {
           onDismiss={() => setImportSummary(null)}
         />
       )}
+      {addressBookOpen && window.AddressBook && (
+        <window.AddressBook
+          open
+          focusContactId={addressBookFocusId}
+          materials={materials}
+          onClose={() => setAddressBookOpen(false)}
+        />
+      )}
       <RevisionBadge />
       <DesktopViewToggle />
     </div>
@@ -928,7 +949,7 @@ function RevisionBadge() {
   );
 }
 
-function Nav({ view, setView, settings, setSettings }) {
+function Nav({ view, setView, settings, setSettings, onOpenAddressBook }) {
   const items = [
     { key: 'library',  label: 'Library' },
     { key: 'projects', label: 'Projects' },
@@ -963,6 +984,10 @@ function Nav({ view, setView, settings, setSettings }) {
           ))}
         </nav>
         <div className="sched-nav-sep" />
+        <button type="button" className="sched-gear" onClick={onOpenAddressBook}
+          title="Address Book" aria-label="Address Book">
+          <AddressBookIcon size={14} />
+        </button>
         <ThemeToggleButton settings={settings} setSettings={setSettings} />
         <SettingsGearButton
           active={settingsActive}
@@ -1073,6 +1098,21 @@ function SettingsGearButton({ active, onClick }) {
     >
       <GearIcon size={14} />
     </button>
+  );
+}
+
+function AddressBookIcon({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 3.5h12.5a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H5z" />
+      <line x1="5" y1="3.5" x2="5" y2="20.5" />
+      <line x1="2.5" y1="8" x2="5" y2="8" />
+      <line x1="2.5" y1="12" x2="5" y2="12" />
+      <line x1="2.5" y1="16" x2="5" y2="16" />
+      <circle cx="12" cy="10" r="2.2" />
+      <path d="M8.5 16c0-1.9 1.6-3 3.5-3s3.5 1.1 3.5 3" />
+    </svg>
   );
 }
 

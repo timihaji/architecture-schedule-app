@@ -194,6 +194,82 @@
     );
   }
 
+  // ─── contactRef picker (Address Book) ──────────────────────────────────────
+  // The value is a contact id. Records live in appState.addressBook; details
+  // (company / phone / email) are resolved live so editing a contact once
+  // updates every item that links it.
+  function ContactRefField({ field, value, onChange, mode }) {
+    const [open, setOpen] = useState(false);
+    // Prefer React context so a freshly-created contact propagates next render;
+    // fall back to the window mirror when rendered outside the provider.
+    let cs = null;
+    try { cs = window.useCloudState ? window.useCloudState() : null; }
+    catch (_) { cs = null; }
+    const book = (cs && cs.addressBook) || (window.addressBookActive ? window.addressBookActive() : { contacts: [] });
+    const contact = value ? (book.contacts || []).find(c => c.id === value) : null;
+
+    if (mode === 'read') {
+      if (!value) return emDash();
+      if (!contact) {
+        return React.createElement('span', {
+          style: { fontSize: 13, color: 'var(--ink-4)', fontStyle: 'italic' },
+        }, '⚠ unlinked contact');
+      }
+      return React.createElement('span', { style: { fontSize: 13 } },
+        window.contactDisplay ? window.contactDisplay(contact) : (contact.name || ''));
+    }
+
+    function openManage(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      setOpen(false);
+      if (window.openAddressBook) window.openAddressBook(value || null);
+    }
+
+    return React.createElement(React.Fragment, null,
+      React.createElement('div', { style: { display: 'flex', gap: 6, alignItems: 'stretch' } },
+        React.createElement('button', {
+          type: 'button',
+          className: 'sel-d',
+          onClick: () => setOpen(true),
+          style: {
+            display: 'flex', alignItems: 'center', gap: 8, flex: 1,
+            textAlign: 'left', cursor: 'pointer',
+            backgroundImage: 'none', paddingRight: 28, position: 'relative',
+          }
+        },
+          contact
+            ? React.createElement('span', { style: { fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                window.contactDisplay ? window.contactDisplay(contact) : (contact.name || ''))
+            : value
+              ? React.createElement('span', { style: { color: 'var(--ink-4)', fontSize: 13, fontStyle: 'italic' } }, '⚠ unlinked — pick a contact')
+              : React.createElement('span', { style: { color: 'var(--ink-4)', fontSize: 13 } }, '— pick a contact —'),
+          React.createElement('span', { style: {
+            fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ink-4)',
+            position: 'absolute', right: 10
+          } }, '▾')
+        ),
+        value && React.createElement('button', {
+          type: 'button',
+          title: 'Clear contact',
+          onClick: () => onChange(null),
+          style: {
+            flexShrink: 0, padding: '0 10px', cursor: 'pointer',
+            border: '1px solid var(--rule-2)', background: 'var(--paper)',
+            color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', fontSize: 11,
+          },
+        }, '×')
+      ),
+      window.ContactPicker && React.createElement(window.ContactPicker, {
+        open,
+        eyebrow: field.label,
+        value: value || null,
+        onPick: (id) => { onChange(id); setOpen(false); },
+        onClose: () => setOpen(false),
+        onManage: openManage,
+      })
+    );
+  }
+
   // ─── Tag / multi-select chip picker ────────────────────────────────────────
   function ChipMultiSelect({ field, value, onChange, mode }) {
     // Read taxonomies from React context (cs.taxonomies) when available so
@@ -394,6 +470,9 @@
       if (t === 'itemRef') {
         return React.createElement(ItemRefField, { field, value, onChange, materials, mode });
       }
+      if (t === 'contactRef') {
+        return React.createElement(ContactRefField, { field, value, onChange, mode });
+      }
       if (t === 'boolean') {
         return React.createElement('span', { style: { fontSize: 13 } }, value ? 'Yes' : 'No');
       }
@@ -445,6 +524,10 @@
 
     if (t === 'itemRef') {
       return React.createElement(ItemRefField, { field, value, onChange, materials, mode });
+    }
+
+    if (t === 'contactRef') {
+      return React.createElement(ContactRefField, { field, value, onChange, mode });
     }
 
     if (t === 'boolean') {

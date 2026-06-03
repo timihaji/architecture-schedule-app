@@ -160,6 +160,21 @@
       });
     }, []);
 
+    // Address Book (contacts). Lives as a top-level singleton — NOT in
+    // taxonomies, so it survives schema _reseedVersion bumps.
+    const setAddressBook = useCallback((updater) => {
+      if (degradedRef.current) return;
+      _setAppState(prev => {
+        const fallback = { version: 1, contacts: [], fieldDefs: [],
+          roles: (window.DEFAULT_CONTACT_ROLES || []).slice() };
+        const prevAb = (prev && prev.addressBook) || fallback;
+        const nextAb = typeof updater === 'function' ? updater(prevAb) : updater;
+        const nextState = { ...(prev || {}), addressBook: nextAb };
+        if (cloudSyncReady.current && window.cloud) window.cloud.saveAppState(nextState);
+        return nextState;
+      });
+    }, []);
+
     // Phase 4 — Field Manager edits land here. Updater receives the live
     // taxonomies blob (or a deep clone of DEFAULT_SCHEMA_V5 if missing) and
     // must return a complete v5-shaped blob. Mirrored onto window.appState so
@@ -216,6 +231,12 @@
       window.setTaxonomies = setTaxonomies;
     }, [setTaxonomies]);
 
+    // Expose setAddressBook on window so non-React helpers (addContactRole,
+    // ContactPicker quick-add) can mutate the address book without context.
+    useEffect(() => {
+      window.setAddressBook = setAddressBook;
+    }, [setAddressBook]);
+
     const ctxValue = useMemo(() => ({
       // Singleton
       settings:       mergeWithSettingsDefaults(appState && appState.settings),
@@ -225,7 +246,9 @@
       taxonomies:     (appState && appState.taxonomies && appState.taxonomies.schemaVersion === 5)
         ? appState.taxonomies
         : (window.DEFAULT_SCHEMA_V5 || null),
-      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies,
+      addressBook:    (appState && appState.addressBook) || { version: 1, contacts: [], fieldDefs: [],
+        roles: (window.DEFAULT_CONTACT_ROLES || []).slice() },
+      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies, setAddressBook,
       // Collections
       materials: materials || [],
       projects:  projects  || [],
@@ -239,7 +262,7 @@
       _appState: appState,
     }), [
       appState, materials, projects, libraries, degraded,
-      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies,
+      setSettings, setUi, setSeedVersion, setLabelTemplates, setTaxonomies, setAddressBook,
       setMaterials, setProjects, setLibraries,
     ]);
 
