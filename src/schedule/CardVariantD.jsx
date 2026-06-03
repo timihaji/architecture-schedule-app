@@ -120,6 +120,7 @@
     isEditing,
     onEdit,
     onSave,
+    onDelete,
   }) {
     const [hovered, setHovered] = useState(false);
     const [itemEditorOpen, setItemEditorOpen] = useState(false);
@@ -301,6 +302,15 @@
             <div style={{ display: 'flex', alignItems: 'center', gap: 8,
                           flexShrink: 0, paddingTop: 2 }}>
               <span className="sched-category-chip">{categoryLabel}</span>
+              {isEditing && onDelete && (
+                <button type="button"
+                  className="sched-edit-btn danger"
+                  onClick={() => {
+                    if (window.confirm('Remove this item from the schedule?')) onDelete();
+                  }}>
+                  Delete
+                </button>
+              )}
               {(hovered || isEditing) && (
                 <button type="button"
                   className={`sched-edit-btn${isEditing ? ' active' : ''}`}

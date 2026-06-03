@@ -637,6 +637,7 @@
                   isEditing={editingId === c.id}
                   onEdit={() => setEditingId(c.id)}
                   onSave={() => setEditingId(null)}
+                  onDelete={() => deleteRow(c.id)}
                 />
               ))}
               <div className="sched-add-row">
