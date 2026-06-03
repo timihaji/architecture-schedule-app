@@ -604,7 +604,7 @@
   fNum('cri', 'CRI');
   fNum('wattage_w', 'Wattage', 'W');
   fBool('dimmable', 'Dimmable');
-  fSel('control_protocol', 'Control protocol', ['switch','0-10V','DALI','Dynalite','KNX','DMX','Casambi','Bluetooth','Zigbee','Wi-Fi','push']);
+  fSel('control_protocol', 'Control protocol', ['switch','0-10V','DALI','Dynalite','KNX','DMX','Casambi','Bluetooth','Zigbee','Wi-Fi','RF','push'], { allowCustom: true });
   fText('housing_material', 'Housing material');
   // Group fields are the lighting fundamentals every category honours. The
   // luminaire-specific payload (lumens/CCT/CRI/wattage/IP/dimmable/control
@@ -675,7 +675,7 @@
   cat('exit_sign', 'Exit sign', 'lighting', 'ea',
     ['exit_pictogram', 'running_man', 'exit_maintained', 'double_sided']);
 
-  fSel('lighting_control_proto', 'Protocol', ['0-10V', 'DALI', 'Dynalite', 'KNX', 'DMX', 'Casambi', 'Zigbee', 'Wi-Fi']);
+  fSel('lighting_control_proto', 'Protocol', ['0-10V', 'DALI', 'Dynalite', 'KNX', 'DMX', 'Casambi', 'Zigbee', 'Wi-Fi', 'RF'], { allowCustom: true });
   fSel('lighting_control_kind', 'Type', ['dimmer', 'switch', 'sensor', 'scene-controller', 'gateway']);
   fSel('lighting_control_ui', 'UI', ['keypad', 'app', 'voice', 'push-button']);
   cat('lighting_control', 'Lighting control', 'lighting', 'ea',

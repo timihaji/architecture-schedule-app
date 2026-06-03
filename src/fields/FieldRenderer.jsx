@@ -289,6 +289,60 @@
     return React.createElement('div', null, chipsRow, input);
   }
 
+  // ─── Single-select (with optional custom value) ───────────────────────────
+  // For fields flagged `allowCustom`, the dropdown grows an "Other…" entry that
+  // swaps the <select> for a free-text input, so users can record a value the
+  // controlled list doesn't cover (e.g. an RF lighting control). A value that
+  // isn't in the options list reads back as a custom value automatically.
+  function SelectField({ field, value, onChange }) {
+    const options = field.options || [];
+    const inList = (v) => v == null || v === '' || options.some(o => o.value === v);
+    const [custom, setCustom] = useState(() => !!field.allowCustom && !inList(value));
+
+    // If the bound value changes to something off-list (e.g. switching items),
+    // reflect that as custom mode so the text appears in the input, not lost.
+    useEffect(() => {
+      if (field.allowCustom && !inList(value)) setCustom(true);
+    }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (field.allowCustom && custom) {
+      return React.createElement('div', { style: { display: 'flex', gap: 6, alignItems: 'stretch' } },
+        React.createElement('input', {
+          className: 'inp-d',
+          type: 'text',
+          autoFocus: true,
+          value: value || '',
+          placeholder: 'Custom value…',
+          onChange: e => onChange(e.target.value || null),
+        }),
+        React.createElement('button', {
+          type: 'button',
+          title: 'Back to list',
+          onClick: () => { setCustom(false); onChange(null); },
+          style: {
+            flexShrink: 0, padding: '0 10px', cursor: 'pointer',
+            border: '1px solid var(--rule-2)', background: 'var(--paper)',
+            color: 'var(--ink-3)', fontFamily: 'var(--font-mono)', fontSize: 11,
+          },
+        }, '↩ List')
+      );
+    }
+
+    return React.createElement('select', {
+      className: 'sel-d',
+      value: value == null ? '' : value,
+      onChange: e => {
+        if (e.target.value === '__custom__') { setCustom(true); onChange(null); return; }
+        onChange(e.target.value || null);
+      },
+    },
+      React.createElement('option', { value: '' }, '—'),
+      options.map(o =>
+        React.createElement('option', { key: o.value, value: o.value }, o.label || o.value)),
+      field.allowCustom && React.createElement('option', { key: '__custom__', value: '__custom__' }, 'Other…')
+    );
+  }
+
   // ─── Main component ────────────────────────────────────────────────────────
   // Props:
   //   field      — field def from fieldDef(id) / fieldsForCategory(...).
@@ -371,15 +425,7 @@
     }
 
     if (t === 'select') {
-      return React.createElement('select', {
-        className: 'sel-d',
-        value: value == null ? '' : value,
-        onChange: e => onChange(e.target.value || null),
-      },
-        React.createElement('option', { value: '' }, '—'),
-        (field.options || []).map(o =>
-          React.createElement('option', { key: o.value, value: o.value }, o.label || o.value))
-      );
+      return React.createElement(SelectField, { field, value, onChange });
     }
 
     if (t === 'longText') {

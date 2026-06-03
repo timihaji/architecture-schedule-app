@@ -133,6 +133,9 @@
     const resolvedItem = card.material || card.resolvedItem || null;
     const cat = row.category || (resolvedItem && resolvedItem.category) || card.category || null;
     const categoryLabel = getCategoryLabel(cat);
+    // Unit shown alongside the per-row Qty — falls back to the category default.
+    const rowUnit = row.unit
+      || (cat && window.categoryDef && window.categoryDef(cat) ? window.categoryDef(cat).defaultUnit : null);
     const schemaFields = cat && window.fieldsForCategory ? window.fieldsForCategory(cat) : [];
     const candidateFields = schemaFields.filter(f => f && !f.hidden && !FIELD_SKIP.has(f.id));
     const rowHidden = card.hiddenFields || [];
@@ -320,6 +323,19 @@
               )}
             </div>
           </div>
+
+          {(isEditing || row.qty != null) && (
+            <div className="sched-card-qty">
+              <span className="sched-card-qty-lbl">Qty</span>
+              {isEditing
+                ? <input type="number" min="0" step="any" className="sched-card-qty-inp"
+                    value={row.qty == null ? '' : row.qty}
+                    onChange={e => onFieldChange && onFieldChange('qty',
+                      e.target.value === '' ? null : Number(e.target.value))} />
+                : <span className="sched-card-qty-val">{row.qty}</span>}
+              {rowUnit && <span className="sched-card-qty-unit">{rowUnit}</span>}
+            </div>
+          )}
 
           {gridFields.length > 0 && (
             <div className={`fgrid-d${hovered ? ' card-hov' : ''}`}>

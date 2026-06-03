@@ -458,6 +458,7 @@
       if (field === 'element') return updateRow(cardId, { element: value });
       if (field === 'hiddenFields') return updateRow(cardId, { hiddenFields: value });
       if (field === 'code') return updateRow(cardId, { code: value || null });
+      if (field === 'qty') return updateRow(cardId, { qty: value });
       if (field === 'locationId') return updateRow(cardId, { locationId: value || null });
       // Other field edits flow into the row directly (e.g. supplier, sku, trade)
       // — for product-bound rows these are derived from the material so the edit
