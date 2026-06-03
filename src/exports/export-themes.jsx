@@ -49,6 +49,64 @@
     ].filter(c => c.show);
   }
 
+  // Shared per-item spec grid for the cover-grouped layout. Renders the
+  // schema-driven field list (card._specs, computed in
+  // export-profile-schedule.jsx) as a labelled 2-column grid that mirrors the
+  // on-screen schedule card. Themes pass their own label/value style names so
+  // each direction keeps its type ramp. Returns null when there are no specs.
+  function specGridNode(specs, styleTokens) {
+    if (!specs || !specs.length) return null;
+    const labelStyle = styleTokens.labelStyle;
+    const valueStyle = styleTokens.valueStyle;
+    const cols = styleTokens.cols || 2;
+    const grid = specs.filter(s => !s.wide);
+    const wide = specs.filter(s => s.wide);
+
+    const cell = (s) => s ? ({
+      stack: [
+        { text: String(s.label).toUpperCase(), style: labelStyle, margin: [0, 0, 0, 1] },
+        { text: s.value, style: valueStyle },
+      ],
+      margin: [0, 0, 0, 6],
+    }) : { text: '' };
+
+    const body = [];
+    for (let i = 0; i < grid.length; i += cols) {
+      const row = grid.slice(i, i + cols);
+      while (row.length < cols) row.push(null);
+      body.push(row.map(cell));
+    }
+
+    const stack = [];
+    if (body.length) {
+      stack.push({ table: { widths: Array(cols).fill('*'), body }, layout: 'noBorders' });
+    }
+    wide.forEach(s => {
+      stack.push({
+        stack: [
+          { text: String(s.label).toUpperCase(), style: labelStyle, margin: [0, 0, 0, 1] },
+          { text: s.value, style: valueStyle },
+        ],
+        margin: [0, stack.length ? 4 : 0, 0, 4],
+      });
+    });
+    return { stack: stack, margin: [0, 2, 0, 6] };
+  }
+
+  // For one card in a cover-grouped section table, return the rows to emit:
+  // the identity row, plus a full-width spec-grid row spanning all columns
+  // when the card has specs. Keeps each theme's per-card emission uniform —
+  // call as: [].concat(...cards.map(card => cardRows(cols.map(...), card, cols, tokens)))
+  function cardRows(identityCells, card, cols, styleTokens) {
+    const rows = [identityCells];
+    const grid = specGridNode(card._specs, styleTokens);
+    if (grid) {
+      rows.push([Object.assign({ colSpan: cols.length, margin: [0, 0, 0, 6] }, grid)]
+        .concat(Array(Math.max(0, cols.length - 1)).fill({})));
+    }
+    return rows;
+  }
+
   // ═════════════════════════════════════════════════════════════════════
   // D1 · STUDIO ARCHIVE
   // Editorial cream. Cormorant Garamond + Inter + JetBrains Mono.
@@ -282,8 +340,8 @@
       return { text: (labels[c.id] || c.id).toUpperCase(), style: 'd1TH', alignment: 'left' };
     });
 
-    const body = [headerRow].concat(cards.map(card => {
-      return cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => {
+      const identityRow = cols.map(c => {
         if (c.id === 'code') return { text: card.code || '—', style: 'd1TDMono' };
         if (c.id === 'material') {
           const tone = card.swatchColor || '#e1dccd';
@@ -319,7 +377,8 @@
         if (c.id === 'sku')   return { text: card.sku || '—', style: 'd1TDMono' };
         return { text: '' };
       });
-    }));
+      return cardRows(identityRow, card, cols, { labelStyle: 'd1TH', valueStyle: 'd1TD' });
+    })));
 
     return {
       stack: [
@@ -520,6 +579,7 @@
                   stack: [
                     { text: card.name || 'Unspecified', style: 'd1TDName' },
                     brand ? { text: brand, style: 'd1TDLoc', margin: [0, 2, 0, 0] } : null,
+                    card._specLine ? { text: card._specLine, style: 'd1TDLoc', margin: [0, 2, 0, 0] } : null,
                   ].filter(Boolean),
                   width: '*',
                 },
@@ -729,13 +789,12 @@
     const cols = tableCols(content);
     const labels = { code: 'Code', material: 'Material', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: (labels[c.id] || c.id), style: 'd3TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd3TDMono' };
       if (c.id === 'material') {
         return {
           stack: [
             { text: card.name || 'Unspecified', style: 'd3TDName' },
-            card._finish ? { text: card._finish, style: 'd3TDLoc', margin: [0, 2, 0, 0] } : null,
           ].filter(Boolean),
         };
       }
@@ -748,7 +807,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd3TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd3TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd3TH', valueStyle: 'd3TD' }))));
     return {
       stack: [
         // Massive numeral on its own line + meta strip
@@ -849,7 +908,7 @@
             return {
               stack: [
                 { text: card.name || 'Unspecified', style: 'd3TDName' },
-                card._finish ? { text: card._finish, style: 'd3TDLoc', margin: [0, 2, 0, 0] } : null,
+                card._specLine ? { text: card._specLine, style: 'd3TDLoc', margin: [0, 2, 0, 0] } : null,
               ].filter(Boolean),
             };
           }
@@ -1074,13 +1133,12 @@
     const cols = tableCols(content);
     const labels = { code: 'Code', material: 'Description', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: labels[c.id] || c.id, style: 'd4TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd4TDMono' };
       if (c.id === 'material') {
         return {
           stack: [
             { text: card.name || 'Unspecified', style: 'd4TDName' },
-            card._specNote ? { text: card._specNote, style: 'd4TDLoc', margin: [0, 1, 0, 0] } : null,
           ].filter(Boolean),
         };
       }
@@ -1093,7 +1151,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd4TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd4TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd4TH', valueStyle: 'd4TD' }))));
     return {
       stack: [
         {
@@ -1218,7 +1276,7 @@
             return {
               stack: [
                 { text: card.name || 'Unspecified', style: 'd4TDName' },
-                card._specNote ? { text: card._specNote, style: 'd4TDLoc', margin: [0, 1, 0, 0] } : null,
+                card._specLine ? { text: card._specLine, style: 'd4TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean),
             };
           }
@@ -1415,13 +1473,12 @@
     const cols = tableCols(content);
     const labels = { code: 'code', material: 'material', element: 'element', location: 'location', supplier: 'brand', trade: 'trade', sku: 'sku' };
     const headerRow = cols.map(c => ({ text: labels[c.id] || c.id, style: 'd10TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd10TDMono' };
       if (c.id === 'material') {
         return {
           stack: [
             { text: card.name || 'Unspecified', style: 'd10TDName' },
-            card._specNote ? { text: card._specNote, style: 'd10TDLoc', margin: [0, 1, 0, 0] } : null,
           ].filter(Boolean),
         };
       }
@@ -1434,7 +1491,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd10TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd10TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd10TH', valueStyle: 'd10TD' }))));
     return {
       stack: [
         // Asymmetric: number on left, title indented right
@@ -1531,7 +1588,7 @@
             return {
               stack: [
                 { text: card.name || 'Unspecified', style: 'd10TDName' },
-                card._specNote ? { text: card._specNote, style: 'd10TDLoc', margin: [0, 1, 0, 0] } : null,
+                card._specLine ? { text: card._specLine, style: 'd10TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean),
             };
           }
@@ -1839,13 +1896,12 @@
     const cols = tableCols(content);
     const labels = { code: 'Code', material: 'Material', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: (labels[c.id] || c.id).toUpperCase(), style: 'd2TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd2TD' };
       if (c.id === 'material') {
         return {
           stack: [
             { text: card.name || 'Unspecified', style: 'd2TDName' },
-            card._specNote ? { text: card._specNote, style: 'd2TDLoc', margin: [0, 1, 0, 0] } : null,
           ].filter(Boolean),
         };
       }
@@ -1855,7 +1911,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd2TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd2TD' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd2TH', valueStyle: 'd2TD' }))));
     return {
       stack: [
         // Section banner: blue bar with section number + title
@@ -1977,7 +2033,7 @@
             return {
               stack: [
                 { text: card.name || 'Unspecified', style: 'd2TDName' },
-                card._specNote ? { text: card._specNote, style: 'd2TDLoc', margin: [0, 1, 0, 0] } : null,
+                card._specLine ? { text: card._specLine, style: 'd2TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean),
             };
           }
@@ -2177,12 +2233,11 @@
     const cols = tableCols(content);
     const labels = { code: 'CODE', material: 'MATERIAL', element: 'ELEMENT', location: 'LOCATION', supplier: 'BRAND', trade: 'TRADE', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: labels[c.id] || c.id.toUpperCase(), style: 'd6TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd6TD' };
       if (c.id === 'material') return {
         stack: [
           { text: card.name || 'Unspecified', style: 'd6TDName' },
-          card._dims ? { text: card._dims, style: 'd6TDLoc', margin: [0, 1, 0, 0] } : null,
         ].filter(Boolean),
       };
       if (c.id === 'element')  return { text: card.elementLabel || card.element || '—', style: 'd6TDMuted' };
@@ -2191,7 +2246,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd6TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd6TD' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd6TH', valueStyle: 'd6TD' }))));
     return {
       stack: [
         {
@@ -2302,7 +2357,7 @@
           if (c.id === 'material') return {
             stack: [
               { text: card.name || 'Unspecified', style: 'd6TDName' },
-              card._dims ? { text: card._dims, style: 'd6TDLoc', margin: [0, 1, 0, 0] } : null,
+              card._specLine ? { text: card._specLine, style: 'd6TDLoc', margin: [0, 1, 0, 0] } : null,
             ].filter(Boolean),
           };
           if (c.id === 'element')  return { text: card.elementLabel || card.element || '—', style: 'd6TDMuted' };
@@ -2496,7 +2551,7 @@
     const tone = folioTone(idx);
     const labels = { code: 'Code', material: 'Material', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: (labels[c.id] || c.id).toUpperCase(), style: 'd5TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd5TDMono' };
       if (c.id === 'material') {
         const sw = card.swatchColor || '#e1dccd';
@@ -2507,7 +2562,6 @@
               : { text: '', width: 0 },
             { stack: [
                 { text: card.name || 'Unspecified', style: 'd5TDName' },
-                card._specNote ? { text: card._specNote, style: 'd5TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean), width: '*' },
           ],
         };
@@ -2518,7 +2572,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd5TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd5TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd5TH', valueStyle: 'd5TD' }))));
     return {
       stack: [
         // Color-band header — wraps to printable width via inner table
@@ -2666,7 +2720,7 @@
                   : { text: '', width: 0 },
                 { stack: [
                   { text: card.name || 'Unspecified', style: 'd5TDName' },
-                  card._specNote ? { text: card._specNote, style: 'd5TDLoc', margin: [0, 1, 0, 0] } : null,
+                  card._specLine ? { text: card._specLine, style: 'd5TDLoc', margin: [0, 1, 0, 0] } : null,
                 ].filter(Boolean), width: '*' },
               ],
             };
@@ -2875,7 +2929,7 @@
     const cols = tableCols(content);
     const labels = { code: 'Code', material: 'Material', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: (labels[c.id] || c.id).toUpperCase(), style: 'd9TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd9TDMono' };
       if (c.id === 'material') {
         const sw = card.swatchColor || '#e1dccd';
@@ -2885,7 +2939,6 @@
             { canvas: [{ type: 'rect', x: 0, y: 1, w: 22, h: 22, color: sw, lineColor: '#cfc9b7', lineWidth: 0.4 }], width: 28 },
             { stack: [
                 { text: card.name || 'Unspecified', style: 'd9TDName' },
-                card._specNote ? { text: card._specNote, style: 'd9TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean), width: '*', margin: [4, 4, 0, 0] },
           ],
         };
@@ -2896,7 +2949,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd9TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd9TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd9TH', valueStyle: 'd9TD' }))));
     return {
       stack: [
         {
@@ -3001,7 +3054,7 @@
                 { canvas: [{ type: 'rect', x: 0, y: 1, w: 22, h: 22, color: sw, lineColor: '#cfc9b7', lineWidth: 0.4 }], width: 28 },
                 { stack: [
                   { text: card.name || 'Unspecified', style: 'd9TDName' },
-                  card._specNote ? { text: card._specNote, style: 'd9TDLoc', margin: [0, 1, 0, 0] } : null,
+                  card._specLine ? { text: card._specLine, style: 'd9TDLoc', margin: [0, 1, 0, 0] } : null,
                 ].filter(Boolean), width: '*', margin: [4, 4, 0, 0] },
               ],
             };
@@ -3217,7 +3270,7 @@
     const cols = tableCols(content);
     const labels = { code: 'Code', material: 'Material · Brand', element: 'Element', location: 'Location', supplier: 'Brand', trade: 'Trade', sku: 'SKU' };
     const headerRow = cols.map(c => ({ text: (labels[c.id] || c.id).toUpperCase(), style: 'd8TH', alignment: 'left' }));
-    const body = [headerRow].concat(cards.map(card => cols.map(c => {
+    const body = [headerRow].concat([].concat(...cards.map(card => cardRows(cols.map(c => {
       if (c.id === 'code') return { text: card.code || '—', style: 'd8TDMono' };
       if (c.id === 'material') {
         const sw = card.swatchColor || '#e1dccd';
@@ -3228,7 +3281,6 @@
               : { text: '', width: 0 },
             { stack: [
                 { text: card.name || 'Unspecified', style: 'd8TDName' },
-                card._specNote ? { text: card._specNote, style: 'd8TDLoc', margin: [0, 1, 0, 0] } : null,
               ].filter(Boolean), width: '*' },
           ],
         };
@@ -3239,7 +3291,7 @@
       if (c.id === 'trade')    return { text: card.trade || '—', style: 'd8TDMuted' };
       if (c.id === 'sku')      return { text: card.sku || '—', style: 'd8TDMono' };
       return { text: '' };
-    })));
+    }), card, cols, { labelStyle: 'd8TH', valueStyle: 'd8TD' }))));
     return {
       stack: [
         // Feature head: massive numeral + kicker + title + deck
@@ -3358,7 +3410,7 @@
                   : { text: '', width: 0 },
                 { stack: [
                   { text: card.name || 'Unspecified', style: 'd8TDName' },
-                  card._specNote ? { text: card._specNote, style: 'd8TDLoc', margin: [0, 1, 0, 0] } : null,
+                  card._specLine ? { text: card._specLine, style: 'd8TDLoc', margin: [0, 1, 0, 0] } : null,
                 ].filter(Boolean), width: '*' },
               ],
             };

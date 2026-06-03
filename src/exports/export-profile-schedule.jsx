@@ -28,7 +28,7 @@
   const SCHEDULE_TOGGLES = [
     { key: 'cover',     group: 'Content blocks', label: 'Cover sheet',         desc: 'Project name, code, client, stage, date and revision. Adds a final summary + sign-off page.', defaultOn: true },
     { key: 'imagery',   group: 'Content blocks', label: 'Material imagery',    desc: 'Swatch tones against each row.',                       defaultOn: true },
-    { key: 'specNotes', group: 'Content blocks', label: 'Specification notes', desc: 'Dimensions, finish and colour against each material.',  defaultOn: true },
+    { key: 'specNotes', group: 'Content blocks', label: 'Specification fields', desc: 'All specification fields recorded against each item, exactly as the schedule shows them.',  defaultOn: true },
     { key: 'element',   group: 'Per item',       label: 'Element',             desc: 'Which element the row belongs to (e.g. door, joinery).', defaultOn: true },
     { key: 'location',  group: 'Per item',       label: 'Location',            desc: 'Room / zone the row is assigned to.',                    defaultOn: true },
     { key: 'supplier',  group: 'Per item',       label: 'Brand & supplier',    desc: 'Brand name and supplier reference.',                     defaultOn: true },
@@ -36,30 +36,91 @@
     { key: 'sku',       group: 'Per item',       label: 'SKU / product code',  desc: 'Supplier-side product reference (if present).',          defaultOn: false },
   ];
 
-  // ─── Card enrichment ──────────────────────────────────────────────
-  // Precompute display strings each theme can read without poking
-  // into the underlying material object. Keeps themes pure.
-  function enrichCard(card, content) {
+  // ─── Field value formatting ───────────────────────────────────────
+  // Mirror FieldRenderer read mode (src/fields/FieldRenderer.jsx:389-438)
+  // so the PDF shows each value exactly as the on-screen card does. Returns
+  // a plain string, or null when the field is empty / not renderable here.
+  function formatFieldValue(field, raw) {
+    if (raw == null || raw === '') return null;
+    const t = field.type;
+    const vlabel = (v, l) => (window.valueLabel ? window.valueLabel(v, l != null ? l : v) : String(v));
+    if (t === 'boolean') return raw ? 'Yes' : 'No';
+    if (t === 'currency') {
+      const n = Number(raw);
+      return isFinite(n) ? B.fmtCurrency(n) : String(raw);
+    }
+    if ((t === 'select' && field.multiple) || field.tagAxis) {
+      const arr = Array.isArray(raw) ? raw : [];
+      if (!arr.length) return null;
+      return arr.map(v => {
+        const opt = (field.options || []).find(o => o.value === v);
+        return vlabel(v, opt ? opt.label : v);
+      }).join(', ');
+    }
+    if (t === 'select') {
+      const opt = (field.options || []).find(o => o.value === raw);
+      return vlabel(raw, opt ? (opt.label || opt.value) : raw);
+    }
+    if (t === 'url') return String(raw);
+    if (t === 'color' || t === 'swatchRef') {
+      const tone = (raw && (raw.tone || raw)) || null;
+      return typeof tone === 'string' ? tone : null;
+    }
+    if (t === 'itemRef') return null; // not resolved in export context
+    // number / date / text
+    return String(raw) + (field.unit ? ' ' + field.unit : '');
+  }
+
+  // Identity / column fields rendered elsewhere — excluded from the spec grid
+  // so they don't duplicate. Matches CardVariantD's FIELD_SKIP plus the
+  // 'supplier' column the themes already render.
+  const SPEC_SKIP = new Set(['code', 'name', 'swatch', 'image_ref', 'supplier']);
+
+  // Schema-driven field list for a card, mirroring CardVariantD's selection
+  // (src/schedule/CardVariantD.jsx:166-196): every field in the item's
+  // category that has a value, minus hidden (project + per-row) and identity
+  // fields. Returns [{ label, value, wide, mono }].
+  function cardSpecs(card, globalHidden) {
     const m = card.material;
-    const dims   = m ? (fv(m, 'dimensions') || fv(m, 'thickness')) : null;
-    // finish is free text; sheen_paint is a controlled list → use its label.
-    const sheen  = m ? fv(m, 'sheen_paint') : null;
-    const finish = m ? (fv(m, 'finish') || (sheen && window.valueLabel ? window.valueLabel(sheen) : sheen)) : null;
-    const colour = m ? (fv(m, 'colour_name') || fv(m, 'colour_code')) : null;
-    const specNote = [dims, finish, colour].filter(Boolean).join(' · ') || null;
+    if (!m || !window.fieldsForCategory) return [];
+    const cat = card.category || m.category;
+    const fields = window.fieldsForCategory(cat) || [];
+    const hidden = new Set([].concat(card.hiddenFields || [], globalHidden || []));
+    const out = [];
+    fields.forEach(field => {
+      if (!field || field.hidden) return;
+      if (SPEC_SKIP.has(field.id)) return;
+      if (hidden.has(field.id)) return;
+      const value = formatFieldValue(field, fv(m, field.id));
+      if (value == null || value === '') return;
+      out.push({
+        label: field.unit ? (field.label + ' (' + field.unit + ')') : field.label,
+        value: value,
+        wide: field.type === 'longText' || field.id === 'notes',
+        mono: field.type === 'number' || field.type === 'currency' || field.type === 'date',
+      });
+    });
+    return out;
+  }
+
+  // ─── Card enrichment ──────────────────────────────────────────────
+  // Precompute the schema-driven spec list (for the full per-item grid in
+  // cover-grouped) and a one-line spec string (for the compact table) so
+  // themes stay focused on visual identity.
+  function enrichCard(card, content, globalHidden) {
+    const specs = (content && content.specNotes) ? cardSpecs(card, globalHidden) : [];
+    const specLine = specs.map(s => s.label + ' ' + s.value).join('  ·  ') || null;
     return {
       ...card,
-      _dims:     dims     || null,
-      _finish:   finish   || null,
-      _colour:   colour   || null,
-      _specNote: content && content.specNotes ? specNote : null,
+      _specs:    specs,
+      _specLine: specLine,
     };
   }
 
-  function enrichGroups(groups, content) {
+  function enrichGroups(groups, content, globalHidden) {
     return (groups || []).map(g => ({
       ...g,
-      cards: (g.cards || []).map(c => enrichCard(c, content)),
+      cards: (g.cards || []).map(c => enrichCard(c, content, globalHidden)),
     }));
   }
 
@@ -71,7 +132,7 @@
       const theme = themes.get(themeId || themes.DEFAULT_ID);
       const fn = theme[layout === 'cover-grouped' ? 'buildCoverGrouped' : 'buildTable'];
       if (!fn) throw new Error('Theme ' + theme.id + ' has no builder for layout ' + layout);
-      const enrichedGroups = enrichGroups(data && data.groups, content);
+      const enrichedGroups = enrichGroups(data && data.groups, content, data && data.globalHiddenFields);
       // Empty groups → return a clean "Nothing to export" fragment.
       // Avoids pdfmake hanging on empty table bodies inside summary nodes.
       if (!enrichedGroups.length) {

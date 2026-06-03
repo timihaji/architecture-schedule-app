@@ -677,7 +677,7 @@
             open={exportOpen}
             onClose={() => setExportOpen(false)}
             project={project}
-            data={{ groups, itemCount: cards.length, grouping }}
+            data={{ groups, itemCount: cards.length, grouping, globalHiddenFields: scheduleHiddenFields }}
             profile={window.SCHEDULE_EXPORT_PROFILE}
           />
         )}
