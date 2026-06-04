@@ -105,6 +105,208 @@
   }
 
   // ═════════════════════════════════════════════════════════════════════
+  // SCHEDULE CARDS LAYOUT (C) — shared, themed-by-tokens renderer
+  //
+  // Mirrors the on-screen Schedule page (src/schedule/CardVariantD.jsx):
+  // a product-swatch block on the LEFT, and on the RIGHT the element
+  // eyebrow, name + code, category chip, qty + unit, the schema field
+  // grid and wide fields — grouped by element/section.
+  //
+  // ONE renderer for all 9 directions. Each theme supplies a `cards`
+  // descriptor ({ palette, styles, background/header/footer fns,
+  // defaultStyle, tokens }) and sets theme.buildCards = buildScheduleCards.
+  // `tokens` maps a small set of roles to that theme's own style names,
+  // because section/code style keys are NOT uniform across themes (e.g.
+  // D8 has no SectTtl/SectCt; D2/D6 have no TDMono).
+  //
+  // HANG-SAFETY (this path has repeatedly infinite-looped pdfmake):
+  //   • swatch|body split uses `columns`, never nested tables.
+  //   • the field grid comes from specGridNode (also columns-based).
+  //   • `columns` blocks can't page-break, so per-card height is bounded:
+  //     the swatch is capped at SWATCH_H, and pathologically long wide
+  //     values are truncated (capWideSpecs) so one card can't exceed a page.
+  //   • _specs values keep their upstream zero-width-space URL breaks —
+  //     we never re-stringify raw URLs.
+  // ═════════════════════════════════════════════════════════════════════
+
+  // pdfkit only decodes PNG/JPEG. A base64 PNG/JPEG data URL embeds; CSS
+  // gradient patterns, remote URLs and webp all fall back to the colour
+  // tone block (embedding them would throw). The regex guard is mandatory.
+  const IMG_DATA_URL = /^data:image\/(png|jpe?g);base64,/i;
+
+  // Swatch node for a card's left column. Embeds the real image only when
+  // the migrated swatch is image-mode with an embeddable base64 PNG/JPEG
+  // src; otherwise renders a colour tone block (B.swatch is square-only,
+  // so we build an equivalent w×h rect here).
+  function swatchNode(swatch, tone, opts) {
+    const w = (opts && opts.w) || 120;
+    const h = (opts && opts.h) || 132;
+    const allowImg = !opts || opts.allowImg !== false;
+    // migrateSwatchToV7 isn't on window in this build, so callers (incl.
+    // the on-screen card) read the raw swatch; newer swatches are already
+    // v7-shaped with .src. Gate purely on .src matching the embed regex —
+    // patterns (no .src) and remote/webp URLs (regex fails) → tone.
+    const sw = window.migrateSwatchToV7 ? window.migrateSwatchToV7(swatch) : (swatch || {});
+    const src = sw && sw.src ? sw.src : null;
+    if (allowImg && src && IMG_DATA_URL.test(src)) {
+      // `fit` preserves aspect ratio AND bounds height at h, keeping the
+      // columns block short enough never to overflow a page.
+      return { image: src, fit: [w, h] };
+    }
+    const toneColor = (sw && sw.tone) || tone || '#e1dccd';
+    return {
+      canvas: [{ type: 'rect', x: 0, y: 0, w: w, h: h, color: toneColor, lineColor: '#cfc9b7', lineWidth: 0.4 }],
+      width: w,
+    };
+  }
+
+  // Backstop: truncate any over-long wide spec value so a single card
+  // can't exceed one page (a columns block can't page-break). Real notes
+  // are far shorter; this only ever bites pathological input.
+  function capWideSpecs(specs, max) {
+    return (specs || []).map(s => {
+      if (s.wide && typeof s.value === 'string' && s.value.length > max) {
+        return Object.assign({}, s, { value: s.value.slice(0, max - 1).replace(/\s+\S*$/, '') + '…' });
+      }
+      return s;
+    });
+  }
+
+  function cardsCategoryLabel(catId) {
+    if (!catId) return null;
+    if (window.categoryDef) {
+      const c = window.categoryDef(catId);
+      if (c && c.label) return c.label;
+    }
+    const cats = (window.schemaActive && window.schemaActive().categories) || [];
+    const m = cats.find(c => c.id === catId);
+    return (m && m.label) || catId;
+  }
+
+  function cardsRowUnit(card) {
+    const row = card._row || {};
+    if (row.unit) return row.unit;
+    const cat = card.category || (card.material && card.material.category);
+    if (cat && window.categoryDef) {
+      const def = window.categoryDef(cat);
+      if (def && def.defaultUnit) return def.defaultUnit;
+    }
+    return null;
+  }
+
+  // One editorial card — swatch | body split via `columns`.
+  function scheduleCardNode(card, ctx) {
+    const { T, ruleColor, allowImg, swW, swH } = ctx;
+    const right = [];
+
+    // Eyebrow — element label
+    right.push({ text: (card.elementLabel || card.element || '—').toUpperCase(), style: T.eyebrow });
+
+    // Name + inline code
+    const nameRun = [{ text: card.name || 'Unspecified', style: T.name }];
+    if (card.code) nameRun.push({ text: '   ' + card.code, style: T.code });
+    right.push({ text: nameRun, margin: [0, 3, 0, 0] });
+
+    // Category chip — bordered single-cell table. Short FIXED text (no
+    // variable/unbreakable content) → safe; not a "nested table" risk.
+    const catLabel = cardsCategoryLabel(card.category);
+    if (catLabel) {
+      right.push({
+        table: { widths: ['auto'], body: [[{ text: catLabel.toUpperCase(), style: T.chip }]] },
+        layout: {
+          hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+          hLineColor: () => ruleColor, vLineColor: () => ruleColor,
+          paddingLeft: () => 5, paddingRight: () => 5, paddingTop: () => 2, paddingBottom: () => 2,
+        },
+        margin: [0, 6, 0, 0],
+      });
+    }
+
+    // Qty + unit
+    const row = card._row || {};
+    if (row.qty != null) {
+      const unit = cardsRowUnit(card);
+      right.push({
+        columns: [
+          { text: 'QTY', style: T.qtyLbl, width: 'auto' },
+          { text: String(row.qty) + (unit ? ' ' + unit : ''), style: T.qtyVal, width: 'auto', margin: [6, 0, 0, 0] },
+        ],
+        margin: [0, 8, 0, 0],
+      });
+    }
+
+    // Schema field grid + wide fields (specGridNode renders both).
+    const grid = specGridNode(capWideSpecs(card._specs, 700), { labelStyle: T.label, valueStyle: T.value });
+    if (grid) { grid.margin = [0, 10, 0, 6]; right.push(grid); }
+
+    const swatch = swatchNode(card.material ? card.material.swatch : null, card.swatchColor, { w: swW, h: swH, allowImg });
+
+    return {
+      columns: [
+        { width: swW, stack: [swatch] },
+        { width: '*', stack: right },
+      ],
+      columnGap: 16,
+      margin: [0, 0, 0, 16],
+    };
+  }
+
+  function buildScheduleCards({ project, data, content, revision, theme }) {
+    const cardsTheme = theme.cards || {};
+    const P = cardsTheme.palette || {};
+    const T = cardsTheme.tokens || {};
+    const groups = (data && data.groups) || [];
+    const allowImg = content.imagery !== false;
+    const swW = 120, swH = 132, INNER = 495;
+    const ruleColor = P.rule2 || P.rule || '#c8c2b3';
+    const inkColor = P.ink || '#1a1815';
+
+    const out = [];
+
+    // Masthead — page 1 carries no running header (chrome skips page 1),
+    // so a compact title block keeps it from reading as a bare page.
+    const metaBits = [project.code, project.client, B.todayLong(), revision]
+      .filter(Boolean).join('  ·  ');
+    out.push({
+      stack: [
+        { text: 'VOLUME IV · PROJECT SCHEDULE', style: T.eyebrow },
+        { text: project.name || 'Untitled Project', style: T.groupTtl, margin: [0, 5, 0, 0] },
+        metaBits ? { text: metaBits, style: T.groupCt, margin: [0, 5, 0, 0] } : null,
+      ].filter(Boolean),
+    });
+    out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: INNER, y2: 0, lineWidth: 0.8, lineColor: inkColor }], margin: [0, 12, 0, 16] });
+
+    if (!groups.length) {
+      out.push({ text: 'No items to export.', style: T.value, italics: true, alignment: 'center', margin: [0, 80, 0, 0] });
+    }
+
+    groups.forEach((g, gi) => {
+      const cards = g.cards || [];
+      // Group header — title + count, hairline rule under it.
+      out.push({
+        columns: [
+          { text: g.title || '—', style: T.groupTtl, width: '*' },
+          { text: cards.length + ' item' + (cards.length === 1 ? '' : 's'), style: T.groupCt, width: 'auto', alignment: 'right', margin: [0, 6, 0, 0] },
+        ],
+        margin: [0, gi === 0 ? 0 : 18, 0, 0],
+      });
+      out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: INNER, y2: 0, lineWidth: 0.5, lineColor: ruleColor }], margin: [0, 8, 0, 12] });
+
+      cards.forEach(card => out.push(scheduleCardNode(card, { T, ruleColor, allowImg, swW, swH })));
+    });
+
+    return {
+      content: out,
+      styles: cardsTheme.styles || {},
+      background: cardsTheme.background ? cardsTheme.background(project, revision) : null,
+      header: cardsTheme.header ? cardsTheme.header(project, revision) : null,
+      footer: cardsTheme.footer ? cardsTheme.footer(project, revision) : null,
+      defaultStyle: cardsTheme.defaultStyle || { font: 'Inter', fontSize: 9.5, color: inkColor, lineHeight: 1.4 },
+      pageMargins: (theme.pageMargins && theme.pageMargins['cover-grouped']) || [50, 60, 50, 60],
+    };
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
   // D1 · STUDIO ARCHIVE
   // Editorial cream. Cormorant Garamond + Inter + JetBrains Mono.
   // Warm bands, italic decks. Medium density. The current direction,
@@ -670,6 +872,13 @@
     },
     buildCoverGrouped: d1BuildCoverGrouped,
     buildTable:        d1BuildTable,
+    buildCards:        buildScheduleCards,
+    cards: {
+      palette: D1_PALETTE, styles: D1_STYLES,
+      background: d1Background, header: d1RunningHeader, footer: d1RunningFooter,
+      defaultStyle: { font: 'Inter', fontSize: 9.5, color: D1_PALETTE.ink, lineHeight: 1.4 },
+      tokens: { eyebrow: 'd1TH', name: 'd1TDName', code: 'd1TDMono', chip: 'd1TH', qtyLbl: 'd1TH', qtyVal: 'd1TD', label: 'd1TH', value: 'd1TD', groupTtl: 'd1SectTtl', groupCt: 'd1SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -966,6 +1175,13 @@
     pageMargins: { 'cover-grouped': [70, 60, 70, 60], table: [50, 50, 50, 50] },
     buildCoverGrouped: d3BuildCoverGrouped,
     buildTable: d3BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D3_PALETTE, styles: D3_STYLES,
+      background: d3Background, header: d3Header, footer: d3Footer,
+      defaultStyle: { font: 'Inter', fontSize: 9.5, color: D3_PALETTE.ink, lineHeight: 1.5 },
+      tokens: { eyebrow: 'd3TH', name: 'd3TDName', code: 'd3TDMono', chip: 'd3TH', qtyLbl: 'd3TH', qtyVal: 'd3TD', label: 'd3TH', value: 'd3TD', groupTtl: 'd3SectTtl', groupCt: 'd3SectMeta' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -1339,6 +1555,13 @@
     pageMargins: { 'cover-grouped': [55, 60, 55, 60], table: [45, 50, 45, 50] },
     buildCoverGrouped: d4BuildCoverGrouped,
     buildTable: d4BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D4_PALETTE, styles: D4_STYLES,
+      background: d4Background, header: d4Header, footer: d4Footer,
+      defaultStyle: { font: 'Cormorant', fontSize: 11, color: D4_PALETTE.ink, lineHeight: 1.45 },
+      tokens: { eyebrow: 'd4TH', name: 'd4TDName', code: 'd4TDMono', chip: 'd4TH', qtyLbl: 'd4TH', qtyVal: 'd4TD', label: 'd4TH', value: 'd4TD', groupTtl: 'd4SectTtl', groupCt: 'd4SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -1647,6 +1870,13 @@
     pageMargins: { 'cover-grouped': [80, 70, 80, 70], table: [55, 55, 55, 55] },
     buildCoverGrouped: d10BuildCoverGrouped,
     buildTable: d10BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D10_PALETTE, styles: D10_STYLES,
+      background: d10Background, header: d10Header, footer: d10Footer,
+      defaultStyle: { font: 'Cormorant', fontSize: 11, color: D10_PALETTE.ink, lineHeight: 1.5 },
+      tokens: { eyebrow: 'd10TH', name: 'd10TDName', code: 'd10TDMono', chip: 'd10TH', qtyLbl: 'd10TH', qtyVal: 'd10TD', label: 'd10TH', value: 'd10TD', groupTtl: 'd10SectTtl', groupCt: 'd10SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -2086,6 +2316,14 @@
     pageMargins: { 'cover-grouped': [44, 60, 44, 195], table: [44, 60, 44, 175] },
     buildCoverGrouped: d2BuildCoverGrouped,
     buildTable: d2BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D2_PALETTE, styles: D2_STYLES,
+      background: d2Background, header: d2Header, footer: d2Footer,
+      defaultStyle: { font: 'JetBrainsMono', fontSize: 8.5, color: D2_PALETTE.ink, lineHeight: 1.4 },
+      // D2 is monospace throughout and has no TDMono — code uses TDLoc.
+      tokens: { eyebrow: 'd2TH', name: 'd2TDName', code: 'd2TDLoc', chip: 'd2TH', qtyLbl: 'd2TH', qtyVal: 'd2TD', label: 'd2TH', value: 'd2TD', groupTtl: 'd2SectTtl', groupCt: 'd2SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -2408,6 +2646,14 @@
     pageMargins: { 'cover-grouped': [40, 55, 40, 55], table: [40, 50, 40, 45] },
     buildCoverGrouped: d6BuildCoverGrouped,
     buildTable: d6BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D6_PALETTE, styles: D6_STYLES,
+      background: d6Background, header: d6Header, footer: d6Footer,
+      defaultStyle: { font: 'JetBrainsMono', fontSize: 8, color: D6_PALETTE.ink, lineHeight: 1.4 },
+      // D6 has no TDMono — code uses TDLoc.
+      tokens: { eyebrow: 'd6TH', name: 'd6TDName', code: 'd6TDLoc', chip: 'd6TH', qtyLbl: 'd6TH', qtyVal: 'd6TD', label: 'd6TH', value: 'd6TD', groupTtl: 'd6SectTtl', groupCt: 'd6SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -2773,6 +3019,13 @@
     pageMargins: { 'cover-grouped': [50, 55, 50, 55], table: [45, 50, 45, 50] },
     buildCoverGrouped: d5BuildCoverGrouped,
     buildTable: d5BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D5_PALETTE, styles: D5_STYLES,
+      background: d5Background, header: d5Header, footer: d5Footer,
+      defaultStyle: { font: 'Inter', fontSize: 10, color: D5_PALETTE.ink, lineHeight: 1.4 },
+      tokens: { eyebrow: 'd5TH', name: 'd5TDName', code: 'd5TDMono', chip: 'd5TH', qtyLbl: 'd5TH', qtyVal: 'd5TD', label: 'd5TH', value: 'd5TD', groupTtl: 'd5SectTtl', groupCt: 'd5SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -3108,6 +3361,13 @@
     pageMargins: { 'cover-grouped': [50, 55, 50, 55], table: [45, 50, 45, 50] },
     buildCoverGrouped: d9BuildCoverGrouped,
     buildTable: d9BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D9_PALETTE, styles: D9_STYLES,
+      background: d9Background, header: d9Header, footer: d9Footer,
+      defaultStyle: { font: 'Inter', fontSize: 9.5, color: D9_PALETTE.ink, lineHeight: 1.4 },
+      tokens: { eyebrow: 'd9TH', name: 'd9TDName', code: 'd9TDMono', chip: 'd9TH', qtyLbl: 'd9TH', qtyVal: 'd9TD', label: 'd9TH', value: 'd9TD', groupTtl: 'd9SectTtl', groupCt: 'd9SectCt' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════
@@ -3465,6 +3725,15 @@
     pageMargins: { 'cover-grouped': [50, 55, 50, 55], table: [45, 50, 45, 50] },
     buildCoverGrouped: d8BuildCoverGrouped,
     buildTable: d8BuildTable,
+    buildCards: buildScheduleCards,
+    cards: {
+      palette: D8_PALETTE, styles: D8_STYLES,
+      background: d8Background, header: d8Header, footer: d8Footer,
+      defaultStyle: { font: 'Playfair', fontSize: 10.5, color: D8_PALETTE.ink, lineHeight: 1.4 },
+      // D8 (newspaper) has no SectTtl/SectCt — group title/count map to
+      // the feature-headline + kicker styles.
+      tokens: { eyebrow: 'd8TH', name: 'd8TDName', code: 'd8TDMono', chip: 'd8TH', qtyLbl: 'd8TH', qtyVal: 'd8TD', label: 'd8TH', value: 'd8TD', groupTtl: 'd8FeatTtl', groupCt: 'd8Kicker' },
+    },
   };
 
   // ═════════════════════════════════════════════════════════════════════

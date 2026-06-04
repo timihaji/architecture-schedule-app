@@ -10,7 +10,7 @@
 //
 //   • the "Schedule" toggle set (content blocks + per-item flags)
 //   • card enrichment (computes specNotes strings ahead of theme)
-//   • dispatch to theme.buildCoverGrouped() / theme.buildTable()
+//   • dispatch to theme.buildCoverGrouped() / buildTable() / buildCards()
 //
 // Every theme honours the same enriched-card shape — pricing fields
 // are absent because Project Schedule doesn't carry them.
@@ -155,12 +155,19 @@
   }
 
   // ─── Layout dispatch ──────────────────────────────────────────────
+  // Map each layout id to the theme method that renders it.
+  const LAYOUT_METHOD = {
+    'cover-grouped': 'buildCoverGrouped',
+    'table':         'buildTable',
+    'cards':         'buildCards',
+  };
+
   function withTheme(layout) {
     return function ({ project, data, content, revision, builder, themeId }) {
       const themes = window.expThemes;
       if (!themes) throw new Error('export-themes.jsx not loaded — theme registry missing.');
       const theme = themes.get(themeId || themes.DEFAULT_ID);
-      const fn = theme[layout === 'cover-grouped' ? 'buildCoverGrouped' : 'buildTable'];
+      const fn = theme[LAYOUT_METHOD[layout]];
       if (!fn) throw new Error('Theme ' + theme.id + ' has no builder for layout ' + layout);
       const enrichedGroups = enrichGroups(data && data.groups, content, data && data.globalHiddenFields);
       // Empty groups → return a clean "Nothing to export" fragment.
@@ -196,7 +203,7 @@
     };
   }
 
-  // ─── Layout descriptors (no cards layout — dropped per spec) ──────
+  // ─── Layout descriptors (A cover-grouped · B table · C cards) ─────
   const SCHEDULE_LAYOUTS = [
     {
       id: 'cover-grouped',
@@ -211,6 +218,13 @@
       title: 'Compact table',
       desc: 'Dense single-row records grouped by section. Best for builder and consultant handover.',
       meta: 'A3 landscape · banded',
+    },
+    {
+      id: 'cards',
+      eyebrow: 'C — Mirrors the app',
+      title: 'Schedule cards',
+      desc: 'Editorial cards that mirror the on-screen Schedule — a product swatch on the left, then the element, name, category, quantity and every specification field. Grouped by section.',
+      meta: 'A4 portrait · one card per item',
     },
   ];
 
@@ -232,8 +246,7 @@
       );
     },
     toggles: SCHEDULE_TOGGLES,
-    // Cards layout is gone — default to cover-grouped so the wizard
-    // doesn't try to dispatch to a missing builder.
+    // Default to the recommended cover-grouped layout; cards (C) is opt-in.
     defaultLayout: 'cover-grouped',
     // Profile owns the layout list — wizard uses this instead of its
     // own defaults.
@@ -241,6 +254,7 @@
     layoutPaperHint: {
       'cover-grouped': { paper: 'A4', orientation: 'portrait' },
       'table':         { paper: 'A3', orientation: 'landscape' },
+      'cards':         { paper: 'A4', orientation: 'portrait' },
     },
     // Theme support — wizard reads this to know whether to show the
     // Theme step.
@@ -251,11 +265,16 @@
     builders: {
       coverGrouped: withTheme('cover-grouped'),
       table:        withTheme('table'),
+      cards:        withTheme('cards'),
     },
     estimatePages: (layout, data) => {
       const n = (data && data.itemCount) || 0;
       const groups = (data && data.groups) || [];
       if (layout === 'table') return Math.max(1, Math.ceil(n / 30));
+      if (layout === 'cards') {
+        // Editorial cards flow ~2 per A4 page, plus a masthead.
+        return 1 + Math.max(1, Math.ceil(n / 2));
+      }
       // cover-grouped: cover + (per-group pages, ~18 items/page) + summary
       const catPages = groups.reduce((s, g) => s + Math.max(1, Math.ceil(((g.cards || []).length) / 18)), 0);
       return 1 + (catPages || groups.length || 1) + 1;
