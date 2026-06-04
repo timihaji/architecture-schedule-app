@@ -65,6 +65,8 @@
     if (!specs || !specs.length) return null;
     const labelStyle = styleTokens.labelStyle;
     const valueStyle = styleTokens.valueStyle;
+    const cols = styleTokens.cols || 2;          // 2 = cover-grouped, 3 = cards (matches on-screen fgrid-d)
+    const gap = styleTokens.columnGap != null ? styleTokens.columnGap : 18;
     const line = (s) => ({
       stack: [
         { text: String(s.label).toUpperCase(), style: labelStyle, margin: [0, 0, 0, 1] },
@@ -75,16 +77,13 @@
     const grid = specs.filter(s => !s.wide);
     const wide = specs.filter(s => s.wide);
 
-    // Split the narrow fields into two balanced columns (row-major).
-    const colA = [], colB = [];
-    grid.forEach((s, i) => { (i % 2 === 0 ? colA : colB).push(line(s)); });
+    // Distribute the narrow fields round-robin across `cols` columns.
+    const buckets = Array.from({ length: cols }, () => []);
+    grid.forEach((s, i) => { buckets[i % cols].push(line(s)); });
 
     const stack = [];
-    if (colA.length || colB.length) {
-      stack.push({ columns: [
-        { width: '*', stack: colA.length ? colA : [{ text: '' }] },
-        { width: '*', stack: colB.length ? colB : [{ text: '' }] },
-      ], columnGap: 18 });
+    if (grid.length) {
+      stack.push({ columns: buckets.map(b => ({ width: '*', stack: b.length ? b : [{ text: '' }] })), columnGap: gap });
     }
     wide.forEach(s => stack.push({ ...line(s), margin: [0, stack.length ? 2 : 0, 0, 6] }));
     return { stack: stack, margin: [0, 2, 0, 6] };
@@ -107,10 +106,13 @@
   // ═════════════════════════════════════════════════════════════════════
   // SCHEDULE CARDS LAYOUT (C) — shared, themed-by-tokens renderer
   //
-  // Mirrors the on-screen Schedule page (src/schedule/CardVariantD.jsx):
-  // a product-swatch block on the LEFT, and on the RIGHT the element
-  // eyebrow, name + code, category chip, qty + unit, the schema field
-  // grid and wide fields — grouped by element/section.
+  // Mirrors the on-screen Schedule page (src/schedule/CardVariantD.jsx): a
+  // CONTINUOUS TABLE where each item is a row — a product-swatch column on
+  // the LEFT (178px on screen) with a vertical divider, then a body column
+  // with the element eyebrow, name + code, category chip, qty + unit and a
+  // 3-column schema field grid + wide fields. Rows are separated by hairline
+  // dividers and pack tightly down the page (many per page), exactly like
+  // scrolling the schedule — NOT one card per page. Grouped by element/section.
   //
   // ONE renderer for all 9 directions. Each theme supplies a `cards`
   // descriptor ({ palette, styles, background/header/footer fns,
@@ -120,11 +122,13 @@
   // D8 has no SectTtl/SectCt; D2/D6 have no TDMono).
   //
   // HANG-SAFETY (this path has repeatedly infinite-looped pdfmake):
-  //   • swatch|body split uses `columns`, never nested tables.
-  //   • the field grid comes from specGridNode (also columns-based).
-  //   • `columns` blocks can't page-break, so per-card height is bounded:
-  //     the swatch is capped at SWATCH_H, and pathologically long wide
-  //     values are truncated (capWideSpecs) so one card can't exceed a page.
+  //   • Per-group table is the SAME proven-safe pattern cover-grouped uses:
+  //     a row's body cell holds specGridNode (columns-based, never a nested
+  //     table) under dontBreakRows.
+  //   • the category chip renders as styled text, NOT a nested table.
+  //   • per-row height is bounded so a row can't exceed a page under
+  //     dontBreakRows: the swatch is capped and long wide values truncated
+  //     (capWideSpecs).
   //   • _specs values keep their upstream zero-width-space URL breaks —
   //     we never re-stringify raw URLs.
   // ═════════════════════════════════════════════════════════════════════
@@ -194,61 +198,52 @@
     return null;
   }
 
-  // One editorial card — swatch | body split via `columns`.
-  function scheduleCardNode(card, ctx) {
-    const { T, ruleColor, allowImg, swW, swH } = ctx;
-    const right = [];
+  // One card as a 2-cell table row: swatch | body — mirroring the
+  // on-screen schedule row (178px swatch column + body with a 3-col grid).
+  function scheduleCardRow(card, ctx) {
+    const { T, allowImg, imgW, imgH } = ctx;
 
-    // Eyebrow — element label
-    right.push({ text: (card.elementLabel || card.element || '—').toUpperCase(), style: T.eyebrow });
-
-    // Name + inline code
-    const nameRun = [{ text: card.name || 'Unspecified', style: T.name }];
-    if (card.code) nameRun.push({ text: '   ' + card.code, style: T.code });
-    right.push({ text: nameRun, margin: [0, 3, 0, 0] });
-
-    // Category chip — bordered single-cell table. Short FIXED text (no
-    // variable/unbreakable content) → safe; not a "nested table" risk.
-    const catLabel = cardsCategoryLabel(card.category);
-    if (catLabel) {
-      right.push({
-        table: { widths: ['auto'], body: [[{ text: catLabel.toUpperCase(), style: T.chip }]] },
-        layout: {
-          hLineWidth: () => 0.5, vLineWidth: () => 0.5,
-          hLineColor: () => ruleColor, vLineColor: () => ruleColor,
-          paddingLeft: () => 5, paddingRight: () => 5, paddingTop: () => 2, paddingBottom: () => 2,
-        },
-        margin: [0, 6, 0, 0],
-      });
+    // Swatch cell — top-aligned image / tone block + brand label beneath.
+    const swatch = swatchNode(card.material ? card.material.swatch : null, card.swatchColor, { w: imgW, h: imgH, allowImg });
+    const swatchStack = [swatch];
+    if (card.swatchBrand) {
+      swatchStack.push({ text: String(card.swatchBrand).toUpperCase(), style: T.eyebrow, margin: [0, 5, 0, 0] });
     }
 
+    // Body cell.
+    const body = [];
+    body.push({ text: (card.elementLabel || card.element || '—').toUpperCase(), style: T.eyebrow });
+    // Name + inline code on the left; category chip (styled text, NOT a
+    // nested table) top-right.
+    const nameRun = [{ text: card.name || 'Unspecified', style: T.name }];
+    if (card.code) nameRun.push({ text: '   ' + card.code, style: T.code });
+    const catLabel = cardsCategoryLabel(card.category);
+    body.push({
+      columns: [
+        { text: nameRun, width: '*' },
+        catLabel
+          ? { text: catLabel.toUpperCase(), style: T.chip, width: 'auto', alignment: 'right', margin: [8, 2, 0, 0] }
+          : { text: '', width: 'auto' },
+      ],
+      margin: [0, 3, 0, 0],
+    });
     // Qty + unit
     const row = card._row || {};
     if (row.qty != null) {
       const unit = cardsRowUnit(card);
-      right.push({
+      body.push({
         columns: [
           { text: 'QTY', style: T.qtyLbl, width: 'auto' },
           { text: String(row.qty) + (unit ? ' ' + unit : ''), style: T.qtyVal, width: 'auto', margin: [6, 0, 0, 0] },
         ],
-        margin: [0, 8, 0, 0],
+        margin: [0, 6, 0, 0],
       });
     }
+    // 3-column schema field grid + wide fields (specGridNode renders both).
+    const grid = specGridNode(capWideSpecs(card._specs, 700), { labelStyle: T.label, valueStyle: T.value, cols: 3, columnGap: 14 });
+    if (grid) { grid.margin = [0, 8, 0, 2]; body.push(grid); }
 
-    // Schema field grid + wide fields (specGridNode renders both).
-    const grid = specGridNode(capWideSpecs(card._specs, 700), { labelStyle: T.label, valueStyle: T.value });
-    if (grid) { grid.margin = [0, 10, 0, 6]; right.push(grid); }
-
-    const swatch = swatchNode(card.material ? card.material.swatch : null, card.swatchColor, { w: swW, h: swH, allowImg });
-
-    return {
-      columns: [
-        { width: swW, stack: [swatch] },
-        { width: '*', stack: right },
-      ],
-      columnGap: 16,
-      margin: [0, 0, 0, 16],
-    };
+    return [{ stack: swatchStack }, { stack: body }];
   }
 
   function buildScheduleCards({ project, data, content, revision, theme }) {
@@ -257,7 +252,7 @@
     const T = cardsTheme.tokens || {};
     const groups = (data && data.groups) || [];
     const allowImg = content.imagery !== false;
-    const swW = 120, swH = 132, INNER = 495;
+    const imgW = 104, imgH = 92, COL0 = 118, INNER = 495;
     const ruleColor = P.rule2 || P.rule || '#c8c2b3';
     const inkColor = P.ink || '#1a1815';
 
@@ -274,7 +269,7 @@
         metaBits ? { text: metaBits, style: T.groupCt, margin: [0, 5, 0, 0] } : null,
       ].filter(Boolean),
     });
-    out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: INNER, y2: 0, lineWidth: 0.8, lineColor: inkColor }], margin: [0, 12, 0, 16] });
+    out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: INNER, y2: 0, lineWidth: 0.8, lineColor: inkColor }], margin: [0, 12, 0, 14] });
 
     if (!groups.length) {
       out.push({ text: 'No items to export.', style: T.value, italics: true, alignment: 'center', margin: [0, 80, 0, 0] });
@@ -282,17 +277,35 @@
 
     groups.forEach((g, gi) => {
       const cards = g.cards || [];
-      // Group header — title + count, hairline rule under it.
+      // Group header — title + count.
       out.push({
         columns: [
           { text: g.title || '—', style: T.groupTtl, width: '*' },
           { text: cards.length + ' item' + (cards.length === 1 ? '' : 's'), style: T.groupCt, width: 'auto', alignment: 'right', margin: [0, 6, 0, 0] },
         ],
-        margin: [0, gi === 0 ? 0 : 18, 0, 0],
+        margin: [0, gi === 0 ? 0 : 16, 0, 6],
       });
-      out.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: INNER, y2: 0, lineWidth: 0.5, lineColor: ruleColor }], margin: [0, 8, 0, 12] });
-
-      cards.forEach(card => out.push(scheduleCardNode(card, { T, ruleColor, allowImg, swW, swH })));
+      if (!cards.length) return;
+      // Continuous card table — swatch column + body column, hairline row
+      // dividers and a swatch|body vertical divider (the on-screen borders).
+      out.push({
+        table: {
+          widths: [COL0, '*'],
+          body: cards.map(c => scheduleCardRow(c, { T, allowImg, imgW, imgH })),
+          dontBreakRows: true,
+        },
+        layout: {
+          hLineWidth: (i) => (i === 0 ? 0.6 : 0.4),
+          vLineWidth: (i) => (i === 1 ? 0.4 : 0),
+          hLineColor: () => ruleColor,
+          vLineColor: () => ruleColor,
+          paddingTop: () => 9,
+          paddingBottom: () => 9,
+          paddingLeft: (i) => (i === 0 ? 0 : 14),
+          paddingRight: (i) => (i === 0 ? 12 : 0),
+        },
+        margin: [0, 2, 0, 0],
+      });
     });
 
     return {

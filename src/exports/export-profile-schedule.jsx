@@ -223,8 +223,8 @@
       id: 'cards',
       eyebrow: 'C — Mirrors the app',
       title: 'Schedule cards',
-      desc: 'Editorial cards that mirror the on-screen Schedule — a product swatch on the left, then the element, name, category, quantity and every specification field. Grouped by section.',
-      meta: 'A4 portrait · one card per item',
+      desc: 'A continuous table that mirrors the on-screen Schedule — each item a row with a product swatch on the left, then the element, name, category, quantity and every specification field. Grouped by section, packed several per page.',
+      meta: 'A4 portrait · continuous card table',
     },
   ];
 
@@ -272,8 +272,8 @@
       const groups = (data && data.groups) || [];
       if (layout === 'table') return Math.max(1, Math.ceil(n / 30));
       if (layout === 'cards') {
-        // Editorial cards flow ~2 per A4 page, plus a masthead.
-        return 1 + Math.max(1, Math.ceil(n / 2));
+        // Continuous card table — rows pack ~4 per A4 page, plus a masthead.
+        return 1 + Math.max(1, Math.ceil(n / 4));
       }
       // cover-grouped: cover + (per-group pages, ~18 items/page) + summary
       const catPages = groups.reduce((s, g) => s + Math.max(1, Math.ceil(((g.cards || []).length) / 18)), 0);
